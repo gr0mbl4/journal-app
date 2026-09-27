@@ -66,6 +66,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 .icon-btn svg{width:20px;height:20px}
 .icon-btn.sm{width:32px;height:32px;border-color:var(--line);font-size:15px}
 .icon-btn.busy svg{animation:spin .9s linear infinite}
+.req-btn{position:relative}
+.req-count{position:absolute;top:1px;right:0;min-width:16px;height:16px;border-radius:8px;background:var(--study);color:var(--on-study);font:600 10px/16px var(--f-mono);text-align:center;padding:0 4px}
+.req-item{display:grid;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);font-size:14px}
+.req-item .req-meta{display:flex;align-items:center;gap:8px;font:12px var(--f-mono);color:var(--muted)}
+.req-item .req-meta .btn{margin-left:auto}
+.req-item .ans{color:var(--muted);border-left:2px solid var(--study-soft);padding-left:10px}
 .sync{font:11px var(--f-mono);color:var(--muted);min-height:16px;margin-top:2px}
 .sync.err{color:var(--bad)}
 
@@ -252,6 +258,34 @@ details.more-box[open] summary::after{content:"▴"}
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .set-row select{width:auto;min-width:120px}
 
+/* accounts */
+.accts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px}
+.acct{display:grid;gap:2px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);cursor:pointer;min-width:0}
+.acct .k{font:500 10.5px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.acct .v{font:600 18px/1.2 var(--f-body);font-variant-numeric:tabular-nums}
+.acct.debt .v{color:var(--bad)}
+.acct .d{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.link-btn{background:none;border:0;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0}
+
+/* food */
+.meals{display:grid;gap:8px;margin-top:12px}
+.meal{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:10px 12px;display:grid;gap:8px}
+.meal-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.meal-h b{font-weight:600}
+.dish-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
+.dish{display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px;align-items:center;text-align:left;background:none;border:0;padding:0;cursor:pointer;width:100%;min-width:0}
+.dish.card-like{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:8px 10px}
+.thumb{width:46px;height:46px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;font:600 15px var(--f-disp);color:var(--muted);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.rc-photos{display:grid;grid-auto-flow:column;grid-auto-columns:82%;gap:8px;overflow-x:auto;margin-top:12px;scroll-snap-type:x mandatory}
+.rc-photos img{width:100%;border-radius:10px;scroll-snap-align:start;background:var(--surface-2);min-height:140px;object-fit:cover}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13.5px;cursor:pointer;min-height:36px;color:var(--ink)}
+.chip-btn[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+.ing{margin:8px 0 0;padding-left:20px;display:grid;gap:4px;font-size:14px}
+.macro{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.row.is-done .t.ev-t{text-decoration:line-through}
+
 /* setup */
 .setup{margin-top:18px;display:grid;gap:4px}
 .setup h2{font:600 18px/1.3 var(--f-body);margin:0}
@@ -278,9 +312,9 @@ details.more-box[open] summary::after{content:"▴"}
 
 /* nav + toast */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
-.tabs-in{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:560px}
-.tab-btn{display:grid;justify-items:center;gap:3px;background:none;border:0;color:var(--muted);font-weight:500;font-size:11.5px;padding:4px 2px;cursor:pointer}
-.tab-btn .ic{display:grid;place-items:center;padding:3px 14px;border-radius:12px}
+.tabs-in{display:grid;grid-template-columns:repeat(5,1fr);width:100%;max-width:560px}
+.tab-btn{display:grid;justify-items:center;gap:3px;background:none;border:0;color:var(--muted);font-weight:500;font-size:11px;padding:4px 1px;cursor:pointer;min-width:0}
+.tab-btn .ic{display:grid;place-items:center;padding:3px 10px;border-radius:12px}
 .tab-btn svg{width:22px;height:22px}
 .tab-btn[aria-selected="true"]{color:var(--ink)}
 .tab-btn[aria-selected="true"] .ic{background:var(--surface-2)}
@@ -293,6 +327,7 @@ details.more-box[open] summary::after{content:"▴"}
   <header class="top">
     <h1 class="brand">Бортовой журнал</h1>
     <div class="today" id="today-label"></div>
+    <button type="button" class="icon-btn req-btn" data-action="req" aria-label="Запросы для Claude"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg><span class="req-count" id="req-count" hidden></span></button>
     <button type="button" class="icon-btn" id="btn-refresh" data-action="refresh" aria-label="Обновить данные"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4.6L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.5 4.6L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button>
     <button type="button" class="icon-btn" data-action="settings" aria-label="Подключение"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
@@ -346,7 +381,19 @@ details.more-box[open] summary::after{content:"▴"}
       <div id="lessons-done" class="stack"></div>
     </section>
 
+    <section id="tab-food" class="tab" aria-label="Еда" hidden>
+      <div class="cal-bar">
+        <button type="button" class="btn sm" data-action="food-prev" aria-label="Предыдущий день">‹</button>
+        <div class="ml" id="food-label"></div>
+        <button type="button" class="btn sm" data-action="food-next" aria-label="Следующий день">›</button>
+      </div>
+      <div id="food-day"></div>
+      <div class="sec-row"><h2 class="sec">Мои рецепты</h2><button type="button" class="btn sm" data-action="rc-new">+ Рецепт</button></div>
+      <div id="food-recipes"></div>
+    </section>
+
     <section id="tab-money" class="tab" aria-label="Деньги" hidden>
+      <div id="money-accounts"></div>
       <div class="month-bar">
         <button type="button" class="btn sm" data-action="m-prev" aria-label="Предыдущий период">‹</button>
         <div class="ml" id="m-label"></div>
@@ -407,6 +454,9 @@ details.more-box[open] summary::after{content:"▴"}
     </button>
     <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="lessons" aria-selected="false">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5"/></svg></span>Уроки
+    </button>
+    <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="food" aria-selected="false">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10"/><path d="M17 21V3c-2.2 1.2-3.5 3.7-3.5 7v3H17"/></svg></span>Еда
     </button>
     <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="money" aria-selected="false">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M3.5 10h17"/><path d="M15.5 14.5h2"/></svg></span>Деньги
@@ -502,6 +552,13 @@ const GH = {
     const j = await r.json();
     return Array.isArray(j) ? j : [];
   },
+  async blob(path) {
+    let r;
+    try { r = await fetch('https://api.github.com' + this.url(path), { headers: { 'Authorization': 'Bearer ' + this.cred.token, 'Accept': 'application/vnd.github.raw', 'X-GitHub-Api-Version': '2022-11-28' } }); }
+    catch (_) { const e = new Error('offline'); e.code = 'offline'; throw e; }
+    if (!r.ok) throw this.fail(r);
+    return URL.createObjectURL(await r.blob());
+  },
   mutate(path, fn, message, empty) {
     const run = (this.q[path] || Promise.resolve()).then(async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -532,8 +589,8 @@ function b64dec(b64) {
 /* ---------- state ---------- */
 const S = {
   ready: false, loading: false, lastLoad: 0,
-  config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {}, events: [],
-  money: {}, workouts: {}, inbox: [], period: null, periodP: null, calMonth: monthKey(today()),
+  config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {}, events: [], recipes: [], meals: { days: {} }, requests: [],
+  money: {}, workouts: {}, inbox: [], period: null, periodP: null, calMonth: monthKey(today()), foodDate: today(), img: {},
   shift: {}, cur: null, sportList: [], studyCache: null, lastToday: today(), slotsSig: '', pending: 0
 };
 
@@ -572,6 +629,37 @@ function categorize(name) {
   return { cat: otherCat(), known: false };
 }
 function catOptions(list, sel) { return list.map(c => `<option value="${esc(c)}"${c === sel ? ' selected' : ''}>${esc(c)}</option>`).join(''); }
+function banks() { return ((S.config || {}).money || {}).banks || {}; }
+function bankName(code) { return code ? (banks()[code] || code) : ''; }
+function accounts() { return ((S.config || {}).money || {}).accounts || []; }
+function accountsHtml() {
+  const list = accounts(), cur = curSym();
+  return `<div class="accts">${list.map(a => `<button type="button" class="acct ${a.type === 'debt' ? 'debt' : ''}" data-action="acct" data-id="${esc(a.id)}"><span class="k">${a.type === 'debt' ? 'Долг' : 'Накопления'}${a.bank ? ' · ' + esc(bankName(a.bank)) : ''}</span><span class="v">${fmt(a.balance)} ${esc(cur)}</span><span class="d">${esc(a.name)}${a.asOf ? ' · на ' + dm(a.asOf) : ''}</span></button>`).join('')}</div>
+    <button type="button" class="link-btn" data-action="acct-new">+ Накопление или долг</button>`;
+}
+function openAccount(id) {
+  const a = id ? accounts().find(x => x.id === id) : { id: null, type: 'savings', name: '', bank: '', balance: '' };
+  if (!a) return;
+  S.cur = { type: 'acct', a };
+  const bk = banks();
+  openSheet(`<h2 class="sh-title">${id ? esc(a.name) : 'Новое накопление или долг'}</h2>
+    ${id && a.asOf ? `<p class="sh-meta">Остаток на ${short(a.asOf)}</p>` : ''}
+    <label class="fld" for="ac-name">Название</label><input id="ac-name" value="${esc(a.name)}" placeholder="Например: на машину">
+    <div class="two"><div><label class="fld" for="ac-type">Что это</label><select id="ac-type"><option value="savings"${a.type !== 'debt' ? ' selected' : ''}>Накопления</option><option value="debt"${a.type === 'debt' ? ' selected' : ''}>Долг</option></select></div>
+    <div><label class="fld" for="ac-bank">Банк</label><select id="ac-bank"><option value="">—</option>${Object.keys(bk).map(k => `<option value="${esc(k)}"${a.bank === k ? ' selected' : ''}>${esc(bk[k])}</option>`).join('')}</select></div></div>
+    <label class="fld" for="ac-bal">Сейчас, ${esc(curSym())}</label><input id="ac-bal" inputmode="decimal" value="${esc(a.balance)}">
+    <p class="note">Дата остатка обновится на сегодня.</p>
+    <div class="sh-acts"><button type="button" class="btn money block" data-action="acct-save">Сохранить</button>${id ? '<button type="button" class="btn danger block" data-action="acct-del">Удалить</button>' : ''}</div>`);
+}
+async function accountSave() {
+  const c = S.cur; if (!c || c.type !== 'acct') return;
+  const name = $('#ac-name').value.trim(), bal = numOrNull($('#ac-bal').value);
+  if (!name || bal == null) { toast('Нужны название и сумма'); return; }
+  const rec = { id: c.a.id || ('a' + rid().slice(0, 8)), type: $('#ac-type').value, name, balance: Math.round(bal * 100) / 100, asOf: today() };
+  const bank = $('#ac-bank').value; if (bank) rec.bank = bank;
+  const ok = await writeConfig(cfg => { cfg.money = cfg.money || {}; const l = cfg.money.accounts = cfg.money.accounts || []; const k = l.findIndex(x => x.id === rec.id); if (k >= 0) l[k] = rec; else l.push(rec); }, `Деньги: ${name} = ${rec.balance}`);
+  if (ok) { closeSheet(); toast('Сохранено'); }
+}
 
 /* ---------- parsing "хлеб 45, такси 320" ---------- */
 function parseSpend(text) {
@@ -636,12 +724,15 @@ function applyData(d) {
   if (d.plan) { S.studyDays = d.plan.studyDays || {}; S.sportMoves = d.plan.sportMoves || {}; }
   if (d.learned) S.learned = d.learned.map || {};
   if (d.events) S.events = Array.isArray(d.events.events) ? d.events.events : [];
+  if (d.recipes) S.recipes = Array.isArray(d.recipes.recipes) ? d.recipes.recipes : [];
+  if (d.meals) S.meals = d.meals && d.meals.days ? d.meals : { days: {} };
+  if (d.requests) S.requests = Array.isArray(d.requests.requests) ? d.requests.requests : [];
   if (d.money) S.money = Object.assign({}, S.money, d.money);
   if (d.workouts) S.workouts = Object.assign({}, S.workouts, d.workouts);
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves }, learned: { map: S.learned }, events: { events: S.events }, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves }, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => GH.getJSON(prefix + k + '.json')));
@@ -654,10 +745,11 @@ async function loadAll(quiet) {
   S.loading = true; $('#btn-refresh').classList.add('busy');
   if (!quiet) setSync('обновляю…');
   try {
-    const [config, lessons, plan, learned, events, inbox] = await Promise.all([
-      GH.getJSON('config.json'), GH.getJSON('lessons.json'), GH.getJSON('plan.json'), GH.getJSON('learned.json'), GH.getJSON('events.json'), GH.list('inbox/receipts')
+    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests] = await Promise.all([
+      GH.getJSON('config.json'), GH.getJSON('lessons.json'), GH.getJSON('plan.json'), GH.getJSON('learned.json'), GH.getJSON('events.json'), GH.list('inbox/receipts'),
+      GH.getJSON('recipes.json'), GH.getJSON('meals.json'), GH.getJSON('requests.json')
     ]);
-    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
@@ -723,6 +815,21 @@ async function writeConfig(fn, msg) {
 async function writeEvents(fn, msg) {
   const next = await write('events.json', d => { d.events = Array.isArray(d.events) ? d.events : []; fn(d.events); return d; }, msg, { events: [] });
   if (next) { S.events = next.events; cacheNow(); render(); }
+  return !!next;
+}
+async function writeRecipes(fn, msg) {
+  const next = await write('recipes.json', d => { d.recipes = Array.isArray(d.recipes) ? d.recipes : []; fn(d.recipes); return d; }, msg, { recipes: [] });
+  if (next) { S.recipes = next.recipes; cacheNow(); render(); }
+  return !!next;
+}
+async function writeMeals(fn, msg) {
+  const next = await write('meals.json', d => { d.days = d.days || {}; fn(d.days); return d; }, msg, { days: {} });
+  if (next) { S.meals = next; cacheNow(); render(); }
+  return !!next;
+}
+async function writeRequests(fn, msg) {
+  const next = await write('requests.json', d => { d.requests = Array.isArray(d.requests) ? d.requests : []; fn(d.requests); return d; }, msg, { requests: [] });
+  if (next) { S.requests = next.requests; cacheNow(); render(); }
   return !!next;
 }
 async function writeMonth(mk, fn, msg) {
@@ -997,11 +1104,44 @@ function bannerHtml() {
 function render() {
   const t = today();
   $('#today-label').textContent = DOW_S[dow(t)] + ', ' + pd(t).getDate() + ' ' + MON_G[pd(t).getMonth()];
-  renderPlan(); renderCal(); renderLessons(); renderMoney();
+  renderPlan(); renderCal(); renderLessons(); renderFood(); renderMoney();
+  const open = S.requests.filter(r => r.status !== 'done').length;
+  const rc = $('#req-count'); rc.textContent = open; rc.hidden = !open;
 }
-function eventsOn(d) { return S.events.filter(e => e.date === d).sort((a, b) => (a.time || '') < (b.time || '') ? -1 : (a.time || '') > (b.time || '') ? 1 : 0); }
-function rowEvent(ev) {
-  return `<button type="button" class="row slim" data-action="event" data-id="${esc(ev.id)}"><span class="tag event">Событие</span><span class="rb"><span class="t">${esc(ev.title)}</span></span><span class="s">${ev.time ? esc(ev.time) : 'весь день'}</span></button>`;
+const REP_EVERY1 = { day: 'каждый день', week: 'каждую неделю', month: 'каждый месяц', year: 'каждый год' };
+const REP_FORMS = { day: ['день', 'дня', 'дней'], week: ['неделю', 'недели', 'недель'], month: ['месяц', 'месяца', 'месяцев'], year: ['год', 'года', 'лет'] };
+function repeatLabel(rep) {
+  if (!rep || !REP_FORMS[rep.unit]) return '';
+  const n = Math.max(1, Number(rep.n) || 1);
+  return n === 1 ? REP_EVERY1[rep.unit] : `раз в ${n} ${plural(n, ...REP_FORMS[rep.unit])}`;
+}
+function stepDate(base, unit, k) {
+  if (unit === 'day') return addDays(base, k);
+  if (unit === 'week') return addDays(base, 7 * k);
+  const x = pd(base), months = unit === 'year' ? 12 * k : k;
+  const y = x.getFullYear(), m = x.getMonth() + months;
+  const last = new Date(y, m + 1, 0).getDate();
+  return ds(new Date(y, m, Math.min(x.getDate(), last), 12));
+}
+function occurrences(ev, from, to) {
+  if (!ev.date) return [];
+  if (!ev.repeat || !REP_FORMS[ev.repeat.unit]) return ev.date >= from && ev.date <= to ? [ev.date] : [];
+  const n = Math.max(1, Number(ev.repeat.n) || 1), out = [];
+  for (let k = 0, d = ev.date; d <= to && k < 3000; k++, d = stepDate(ev.date, ev.repeat.unit, n * k)) {
+    if (ev.until && d > ev.until) break;
+    if (d >= from) out.push(d);
+  }
+  return out;
+}
+function nextOccurrence(ev, from) { const o = occurrences(ev, from, addDays(from, 3700)); return o[0] || null; }
+function eventsOn(d) {
+  const out = [];
+  for (const e of S.events) if (occurrences(e, d, d).length) out.push({ ev: e, date: d, done: Array.isArray(e.done) && e.done.includes(d) });
+  return out.sort((a, b) => (a.ev.time || '') < (b.ev.time || '') ? -1 : (a.ev.time || '') > (b.ev.time || '') ? 1 : 0);
+}
+function rowEvent(o) {
+  const ev = o.ev, rep = repeatLabel(ev.repeat);
+  return `<button type="button" class="row slim${o.done ? ' is-done' : ''}" data-action="event" data-id="${esc(ev.id)}" data-date="${o.date}"><span class="tag event">Событие</span><span class="rb"><span class="t ev-t">${esc(ev.title)}</span>${rep ? `<span class="m">↻ ${esc(rep)}</span>` : ''}</span><span class="s">${o.done ? '<span class="chip good">✓</span> ' : ''}${ev.time ? esc(ev.time) : 'весь день'}</span></button>`;
 }
 function rowStudy(e) {
   const L = e.L;
@@ -1030,8 +1170,8 @@ function rowGhost(i) {
 function dayRows(d, study, sport) {
   const rows = [];
   const evs = eventsOn(d);
-  evs.filter(e => !e.time).forEach(e => rows.push(rowEvent(e)));
-  evs.filter(e => e.time).forEach(e => rows.push(rowEvent(e)));
+  evs.filter(e => !e.ev.time).forEach(e => rows.push(rowEvent(e)));
+  evs.filter(e => e.ev.time).forEach(e => rows.push(rowEvent(e)));
   for (const e of (study.byDate[d] || [])) rows.push(e.blocked ? rowBlocked(e) : rowStudy(e));
   for (const i of sport) if (i.eff === d) rows.push(rowSport(i));
   for (const i of sport) if (i.orig === d && i.eff !== d) rows.push(rowGhost(i));
@@ -1096,7 +1236,7 @@ function renderCal() {
   const t = today();
   let cells = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].map(x => `<div class="cal-dow">${x}</div>`).join('');
   for (let d = gridStart; d <= gridEnd; d = addDays(d, 1)) {
-    const evs = S.events.filter(e => e.date === d).length;
+    const evs = eventsOn(d).length;
     const marks = sportMark(d, sport) + studyMark(d, plan) + (evs ? '<span class="mk ev" title="Событие"></span>'.repeat(Math.min(evs, 2)) : '');
     cells += `<button type="button" class="cal-cell${monthKey(d) !== S.calMonth ? ' out' : ''}${d === t ? ' today' : ''}" data-action="day" data-date="${d}" aria-label="${esc(longDate(d))}"><span class="cal-num">${pd(d).getDate()}</span><span class="marks">${marks}</span></button>`;
   }
@@ -1150,16 +1290,21 @@ function renderMoney() {
     perSel.innerHTML = opts.sort((a, b) => a - b).map(v => `<option value="${v}"${v === P ? ' selected' : ''}>${v === 1 ? 'с 1-го числа' : `с ${v}-го`}</option>`).join('');
   }
   const sm = $('#money-summary'), ls = $('#money-list'), ib = $('#money-inbox');
+  $('#money-accounts').innerHTML = S.ready && S.config ? accountsHtml() : '';
   ib.innerHTML = S.inbox.length ? `<div class="inbox">Чеков ждут разбора: <b>${S.inbox.length}</b>. Разберу, когда позовёшь.</div>` : '';
   const loaded = periodMonths(S.period).every(mk => S.money[mk]);
   if (!loaded) { sm.innerHTML = S.ready ? '<p class="loading"><span class="spin" aria-hidden="true"></span>Загружаю…</p>' : bannerHtml(); ls.innerHTML = ''; return; }
   const items = periodItems(S.period);
   const cur = curSym();
   const sum = f => items.filter(f).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const internal = x => kindOf(x) === 'transfer' && x.cat === 'Свои счета';
   const spend = sum(x => kindOf(x) === 'spend'), income = sum(x => kindOf(x) === 'income');
-  const trOut = sum(x => kindOf(x) === 'transfer' && x.dir !== 'in'), trIn = sum(x => kindOf(x) === 'transfer' && x.dir === 'in');
   const cash = sum(x => kindOf(x) === 'cash');
-  const bal = income + trIn - spend - trOut - cash;
+  const trCats = {};
+  items.filter(x => kindOf(x) === 'transfer' && !internal(x)).forEach(x => { const c = x.cat || 'Переводы'; trCats[c] = (trCats[c] || 0) + (x.dir === 'in' ? 1 : -1) * (Number(x.amount) || 0); });
+  const trSum = Object.values(trCats).reduce((a, v) => a + v, 0);
+  const bal = income - spend - cash + trSum;
+  const trLabel = (c, v) => c === 'Накопления' ? (v < 0 ? 'Отложено в накопления' : 'Взял из накоплений') : c === 'Долги' ? (v < 0 ? 'Погашение долгов' : 'Взял в долг') : c;
   const t = today(), pEnd = periodEnd(S.period);
   const days = t >= S.period && t <= pEnd ? daysBetween(S.period, t) + 1 : daysBetween(S.period, pEnd) + 1;
   const byCat = {};
@@ -1167,16 +1312,18 @@ function renderMoney() {
   const rows = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
   const max = rows.length ? rows[0][1] : 1;
   const byTr = {};
-  items.filter(x => kindOf(x) === 'transfer' && x.dir !== 'in').forEach(x => { byTr[x.name] = (byTr[x.name] || 0) + (Number(x.amount) || 0); });
-  const trRows = Object.entries(byTr).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  items.filter(x => kindOf(x) === 'transfer' && x.dir !== 'in' && !internal(x)).forEach(x => { byTr[x.name] = (byTr[x.name] || 0) + (Number(x.amount) || 0); });
+  const trRows = Object.entries(byTr).sort((a, b) => b[1] - a[1]).slice(0, 6);
   let html = `<div class="total-block"><div class="total-k">Потрачено</div><div class="total">${fmt(spend)}<span class="cur">${esc(cur)}</span></div><div class="total-sub">${spend ? `в среднем ${fmt(spend / Math.max(1, days))} ${esc(cur)} в день` : 'трат пока нет'}</div></div>`;
-  if (income || trOut || trIn || cash) {
+  if (income || cash || Object.keys(trCats).length) {
+    const sig = v => (v >= 0 ? '+' : '−') + fmt(Math.abs(v));
     html += `<div class="kv"><span>Доход</span><span class="v pos">+${fmt(income)}</span>`
-      + (trIn ? `<span>Со своих счетов</span><span class="v">+${fmt(trIn)}</span>` : '')
       + `<span>Траты</span><span class="v">−${fmt(spend)}</span>`
-      + (trOut ? `<span>Переводы</span><span class="v">−${fmt(trOut)}</span>` : '')
       + (cash ? `<span>Наличные</span><span class="v">−${fmt(cash)}</span>` : '')
-      + `<span class="sum">Итог периода</span><span class="v sum${bal >= 0 ? ' pos' : ''}">${bal >= 0 ? '+' : '−'}${fmt(Math.abs(bal))}</span></div>`;
+      + Object.entries(trCats).sort((a, b) => a[1] - b[1]).map(([c, v]) => `<span>${esc(trLabel(c, v))}</span><span class="v">${sig(v)}</span>`).join('')
+      + `<span class="sum">Итог периода</span><span class="v sum${bal >= 0 ? ' pos' : ''}">${sig(bal)}</span></div>`
+      + (trCats['Не разобрано'] ? '<p class="note">«Не разобрано» — переводы, про которые пока неясно, куда ушли деньги. Разберём, когда уточнишь.</p>' : '')
+      + '<p class="note">Переводы между своими счетами в итог не входят.</p>';
   }
   if (rows.length && spend > 0) html += `<h2 class="sec">Траты по категориям</h2><div class="cats">${rows.map(([c, v]) => `<div class="cat"><span class="cn">${esc(c)}</span><span class="ca">${fmt(v)}<span class="pc">${Math.round(v / spend * 100)}%</span></span><span class="bar"><i style="width:${Math.max(2, v / max * 100).toFixed(1)}%"></i></span></div>`).join('')}</div>`;
   if (trRows.length) html += `<h2 class="sec">Куда ушли переводы</h2><div class="kv">${trRows.map(([n, v]) => `<span>${esc(n)}</span><span class="v">${fmt(v)}</span>`).join('')}</div>`;
@@ -1191,10 +1338,24 @@ function renderMoney() {
     return `<div class="mday"><div class="mday-h"><span>${short(d)}</span><span>${daySpend ? fmt(daySpend) + ' ' + esc(cur) : ''}</span></div>${g.map(x => {
       const k = kindOf(x);
       const amt = k === 'income' ? `<span class="ma in">+${fmt(x.amount)}</span>` : k === 'transfer' ? `<span class="ma tr">${x.dir === 'in' ? '← ' : '→ '}${fmt(x.amount)}</span>` : k === 'cash' ? `<span class="ma tr">нал. ${fmt(x.amount)}</span>` : `<span class="ma">${fmt(x.amount)}</span>`;
-      const sub = (k === 'spend' ? (x.cat || otherCat()) : KIND_NAMES[k] + (x.cat && x.cat !== KIND_NAMES[k] ? ' · ' + x.cat : '')) + (x.auto ? ' · уточнит Claude' : '') + (x.group ? ' · ' + x.group : '');
+      const bank = bankName(x.acc);
+      const sub = (k === 'spend' ? (x.cat || otherCat()) : internal(x) ? 'Между своими счетами' : KIND_NAMES[k] + (x.cat && x.cat !== KIND_NAMES[k] ? ' · ' + x.cat : '')) + (bank ? ' · ' + bank : '') + (x.auto ? ' · уточнит Claude' : '') + (x.group ? ' · ' + x.group : '');
       return `<button type="button" class="mrow" data-action="mrow" data-id="${esc(x.id)}"><span class="mn">${esc(x.name)}</span><span class="mc">${esc(sub)}</span>${amt}</button>`;
     }).join('')}</div>`;
   }).join('');
+}
+
+/* ---------- requests for Claude ---------- */
+function openRequests() {
+  const open = S.requests.filter(r => r.status !== 'done');
+  const done = S.requests.filter(r => r.status === 'done').sort((a, b) => (b.doneAt || '') < (a.doneAt || '') ? -1 : (b.doneAt || '') > (a.doneAt || '') ? 1 : 0).slice(0, 10);
+  S.cur = { type: 'req' };
+  openSheet(`<h2 class="sh-title">Запросы для Claude</h2>
+    <p class="sh-meta">Запиши, что хочешь поручить. Когда откроешь Claude на компьютере и напишешь «журнал», он заберёт новые запросы, сделает их и отметит здесь.</p>
+    <label class="fld" for="rq-text">Новый запрос</label><textarea id="rq-text" rows="3" placeholder="Например: добавь в программу подтягивания"></textarea>
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="rq-add">Записать</button></div>
+    ${open.length ? `<h3 class="sec">Ждут: ${open.length}</h3><div class="stack">${open.map(r => `<div class="req-item"><div>${esc(r.text)}</div><div class="req-meta"><span>${r.date ? short(r.date) : ''}</span><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(r.id)}">Удалить</button></div></div>`).join('')}</div>` : '<p class="note">Новых запросов нет.</p>'}
+    ${done.length ? `<h3 class="sec">Сделано</h3><div class="stack">${done.map(r => `<div class="req-item"><div>${esc(r.text)}</div>${r.answer ? `<div class="ans">${esc(r.answer)}</div>` : ''}<div class="req-meta"><span>${r.doneAt ? 'сделано ' + short(r.doneAt) : 'сделано'}</span></div></div>`).join('')}</div>` : ''}`);
 }
 
 /* ---------- sheet + toast ---------- */
@@ -1422,31 +1583,195 @@ async function setSportState(id, state, note) {
 function sheetSport(id) { return S.cur && S.cur.type === 'sport' && S.cur.id === id ? S.cur : null; }
 
 /* ---------- events ---------- */
+function repNote() {
+  const u = $('#ev-unit') && $('#ev-unit').value, n = $('#ev-n') && $('#ev-n').value, d = $('#ev-date') && $('#ev-date').value;
+  const el = $('#ev-rep-note'); if (!el) return;
+  if (!u) { el.textContent = 'Без времени — событие на весь день.'; return; }
+  const rep = { unit: u, n: Math.max(1, Number(n) || 1) };
+  const ev = { date: d || today(), repeat: rep };
+  const nx = occurrences(ev, today(), addDays(today(), 3700)).slice(0, 3).map(short);
+  el.textContent = cap1(repeatLabel(rep)) + (nx.length ? '. Ближайшие: ' + nx.join(', ') + '.' : '.');
+}
 function openEvent(id, date) {
   const ev = id ? S.events.find(e => e.id === id) : { id: null, date: date || today(), title: '', time: '' };
   if (!ev) return;
-  S.cur = { type: 'event', ev };
-  openSheet(`<div class="sh-eyebrow"><span class="tag event">Событие</span></div>
-    <h2 class="sh-title">${id ? 'Событие' : 'Новое событие'}</h2>
-    <label class="fld" for="ev-title">Что</label><input id="ev-title" value="${esc(ev.title)}" placeholder="Например: наряд, встреча, врач">
-    <div class="two"><div><label class="fld" for="ev-date">Дата</label><input type="date" id="ev-date" value="${esc(ev.date)}"></div><div><label class="fld" for="ev-time">Время</label><input type="time" id="ev-time" value="${esc(ev.time || '')}"></div></div>
-    <p class="note">Без времени — событие на весь день.</p>
-    <div class="sh-acts"><button type="button" class="btn primary block" data-action="ev-save">Сохранить</button>${id ? '<button type="button" class="btn danger block" data-action="ev-del">Удалить</button>' : ''}</div>`);
+  const occ = id ? (date || ev.date) : null;
+  const done = !!(occ && Array.isArray(ev.done) && ev.done.includes(occ));
+  const rep = ev.repeat || null;
+  S.cur = { type: 'event', ev, occ };
+  const units = [['', 'не повторять'], ['day', 'дни'], ['week', 'недели'], ['month', 'месяцы'], ['year', 'годы']];
+  openSheet(`<div class="sh-eyebrow"><span class="tag event">${rep ? 'Напоминание' : 'Событие'}</span></div>
+    <h2 class="sh-title">${id ? esc(ev.title) : 'Новое событие или напоминание'}</h2>
+    ${id ? `<p class="sh-meta">${esc(cap1(longDate(occ)))}${ev.time ? ', ' + esc(ev.time) : ''}${rep ? ' · ↻ ' + esc(repeatLabel(rep)) : ''}</p>
+      <div class="sh-acts"><button type="button" class="btn ${done ? '' : 'primary '}block" data-action="ev-done" data-date="${occ}">${done ? 'Снять отметку «сделано»' : 'Сделано ✓'}</button></div>
+      <details class="more-box"><summary>Изменить</summary>` : ''}
+    <label class="fld" for="ev-title">Что</label><input id="ev-title" value="${esc(ev.title)}" placeholder="Например: смена фильтра, наряд, врач">
+    <div class="two"><div><label class="fld" for="ev-date">${rep || !id ? 'Дата (первая)' : 'Дата'}</label><input type="date" id="ev-date" value="${esc(ev.date)}"></div><div><label class="fld" for="ev-time">Время</label><input type="time" id="ev-time" value="${esc(ev.time || '')}"></div></div>
+    <label class="fld" for="ev-unit">Повторять</label>
+    <div class="two"><select id="ev-unit">${units.map(([v, l]) => `<option value="${v}"${(rep ? rep.unit : '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select><input id="ev-n" type="number" inputmode="numeric" min="1" max="365" value="${esc(rep ? rep.n || 1 : 1)}" aria-label="Каждые сколько"></div>
+    <p class="note" id="ev-rep-note"></p>
+    <div class="sh-acts"><button type="button" class="btn ${id ? '' : 'primary '}block" data-action="ev-save">Сохранить</button>${id ? '<button type="button" class="btn danger block" data-action="ev-del">Удалить' + (rep ? ' все повторы' : '') + '</button>' : ''}</div>
+    ${id ? '</details>' : ''}`);
+  repNote();
 }
 async function eventSave() {
   const c = S.cur; if (!c || c.type !== 'event') return;
   const title = $('#ev-title').value.trim(), date = $('#ev-date').value, time = $('#ev-time').value;
+  const unit = $('#ev-unit').value, n = Math.max(1, Math.min(365, Number($('#ev-n').value) || 1));
   if (!title) { toast('Напиши, что за событие'); $('#ev-title').focus(); return; }
   if (!date) { toast('Выбери дату'); return; }
   const id = c.ev.id;
   const ok = await writeEvents(list => {
+    const old = list.find(e => e.id === id) || {};
     const rec = { id: id || rid(), date, title };
     if (time) rec.time = time;
+    if (unit) rec.repeat = { unit, n };
+    if (Array.isArray(old.done) && old.done.length) rec.done = old.done;
     const k = list.findIndex(e => e.id === id);
     if (id && k >= 0) list[k] = rec; else list.push(rec);
     list.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
-  }, `События: ${title} ${date}`);
-  if (ok) { closeSheet(); toast(id ? 'Событие изменено' : 'Событие добавлено'); }
+  }, `События: ${title} ${date}${unit ? ' (' + repeatLabel({ unit, n }) + ')' : ''}`);
+  if (ok) { closeSheet(); toast(id ? 'Сохранено' : unit ? 'Напоминание добавлено' : 'Событие добавлено'); }
+}
+
+/* ---------- food ---------- */
+const MEALS = [['breakfast', 'Завтрак'], ['lunch', 'Обед'], ['dinner', 'Ужин'], ['snack', 'Перекус']];
+const MEAL_NAME = Object.fromEntries(MEALS);
+const MEAL_GEN = { breakfast: 'завтрак', lunch: 'обед', dinner: 'ужин', snack: 'перекус' };
+function recipeById(id) { return S.recipes.find(r => r.id === id) || null; }
+function thumbHtml(r) {
+  const p = r && Array.isArray(r.photos) && r.photos[0];
+  return `<span class="thumb">${p ? `<img data-gh="${esc(p)}" alt="">` : esc(((r && r.title) || '?').trim().charAt(0).toUpperCase())}</span>`;
+}
+function recipeMeta(r) {
+  const m = [];
+  if (r.time) m.push(r.time);
+  if (r.kcal) m.push('≈ ' + r.kcal + ' ккал');
+  if (r.protein) m.push('белок ' + r.protein + ' г');
+  if (r.draft) m.push('ждёт разбора');
+  if (!m.length && Array.isArray(r.meals) && r.meals.length) m.push(r.meals.map(k => MEAL_NAME[k] || k).join(', '));
+  return m.join(' · ');
+}
+function hydrateImages(root) {
+  if (!root || !GH.cred) return;
+  root.querySelectorAll('img[data-gh]').forEach(async img => {
+    if (img.getAttribute('src')) return;
+    const p = img.dataset.gh;
+    try { S.img[p] = S.img[p] || GH.blob(p); img.src = await S.img[p]; }
+    catch (_) { delete S.img[p]; img.alt = 'фото не загрузилось'; }
+  });
+}
+function renderFood() {
+  const d = S.foodDate;
+  $('#food-label').textContent = dayName(d) + ', ' + dm(d);
+  const box = $('#food-day'), list = $('#food-recipes');
+  if (!S.ready) { box.innerHTML = bannerHtml(); list.innerHTML = ''; return; }
+  const day = (S.meals.days || {})[d] || {};
+  let kcal = 0, prot = 0, withNum = 0, total = 0;
+  box.innerHTML = '<div class="meals">' + MEALS.map(([k, l]) => {
+    const ids = Array.isArray(day[k]) ? day[k] : [];
+    const rows = ids.map((id, idx) => {
+      const r = recipeById(id);
+      if (!r) return '';
+      total++;
+      if (r.kcal || r.protein) { withNum++; kcal += Number(r.kcal) || 0; prot += Number(r.protein) || 0; }
+      return `<div class="dish-row"><button type="button" class="dish" data-action="recipe" data-id="${esc(r.id)}">${thumbHtml(r)}<span class="rb"><span class="t">${esc(r.title)}</span><span class="m">${esc(recipeMeta(r))}</span></span></button><button type="button" class="icon-btn sm" data-action="meal-remove" data-meal="${k}" data-idx="${idx}" aria-label="Убрать из: ${l}">×</button></div>`;
+    }).join('');
+    return `<div class="meal"><div class="meal-h"><b>${l}</b><button type="button" class="btn sm" data-action="meal-pick" data-meal="${k}">+ Выбрать</button></div>${rows || '<p class="empty-day">Не выбрано</p>'}</div>`;
+  }).join('') + '</div>'
+    + (withNum ? `<p class="note">По рецептам с оценкой (${withNum} из ${total}): ≈ ${Math.round(kcal)} ккал, белок ≈ ${Math.round(prot)} г. Это примерная оценка, не точный подсчёт.</p>` : '');
+  const all = S.recipes.slice().sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ru'));
+  list.innerHTML = all.length
+    ? '<div class="stack">' + all.map(r => `<button type="button" class="dish card-like" data-action="recipe" data-id="${esc(r.id)}">${thumbHtml(r)}<span class="rb"><span class="t">${esc(r.title)}</span><span class="m">${esc(recipeMeta(r))}</span></span></button>`).join('') + '</div>'
+    : '<p class="note">Рецептов пока нет. Нажми «+ Рецепт» и добавь скриншоты, видео, ссылку или текст — я разберу ингредиенты и шаги, когда позовёшь.</p>';
+  hydrateImages($('#tab-food'));
+}
+function openMealPick(meal) {
+  const fit = S.recipes.filter(r => Array.isArray(r.meals) && r.meals.includes(meal));
+  const rest = S.recipes.filter(r => !fit.includes(r));
+  const btn = r => `<button type="button" class="dish card-like" data-action="meal-add" data-meal="${meal}" data-id="${esc(r.id)}">${thumbHtml(r)}<span class="rb"><span class="t">${esc(r.title)}</span><span class="m">${esc(recipeMeta(r))}</span></span></button>`;
+  S.cur = { type: 'meal', meal };
+  openSheet(`<h2 class="sh-title">${MEAL_NAME[meal]} · ${esc(dayName(S.foodDate).toLowerCase())}, ${dm(S.foodDate)}</h2>
+    ${S.recipes.length ? '' : '<p class="sh-meta">Рецептов пока нет.</p>'}
+    ${fit.length ? `<h3 class="sec">Для: ${MEAL_GEN[meal]}</h3><div class="stack">${fit.map(btn).join('')}</div>` : ''}
+    ${rest.length ? `<h3 class="sec">${fit.length ? 'Остальные' : 'Все рецепты'}</h3><div class="stack">${rest.map(btn).join('')}</div>` : ''}
+    <div class="sh-acts"><button type="button" class="btn block" data-action="rc-new" data-meal="${meal}">+ Новый рецепт</button></div>`);
+  hydrateImages($('#sheet-body'));
+}
+function openRecipe(id) {
+  const r = recipeById(id); if (!r) return;
+  S.cur = { type: 'recipe', r };
+  const photos = Array.isArray(r.photos) ? r.photos : [];
+  const macro = [r.portions ? r.portions + ' ' + plural(Number(r.portions) || 0, 'порция', 'порции', 'порций') : '', r.time || '', r.kcal ? '≈ ' + r.kcal + ' ккал' : '', r.protein ? 'белок ' + r.protein + ' г' : '', r.fat ? 'жиры ' + r.fat + ' г' : '', r.carbs ? 'углеводы ' + r.carbs + ' г' : ''].filter(Boolean);
+  openSheet(`<h2 class="sh-title">${esc(r.title)}</h2>
+    ${Array.isArray(r.meals) && r.meals.length ? `<p class="sh-meta">${esc(r.meals.map(k => MEAL_NAME[k] || k).join(', '))}</p>` : ''}
+    ${photos.length ? `<div class="rc-photos">${photos.map(p => `<img data-gh="${esc(p)}" alt="">`).join('')}</div>` : ''}
+    ${macro.length ? `<div class="macro">${macro.map(m => `<span class="chip">${esc(m)}</span>`).join('')}</div>${r.kcal || r.protein ? '<p class="note">КБЖУ — примерная оценка на порцию.</p>' : ''}` : ''}
+    ${r.draft ? '<div class="callout">Ждёт разбора: ингредиенты и шаги заполню, когда позовёшь.</div>' : ''}
+    ${Array.isArray(r.ingredients) && r.ingredients.length ? `<h3 class="sec">Ингредиенты</h3><ul class="ing">${r.ingredients.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${Array.isArray(r.steps) && r.steps.length ? `<h3 class="sec">Как готовить</h3><ol class="ing">${r.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+    ${r.note ? `<p class="note">${esc(r.note)}</p>` : ''}
+    ${r.text && r.draft ? `<p class="note">Текст: ${esc(r.text)}</p>` : ''}
+    ${r.link ? `<p class="note"><a href="${esc(r.link)}" target="_blank" rel="noopener">Открыть источник</a></p>` : ''}
+    <h3 class="sec">Добавить на ${esc(dayName(S.foodDate).toLowerCase())}, ${dm(S.foodDate)}</h3>
+    <div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="meal-add" data-meal="${k}" data-id="${esc(r.id)}">${l}</button>`).join('')}</div>
+    <details class="more-box"><summary>Изменить или удалить</summary>
+      <label class="fld" for="rc-title">Название</label><input id="rc-title" value="${esc(r.title)}">
+      <span class="fld">Когда подходит</span><div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="rc-meal" data-meal="${k}" aria-pressed="${Array.isArray(r.meals) && r.meals.includes(k)}">${l}</button>`).join('')}</div>
+      <div class="sh-acts"><button type="button" class="btn primary block" data-action="rc-edit-save">Сохранить</button><button type="button" class="btn danger block" data-action="rc-del">Удалить рецепт</button></div>
+    </details>`);
+  hydrateImages($('#sheet-body'));
+}
+function openRecipeNew(meal) {
+  S.cur = { type: 'recipe-new', meals: new Set(meal ? [meal] : []) };
+  openSheet(`<h2 class="sh-title">Новый рецепт</h2>
+    <p class="sh-meta">Добавь что есть: скриншоты, видео, ссылку или текст. Я разберу ингредиенты и шаги, когда позовёшь.</p>
+    <label class="fld" for="rc-title">Название</label><input id="rc-title" placeholder="Например: омлет с курицей">
+    <span class="fld">Когда подходит</span><div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="rc-meal" data-meal="${k}" aria-pressed="${k === meal}">${l}</button>`).join('')}</div>
+    <label class="fld" for="rc-files">Скриншоты или видео</label>
+    <label class="btn block file-btn" id="rc-files-btn"><span id="rc-files-label">Выбрать фото или видео</span><input type="file" id="rc-files" accept="image/*,video/*" multiple aria-label="Скриншоты или видео рецепта"></label>
+    <p class="note">С видео я прочитаю то, что видно на экране: подписи, ингредиенты, граммовки. Голос за кадром разобрать не смогу, поэтому лучше добавь и скриншот описания.</p>
+    <label class="fld" for="rc-link">Ссылка (необязательно)</label><input id="rc-link" type="url" inputmode="url" placeholder="https://…">
+    <label class="fld" for="rc-text">Текст рецепта (если есть)</label><textarea id="rc-text" rows="3" placeholder="Можно вставить описание из поста"></textarea>
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="rc-save">Сохранить рецепт</button></div>`);
+}
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => { const s = String(fr.result); resolve(s.slice(s.indexOf(',') + 1)); }; fr.onerror = () => reject(fr.error); fr.readAsDataURL(file); });
+}
+async function recipeSave(btn) {
+  const c = S.cur; if (!c || c.type !== 'recipe-new') return;
+  const title = $('#rc-title').value.trim(), link = $('#rc-link').value.trim(), text = $('#rc-text').value.trim();
+  const files = Array.from(($('#rc-files') && $('#rc-files').files) || []);
+  if (!title && !files.length && !link && !text) { toast('Добавь хотя бы фото, видео, ссылку или текст'); return; }
+  const big = files.find(f => /^video\//.test(f.type) && f.size > 25 * 1024 * 1024);
+  if (big) { toast('Видео больше 25 МБ не загрузится. Обрежь его или добавь скриншоты.'); return; }
+  const id = 'r' + rid().slice(0, 10);
+  const photos = [], media = [];
+  busy(btn, true);
+  for (let k = 0; k < files.length; k++) {
+    const f = files[k];
+    setSync(`загружаю ${k + 1} из ${files.length}…`);
+    try {
+      if (/^video\//.test(f.type)) {
+        const ext = (f.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+        const path = `inbox/recipes/${id}_${k + 1}.${ext}`;
+        await GH.putRaw(path, await fileToBase64(f), `Рецепт: видео ${k + 1}`);
+        media.push(path);
+      } else {
+        const path = `inbox/recipes/${id}_${k + 1}.jpg`;
+        await GH.putRaw(path, await resizeImage(f), `Рецепт: фото ${k + 1}`);
+        photos.push(path); media.push(path);
+      }
+    } catch (e) { setSync(errText(e), true); toast('Файл ' + (k + 1) + ' не загрузился. ' + errText(e)); }
+  }
+  const rec = { id, title: title || 'Новый рецепт', meals: Array.from(c.meals), draft: true, added: today() };
+  if (photos.length) rec.photos = photos;
+  if (media.length) rec.media = media;
+  if (link) rec.link = link;
+  if (text) rec.text = text;
+  const ok = await writeRecipes(list => { list.push(rec); }, `Рецепт: ${rec.title}`);
+  busy(btn, false);
+  if (ok) { closeSheet(); toast('Рецепт сохранён. Разберу, когда позовёшь — а выбрать его можно уже сейчас.'); }
 }
 
 /* ---------- money ---------- */
@@ -1467,6 +1792,7 @@ function openExpense(id) {
     <div class="two"><div><label class="fld" for="me-amount">Сумма, ${esc(curSym())}</label><input id="me-amount" inputmode="decimal" value="${esc(x.amount)}"></div><div><label class="fld" for="me-date">Дата</label><input type="date" id="me-date" value="${esc(x.date)}"></div></div>
     <label class="fld" for="me-kind">Тип</label><select id="me-kind">${Object.keys(KIND_NAMES).map(v => `<option value="${v}"${v === k ? ' selected' : ''}>${KIND_NAMES[v]}</option>`).join('')}</select>
     <div id="me-catbox">${expenseCatBlock(k, x.cat || catsFor(k)[0], x.dir)}</div>
+    <label class="fld" for="me-acc">Банк</label><select id="me-acc"><option value="">—</option>${Object.keys(banks()).map(b => `<option value="${esc(b)}"${x.acc === b ? ' selected' : ''}>${esc(bankName(b))}</option>`).join('')}</select>
     ${x.raw ? `<p class="note">Из выписки: ${esc(x.raw)}${x.time ? ', ' + esc(x.time) : ''}</p>` : ''}
     ${x.group ? `<p class="note">Из чека: ${esc(x.group)}</p>` : ''}
     <p class="note">Если сменишь категорию траты, журнал запомнит её для этого названия.</p>
@@ -1481,6 +1807,7 @@ async function expenseSave() {
   const upd = Object.assign({}, old, { name, amount: Math.round(amount * 100) / 100, cat, date, kind });
   delete upd.auto;
   if (kind === 'transfer') upd.dir = dirEl ? dirEl.value : 'out'; else delete upd.dir;
+  const accEl = $('#me-acc'); if (accEl) { if (accEl.value) upd.acc = accEl.value; else delete upd.acc; }
   let ok;
   if (monthKey(date) === monthKey(old.date)) ok = await writeMonth(monthKey(old.date), items => items.map(x => x.id === old.id ? upd : x), `Деньги: изменена запись «${name}»`);
   else {
@@ -1585,7 +1912,7 @@ function openSettings() {
 }
 
 /* ---------- events wiring ---------- */
-const TABS = ['plan', 'cal', 'lessons', 'money'];
+const TABS = ['plan', 'cal', 'lessons', 'food', 'money'];
 function setTab(t) {
   if (!TABS.includes(t)) t = 'plan';
   TABS.forEach(x => { $('#tab-' + x).hidden = x !== t; });
@@ -1706,6 +2033,82 @@ document.addEventListener('click', async ev => {
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
       busy(b, true); if (await writeLessons(list => { const k = list.findIndex(y => y.id === l.id); if (k >= 0) list.splice(k, 1); }, `Учёба: урок ${l.n} удалён`)) { closeSheet(); toast(`Урок ${l.n} удалён`); } busy(b, false); break;
     }
+    case 'req': openRequests(); break;
+    case 'rq-add': {
+      const text = (($('#rq-text') && $('#rq-text').value) || '').trim();
+      if (!text) { toast('Напиши, что сделать'); if ($('#rq-text')) $('#rq-text').focus(); return; }
+      busy(b, true);
+      if (await writeRequests(list => { list.push({ id: 'q' + rid().slice(0, 10), text, date: today(), ts: Date.now(), status: 'new' }); }, 'Запрос для Claude: ' + text.slice(0, 50))) { toast('Записал. Сделаю, когда откроешь меня на компьютере.'); openRequests(); }
+      busy(b, false); break;
+    }
+    case 'rq-del': {
+      if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Точно?'; return; }
+      busy(b, true);
+      if (await writeRequests(list => { const k = list.findIndex(r => r.id === id); if (k >= 0) list.splice(k, 1); }, 'Запрос для Claude удалён')) openRequests();
+      busy(b, false); break;
+    }
+    case 'ev-done': {
+      const c = S.cur; if (!c || c.type !== 'event' || !c.ev.id) return;
+      const e = c.ev, occ = d || c.occ;
+      const wasDone = Array.isArray(e.done) && e.done.includes(occ);
+      busy(b, true);
+      if (await writeEvents(list => { const x = list.find(y => y.id === e.id); if (!x) return; const set = new Set(x.done || []); if (set.has(occ)) set.delete(occ); else set.add(occ); x.done = Array.from(set).sort(); if (!x.done.length) delete x.done; }, `События: «${e.title}» ${occ} — ${wasDone ? 'снята отметка' : 'сделано'}`)) {
+        closeSheet();
+        const nx = e.repeat ? nextOccurrence(e, addDays(occ, 1)) : null;
+        toast(wasDone ? 'Отметка снята' : nx ? `Отмечено. Следующий раз: ${short(nx)}` : 'Отмечено');
+      }
+      busy(b, false); break;
+    }
+    case 'food-prev': S.foodDate = addDays(S.foodDate, -1); renderFood(); break;
+    case 'food-next': S.foodDate = addDays(S.foodDate, 1); renderFood(); break;
+    case 'meal-pick': openMealPick(b.dataset.meal); break;
+    case 'meal-add': {
+      const meal = b.dataset.meal, r = recipeById(id); if (!r) return;
+      busy(b, true);
+      if (await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; (day[meal] = Array.isArray(day[meal]) ? day[meal] : []).push(id); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${r.title}`)) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${r.title}`); }
+      busy(b, false); break;
+    }
+    case 'meal-remove': {
+      const meal = b.dataset.meal, idx = Number(b.dataset.idx);
+      busy(b, true);
+      await writeMeals(days => { const day = days[S.foodDate]; if (day && Array.isArray(day[meal])) { day[meal].splice(idx, 1); if (!day[meal].length) delete day[meal]; if (!Object.keys(day).length) delete days[S.foodDate]; } }, `Еда ${S.foodDate}: убрано из «${MEAL_NAME[meal]}»`);
+      busy(b, false); break;
+    }
+    case 'recipe': openRecipe(id); break;
+    case 'rc-new': openRecipeNew(b.dataset.meal); break;
+    case 'rc-meal': {
+      const c = S.cur; if (!c) return;
+      const on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', String(on));
+      if (c.type === 'recipe-new') { if (on) c.meals.add(b.dataset.meal); else c.meals.delete(b.dataset.meal); }
+      break;
+    }
+    case 'rc-save': await recipeSave(b); break;
+    case 'rc-edit-save': {
+      const c = S.cur; if (!c || c.type !== 'recipe') return;
+      const title = $('#rc-title').value.trim() || c.r.title;
+      const meals = Array.from(document.querySelectorAll('[data-action="rc-meal"][aria-pressed="true"]')).map(x => x.dataset.meal);
+      busy(b, true);
+      if (await writeRecipes(list => { const x = list.find(r => r.id === c.r.id); if (x) { x.title = title; x.meals = meals; } }, `Рецепт: ${title}`)) { closeSheet(); toast('Сохранено'); }
+      busy(b, false); break;
+    }
+    case 'rc-del': {
+      const c = S.cur; if (!c || c.type !== 'recipe') return;
+      if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
+      busy(b, true);
+      if (await writeRecipes(list => { const k = list.findIndex(r => r.id === c.r.id); if (k >= 0) list.splice(k, 1); }, `Рецепт удалён: ${c.r.title}`)) { closeSheet(); toast('Рецепт удалён'); }
+      busy(b, false); break;
+    }
+    case 'acct': openAccount(id); break;
+    case 'acct-new': openAccount(null); break;
+    case 'acct-save': busy(b, true); await accountSave(); busy(b, false); break;
+    case 'acct-del': {
+      const c = S.cur; if (!c || c.type !== 'acct' || !c.a.id) return;
+      if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
+      busy(b, true);
+      if (await writeConfig(cfg => { const l = ((cfg.money || {}).accounts) || []; const k = l.findIndex(x => x.id === c.a.id); if (k >= 0) l.splice(k, 1); }, `Деньги: удалено «${c.a.name}»`)) { closeSheet(); toast('Удалено'); }
+      busy(b, false); break;
+    }
     case 'm-prev': shiftPeriod(-1); break;
     case 'm-next': shiftPeriod(1); break;
     case 'mrow': openExpense(id); break;
@@ -1721,6 +2124,7 @@ document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#she
 let draftT;
 $('#sheet').addEventListener('input', ev => {
   const c = S.cur;
+  if (ev.target.id === 'ev-n') repNote();
   if (c && c.type === 'sport' && ev.target.id && ev.target.id.startsWith('lg-')) {
     clearTimeout(draftT);
     draftT = setTimeout(() => { const lg = collectLog(c.ses); if (lg.any) LS.set('bj-draft-' + c.id, { blocks: lg.blocks }); }, 400);
@@ -1746,6 +2150,11 @@ document.addEventListener('change', async ev => {
   } else if (el.id === 'me-kind') {
     const box = $('#me-catbox'); const x = S.cur && S.cur.x;
     if (box) box.innerHTML = expenseCatBlock(el.value, x && kindOf(x) === el.value ? x.cat : catsFor(el.value)[0], x && x.dir);
+  } else if (el.id === 'ev-unit' || el.id === 'ev-n' || el.id === 'ev-date') {
+    repNote();
+  } else if (el.id === 'rc-files') {
+    const n = el.files ? el.files.length : 0, lab = $('#rc-files-label');
+    if (lab) lab.textContent = n ? `Выбрано файлов: ${n}` : 'Выбрать фото или видео';
   }
 });
 $('#lesson-add').addEventListener('submit', async ev => {
