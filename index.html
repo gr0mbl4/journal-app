@@ -23,6 +23,7 @@
   --bg:#ECEFEA; --surface:#F8FAF6; --surface-2:#E1E6DE; --ink:#19201C; --muted:#5B6660; --faint:#87918B; --line:#D0D6CC;
   --study:#2A5B88; --study-soft:#DAE6F1; --on-study:#FFFFFF;
   --sport:#AD4F1C; --sport-soft:#F2E0D3; --on-sport:#FFFFFF;
+  --event:#6B7570; --event-soft:#E1E6DE;
   --money:#35684A; --money-soft:#D9EADD; --on-money:#FFFFFF;
   --good:#2F7340; --warn:#8F5A0C; --warn-soft:#F3E7CF; --bad:#A3372E;
   --on-ink:#F8FAF6; --scrim:rgba(10,14,12,.45);
@@ -38,6 +39,7 @@
     --bg:#111513; --surface:#191E1B; --surface-2:#252B27; --ink:#E3E8E1; --muted:#9BA69F; --faint:#6E7872; --line:#2E3531;
     --study:#8AB6E0; --study-soft:#1C2B39; --on-study:#0C1822;
     --sport:#EC915F; --sport-soft:#36241A; --on-sport:#1E1008;
+    --event:#A4ADA7; --event-soft:#252B27;
     --money:#8DC7A0; --money-soft:#1B2E22; --on-money:#0D1A12;
     --good:#80C58E; --warn:#E3AE55; --warn-soft:#352914; --bad:#EE857A;
     --on-ink:#111513; --scrim:rgba(0,0,0,.6);
@@ -59,14 +61,17 @@ button,input,select,textarea{font:inherit;color:inherit}
 .top{display:flex;align-items:center;gap:8px;padding-block:6px 2px}
 .brand{font:700 21px/1.1 var(--f-disp);letter-spacing:.01em;margin:0}
 .today{font:12.5px var(--f-mono);color:var(--muted);white-space:nowrap;margin-left:auto}
-.icon-btn{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;border:1px solid transparent;background:none;color:var(--muted);cursor:pointer;flex:0 0 auto}
+.icon-btn{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;border:1px solid transparent;background:none;color:var(--muted);cursor:pointer;flex:0 0 auto;font-size:16px}
 .icon-btn:hover{border-color:var(--line);color:var(--ink)}
 .icon-btn svg{width:20px;height:20px}
+.icon-btn.sm{width:32px;height:32px;border-color:var(--line);font-size:15px}
 .icon-btn.busy svg{animation:spin .9s linear infinite}
 .sync{font:11px var(--f-mono);color:var(--muted);min-height:16px;margin-top:2px}
 .sync.err{color:var(--bad)}
 
 .sec{font:600 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:22px 0 8px}
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 6px}
+.sec-row .sec{margin:0}
 .stack{display:grid;gap:6px}
 .note{font-size:13px;color:var(--muted);margin:8px 0 0}
 .loading{color:var(--muted);margin:18px 0}
@@ -85,6 +90,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;cursor:pointer;min-height:56px}
 .row:hover{border-color:var(--faint)}
 .row.ghost{background:transparent;border-style:dashed;min-height:44px;padding-block:7px}
+.row.slim{min-height:46px;padding-block:8px}
 .rb{display:grid;gap:1px;min-width:0}
 .t{font-weight:500;overflow-wrap:anywhere}
 .m{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
@@ -92,9 +98,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .row.is-done .t{color:var(--muted)}
 .row.is-skipped .t{color:var(--faint);text-decoration:line-through}
 .strike{text-decoration:line-through;color:var(--faint)}
-.tag{display:inline-block;min-width:54px;text-align:center;font:600 10px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:5px 6px;border-radius:6px}
+.tag{display:inline-block;min-width:58px;text-align:center;font:600 10px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:5px 6px;border-radius:6px}
 .tag.study{color:var(--study);background:var(--study-soft)}
 .tag.sport{color:var(--sport);background:var(--sport-soft)}
+.tag.event{color:var(--event);background:var(--event-soft)}
 .tag.dim{opacity:.55}
 .chip{display:inline-block;font:500 11.5px var(--f-mono);padding:3px 6px;border-radius:6px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
 .chip.warn{background:var(--warn-soft);color:var(--warn)}
@@ -136,15 +143,16 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* forms */
 input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-height:44px;font-size:16px}
 textarea{resize:vertical;min-height:70px;line-height:1.4}
-input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-color:var(--money)}
+input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-color:var(--sport);flex:0 0 auto}
 .fld{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 4px}
 .form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
 .form-row input{flex:1 1 160px;width:auto}
 .form-row .btn{flex:0 0 auto}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:10px;margin-top:14px}
 .card .fld{margin:0}
-.card-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.card-h input{width:auto;flex:0 0 auto;min-height:36px;padding:6px 8px;font-size:15px}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.card-h .ctl{display:flex;gap:6px}
+.card-h input,.card-h select{width:auto;flex:0 0 auto;min-height:36px;padding:6px 8px;font-size:15px}
 .err{color:var(--bad);font-size:13px;margin:0}
 .hint{font-size:12.5px;color:var(--muted);margin:0}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -161,17 +169,72 @@ input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-colo
 .slot{display:grid;gap:4px;text-align:center}
 .slot label{font:500 11px var(--f-mono);text-transform:uppercase;color:var(--muted)}
 .slot select{padding:8px 0;text-align:center;text-align-last:center;font-size:14px}
+.outcome{background:var(--study-soft);border-radius:10px;padding:10px 12px;margin-top:12px;font-size:14px}
+.outcome b{display:block;font:600 10.5px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--study);margin-bottom:3px}
+.goals{margin:10px 0 0;padding-left:0;list-style:none;display:grid;gap:6px;font-size:14px}
+.goals li{padding-left:12px;border-left:2px solid var(--study-soft)}
+
+/* workout log */
+.blk{border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;background:var(--bg)}
+.blk-h{font:600 10.5px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px}
+.exl{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:6px}
+.let{font:600 12.5px var(--f-mono);color:var(--sport)}
+.ex-name{font-weight:500;overflow-wrap:anywhere}
+.ex-hint{font-size:12.5px;color:var(--muted)}
+.swap-form{display:grid;gap:6px;margin:8px 0 2px 26px}
+.sets{display:grid;gap:6px;margin-top:10px}
+.round{display:grid;gap:5px;padding-top:6px;border-top:1px dashed var(--line)}
+.set{display:grid;grid-template-columns:30px minmax(0,1fr) auto minmax(0,1fr) auto;gap:6px;align-items:center}
+.set.r{grid-template-columns:30px minmax(0,1fr) auto}
+.set .sl{font:500 12px var(--f-mono);color:var(--muted)}
+.set input{min-height:38px;padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums}
+.set .u{font-size:12px;color:var(--muted)}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:8px;cursor:pointer}
+.note-in{margin-top:8px;min-height:40px;padding:8px 10px}
+details.more-box{border-top:1px solid var(--line);margin-top:10px}
+details.more-box summary{cursor:pointer;font-weight:500;padding:12px 2px;list-style:none;display:flex;justify-content:space-between}
+details.more-box summary::-webkit-details-marker{display:none}
+details.more-box summary::after{content:"▾";color:var(--muted)}
+details.more-box[open] summary::after{content:"▴"}
+.sess-list{display:grid;gap:6px}
+
+/* calendar */
+.cal-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:10px}
+.cal-dow{font:500 10.5px var(--f-mono);text-transform:uppercase;text-align:center;color:var(--muted);padding-bottom:2px}
+.cal-cell{min-height:62px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:5px;display:grid;align-content:space-between;gap:4px;cursor:pointer;text-align:left;min-width:0}
+.cal-cell.out{opacity:.38}
+.cal-cell.today{border-color:var(--study);box-shadow:inset 0 0 0 1px var(--study)}
+.cal-num{font:600 13px var(--f-mono)}
+.marks{display:flex;gap:2px;flex-wrap:wrap;align-items:center}
+.mk{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font:700 10px/1 var(--f-body);flex:0 0 auto}
+.mk.sport{background:var(--sport);color:var(--on-sport)}
+.mk.study{background:var(--study);color:var(--on-study)}
+.mk.plan{background:transparent;border:1.5px solid currentColor}
+.mk.sport.plan{color:var(--sport)}
+.mk.study.plan{color:var(--study)}
+.mk.x{background:var(--surface-2);border:1.5px solid currentColor}
+.mk.sport.x{color:var(--sport)}
+.mk.study.x{color:var(--study)}
+.mk.ev{width:8px;height:8px;background:var(--event)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12.5px;color:var(--muted);margin-top:12px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
 
 /* money */
 .month-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
-.ml{font:700 18px var(--f-disp)}
+.ml{font:700 18px var(--f-disp);text-align:center}
 .total-block{margin-top:10px}
+.total-k{font:500 10.5px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .total{font:700 36px/1.1 var(--f-disp);font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .total .cur{font-size:.55em;margin-left:6px;color:var(--muted)}
 .total-sub{color:var(--muted);font-size:13px;margin-top:2px}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);font-size:14px}
+.kv .v{font:500 14px var(--f-mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.kv .sum{font-weight:600;border-top:1px solid var(--line);padding-top:6px}
+.pos{color:var(--good)}
 .cats{display:grid;gap:10px;margin-top:14px}
 .cat{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:baseline}
-.cn{font-size:14px}
+.cn{font-size:14px;overflow-wrap:anywhere}
 .ca{font:500 13px var(--f-mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .pc{color:var(--muted);font-weight:400;margin-left:4px}
 .bar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
@@ -183,8 +246,11 @@ input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-colo
 .mn{font-weight:500;overflow-wrap:anywhere}
 .mc{font-size:12.5px;color:var(--muted)}
 .ma{grid-column:2;grid-row:1/3;align-self:center;font:500 14px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.settings{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:24px;padding-top:12px;border-top:1px solid var(--line);font-size:14px}
-.settings select{width:auto;min-width:96px}
+.ma.in{color:var(--good)}
+.ma.tr{color:var(--muted)}
+.settings{display:grid;gap:10px;margin-top:24px;padding-top:12px;border-top:1px solid var(--line);font-size:14px}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.set-row select{width:auto;min-width:120px}
 
 /* setup */
 .setup{margin-top:18px;display:grid;gap:4px}
@@ -194,17 +260,15 @@ input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-colo
 /* sheet */
 .sheet{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center}
 .sheet-backdrop{position:absolute;inset:0;background:var(--scrim)}
-.sheet-panel{position:relative;width:100%;max-width:560px;max-height:88vh;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--surface);border-radius:18px 18px 0 0;padding:6px 16px calc(20px + env(safe-area-inset-bottom,0px));box-shadow:var(--shadow);animation:up .22s ease-out}
+.sheet-panel{position:relative;width:100%;max-width:560px;max-height:90vh;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--surface);border-radius:18px 18px 0 0;padding:6px 16px calc(20px + env(safe-area-inset-bottom,0px));box-shadow:var(--shadow);animation:up .22s ease-out}
 .sheet-panel:focus{outline:none}
 @keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
 .grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 14px}
 .sh-eyebrow{margin-bottom:8px}
 .sh-title{font:600 19px/1.3 var(--f-body);text-wrap:balance;margin:0}
 .sh-meta{color:var(--muted);font-size:13.5px;margin:4px 0 0}
-.sh-list{margin:14px 0 0;padding-left:22px;display:grid;gap:7px}
-.sh-list li::marker{font-family:var(--f-mono);color:var(--muted);font-size:12px}
 .sh-acts{display:grid;gap:8px;margin-top:16px}
-.date-move,.other-box{border-top:1px solid var(--line);padding-top:4px}
+.date-move,.other-box{padding-top:4px}
 .other-box textarea{min-height:60px}
 .shift-list{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px}
 .shift-list li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--bg);border-radius:8px}
@@ -214,9 +278,9 @@ input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-colo
 
 /* nav + toast */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
-.tabs-in{display:grid;grid-template-columns:repeat(3,1fr);width:100%;max-width:560px}
-.tab-btn{display:grid;justify-items:center;gap:3px;background:none;border:0;color:var(--muted);font-weight:500;font-size:12px;padding:4px;cursor:pointer}
-.tab-btn .ic{display:grid;place-items:center;padding:3px 16px;border-radius:12px}
+.tabs-in{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:560px}
+.tab-btn{display:grid;justify-items:center;gap:3px;background:none;border:0;color:var(--muted);font-weight:500;font-size:11.5px;padding:4px 2px;cursor:pointer}
+.tab-btn .ic{display:grid;place-items:center;padding:3px 14px;border-radius:12px}
 .tab-btn svg{width:22px;height:22px}
 .tab-btn[aria-selected="true"]{color:var(--ink)}
 .tab-btn[aria-selected="true"] .ic{background:var(--surface-2)}
@@ -236,7 +300,7 @@ input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-colo
 
   <section id="setup" class="setup" hidden>
     <h2>Подключение к данным</h2>
-    <p>Журнал хранит всё в твоём приватном репозитории на GitHub. Вставь ключ доступа один раз — он останется только на этом телефоне.</p>
+    <p>Журнал хранит всё в твоём приватном репозитории на GitHub. Вставь ключ доступа один раз — он останется только на этом устройстве.</p>
     <form id="setup-form" autocomplete="off">
       <label class="fld" for="su-token">Ключ доступа (fine-grained token)</label>
       <input id="su-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_…">
@@ -253,6 +317,15 @@ input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-colo
       <div id="plan-stats"></div>
       <div id="plan-tails"></div>
       <div id="plan-days"></div>
+    </section>
+
+    <section id="tab-cal" class="tab" aria-label="Календарь" hidden>
+      <div class="cal-bar">
+        <button type="button" class="btn sm" data-action="cal-prev" aria-label="Предыдущий месяц">‹</button>
+        <div class="ml" id="cal-label"></div>
+        <button type="button" class="btn sm" data-action="cal-next" aria-label="Следующий месяц">›</button>
+      </div>
+      <div id="cal-body"></div>
     </section>
 
     <section id="tab-lessons" class="tab" aria-label="Уроки" hidden>
@@ -275,36 +348,50 @@ input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-colo
 
     <section id="tab-money" class="tab" aria-label="Деньги" hidden>
       <div class="month-bar">
-        <button type="button" class="btn sm" data-action="m-prev" aria-label="Предыдущий месяц">‹</button>
+        <button type="button" class="btn sm" data-action="m-prev" aria-label="Предыдущий период">‹</button>
         <div class="ml" id="m-label"></div>
-        <button type="button" class="btn sm" data-action="m-next" id="m-next" aria-label="Следующий месяц">›</button>
+        <button type="button" class="btn sm" data-action="m-next" id="m-next" aria-label="Следующий период">›</button>
       </div>
       <div id="money-summary"></div>
       <form id="money-add" class="card" autocomplete="off">
         <div class="card-h">
-          <label class="fld" for="m-text">Записать траты</label>
-          <input type="date" id="m-date" aria-label="Дата покупки">
+          <label class="fld" for="m-text">Записать</label>
+          <div class="ctl">
+            <select id="m-kind" aria-label="Тип записи">
+              <option value="spend">Траты</option>
+              <option value="income">Доход</option>
+              <option value="transfer">Перевод</option>
+              <option value="cash">Наличные</option>
+            </select>
+            <input type="date" id="m-date" aria-label="Дата">
+          </div>
         </div>
         <textarea id="m-text" rows="2" placeholder="хлеб 45, такси 320, протеин 2400"></textarea>
         <p class="err" id="m-err" hidden></p>
         <div class="form-row">
           <button type="submit" class="btn money" id="m-submit">Добавить</button>
-          <label class="btn file-btn" id="m-photo-btn">Фото чека<input type="file" id="m-photo" accept="image/*" aria-label="Фото чека"></label>
+          <label class="btn file-btn" id="m-photo-btn">Фото чеков<input type="file" id="m-photo" accept="image/*" multiple aria-label="Фото чеков"></label>
         </div>
-        <p class="hint">Название и сумма. Несколько покупок — через запятую или с новой строки. Чеки разберёт Claude, когда ты его позовёшь.</p>
+        <p class="hint">Название и сумма, несколько — через запятую или с новой строки. Фото можно выбрать сразу несколько: я разберу их, когда ты меня позовёшь.</p>
       </form>
       <div id="money-inbox"></div>
       <div id="money-list"></div>
       <div class="settings">
-        <label for="m-cur">Валюта</label>
-        <select id="m-cur">
-          <option value="₽">₽ рубль</option>
-          <option value="zł">zł злотый</option>
-          <option value="€">€ евро</option>
-          <option value="$">$ доллар</option>
-          <option value="₸">₸ тенге</option>
-          <option value="Br">Br бел. рубль</option>
-        </select>
+        <div class="set-row">
+          <label for="m-period">Месяц бюджета начинается</label>
+          <select id="m-period"></select>
+        </div>
+        <div class="set-row">
+          <label for="m-cur">Валюта</label>
+          <select id="m-cur">
+            <option value="₽">₽ рубль</option>
+            <option value="zł">zł злотый</option>
+            <option value="€">€ евро</option>
+            <option value="$">$ доллар</option>
+            <option value="₸">₸ тенге</option>
+            <option value="Br">Br бел. рубль</option>
+          </select>
+        </div>
       </div>
     </section>
   </main>
@@ -313,7 +400,10 @@ input[type="checkbox"]{width:20px;height:20px;min-height:0;padding:0;accent-colo
 <nav class="tabs" id="tabs" aria-label="Разделы" hidden>
   <div class="tabs-in" role="tablist">
     <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="plan" aria-selected="true">
-      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span>План
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></span>План
+    </button>
+    <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="cal" aria-selected="false">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></svg></span>Календарь
     </button>
     <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="lessons" aria-selected="false">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5"/></svg></span>Уроки
@@ -344,6 +434,7 @@ const pad = n => String(n).padStart(2, '0');
 const ds = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const pd = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], 12); };
 const addDays = (s, n) => { const d = pd(s); d.setDate(d.getDate() + n); return ds(d); };
+const daysBetween = (a, b) => Math.round((pd(b) - pd(a)) / 86400000);
 const dow = s => pd(s).getDay();
 const today = () => ds(new Date());
 const mondayOf = s => addDays(s, -((dow(s) + 6) % 7));
@@ -351,21 +442,25 @@ const DOW_S = ['вс','пн','вт','ср','чт','пт','сб'];
 const DOW_F = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
 const MON_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const MON_N = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MON_S = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 const dm = s => pad(pd(s).getDate()) + '.' + pad(pd(s).getMonth() + 1);
 const short = s => DOW_S[dow(s)] + ' ' + dm(s);
 const cap1 = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 const longDate = s => DOW_F[dow(s)] + ', ' + pd(s).getDate() + ' ' + MON_G[pd(s).getMonth()];
 const dayName = s => { const t = today(); if (s === t) return 'Сегодня'; if (s === addDays(t, 1)) return 'Завтра'; if (s === addDays(t, -1)) return 'Вчера'; return cap1(DOW_F[dow(s)]); };
 const monthKey = s => s.slice(0, 7);
+const monthShift = (mk, n) => { const p = mk.split('-').map(Number); const d = new Date(p[0], p[1] - 1 + n, 1, 12); return d.getFullYear() + '-' + pad(d.getMonth() + 1); };
 const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; if (m10 === 1 && m100 !== 11) return a; if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return b; return c; };
+const plural = (n, a, b, c) => { n = Math.abs(n); const m10 = n % 10, m100 = n % 100; if (m10 === 1 && m100 !== 11) return a; if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return b; return c; };
 const dur = m => { m = Number(m) || 0; if (m < 60) return m + ' мин'; const h = m / 60; return String(Math.round(h * 100) / 100).replace('.', ',') + ' ч'; };
 const nf = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
 const fmt = n => nf.format(Math.round((Number(n) || 0) * 100) / 100);
 const norm = s => String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 const clone = o => JSON.parse(JSON.stringify(o));
 const hhmm = d => pad(d.getHours()) + ':' + pad(d.getMinutes());
+const numOrNull = v => { v = String(v == null ? '' : v).replace(',', '.').trim(); if (!v) return null; const n = Number(v); return isFinite(n) ? n : null; };
 const HORIZON = 20;
+const LET = 'АБВГДЕ';
 const DOTS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>';
 const LS = {
   get(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (_) { return null; } },
@@ -375,14 +470,12 @@ const LS = {
 
 /* ---------- GitHub storage ---------- */
 const GH = {
-  cred: null, sha: {},
+  cred: null, sha: {}, q: {},
   async req(method, path, body) {
     const headers = { 'Authorization': 'Bearer ' + this.cred.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
     if (body) headers['Content-Type'] = 'application/json';
-    let r;
-    try { r = await fetch('https://api.github.com' + path, { method, headers, cache: 'no-store', body: body ? JSON.stringify(body) : undefined }); }
+    try { return await fetch('https://api.github.com' + path, { method, headers, cache: 'no-store', body: body ? JSON.stringify(body) : undefined }); }
     catch (_) { const e = new Error('offline'); e.code = 'offline'; throw e; }
-    return r;
   },
   fail(r) { const e = new Error('http ' + r.status); e.code = r.status === 401 ? 'auth' : r.status === 403 ? 'forbidden' : r.status === 404 ? 'notfound' : (r.status === 409 || r.status === 422) ? 'conflict' : 'http'; e.status = r.status; return e; },
   url(path) { return `/repos/${encodeURIComponent(this.cred.owner)}/${encodeURIComponent(this.cred.repo)}/contents/${path.split('/').map(encodeURIComponent).join('/')}`; },
@@ -409,7 +502,6 @@ const GH = {
     const j = await r.json();
     return Array.isArray(j) ? j : [];
   },
-  q: {},
   mutate(path, fn, message, empty) {
     const run = (this.q[path] || Promise.resolve()).then(async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -439,9 +531,9 @@ function b64dec(b64) {
 
 /* ---------- state ---------- */
 const S = {
-  ready: false, loading: false, lastLoad: 0, missing: false,
-  config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {},
-  month: monthKey(today()), money: {}, inbox: [],
+  ready: false, loading: false, lastLoad: 0,
+  config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {}, events: [],
+  money: {}, workouts: {}, inbox: [], period: null, periodP: null, calMonth: monthKey(today()),
   shift: {}, cur: null, sportList: [], studyCache: null, lastToday: today(), slotsSig: '', pending: 0
 };
 
@@ -451,25 +543,35 @@ const KW = [
   ['Транспорт', ['такси','бензин','топлив','заправк','азс','метро','автобус','проезд','электричк','поезд','ржд','парковк','мойк','шиномонт','каршер','uber','bolt','авиа','самолет','маршрутк','трамва','троллейб','моторн']],
   ['Спорт', ['абонемент','бассейн','протеин','креатин','гейнер','спортпит','bcaa','гантел','гиря','гири','кроссов','перчат','бинты','скакалк','тренер','тренаж','спортзал','фитнес']],
   ['Здоровье', ['аптек','лекарств','витамин','врач','стомат','анализ','таблет','мазь','клиник','омега','магний','пластыр']],
-  ['Техника и подписки', ['подписк','claude','chatgpt','vpn','впн','хостинг','домен','сервер','ноутбук','наушник','флешк','кабел','зарядк','мышк','клавиатур','ssd','роутер','steam']],
-  ['Кафе и доставка', ['кафе','кофе','капучин','латте','ресторан','шаурм','шаверм','бургер','пицц','суши','ролл','доставк','обед','ужин','завтрак','столов','макдон','kfc','вкусно и точка','бизнес-ланч']],
-  ['Жильё и связь', ['аренд','квартир','коммунал','жкх','электроэнерг','интернет','связь','мобильн','сотов','тариф','ипотек']],
-  ['Быт и гигиена', ['шампун','мыло','гель д','зубн','паст','порош','моющ','туалетн','салфет','бытов','посуд','губк','дезодор','бритв','станк','пакеты']],
+  ['Техника и подписки', ['подписк','claude','chatgpt','vpn','впн','хостинг','домен','сервер','ноутбук','наушник','флешк','кабел','зарядк','мышк','клавиатур','ssd','роутер','steam','яндекс плюс']],
+  ['Кафе и доставка', ['кафе','кофе','капучин','латте','ресторан','шаурм','шаверм','бургер','пицц','суши','ролл','доставк','обед','ужин','завтрак','столов','макдон','kfc','вкусно и точка','бизнес-ланч','чаевые']],
+  ['Жильё и связь', ['аренд','квартир','коммунал','жкх','электроэнерг','интернет','связь','мобильн','сотов','тариф','ипотек','билайн','мегафон','мтс','теле2']],
+  ['Быт и гигиена', ['шампун','мыло','гель д','зубн','паст','порош','моющ','туалетн','салфет','бытов','посуд','губк','дезодор','бритв','станк','пакет','батарейк']],
   ['Одежда', ['одежд','футбол','штан','джинс','куртк','обув','носк','трус','шапк','худи','свитер','кофт','рубаш','ботин','шорт']],
-  ['Развлечения', ['кино','игр','концерт','театр','музей','кальян','боулинг','бильярд']],
+  ['Развлечения', ['кино','игр','концерт','театр','музей','кальян','боулинг','бильярд','бар ']],
   ['Подарки', ['подар','цвет']],
-  ['Продукты', ['продукт','хлеб','батон','молок','кефир','сыр','творог','йогурт','сметан','яйц','мясо','куриц','курин','фарш','рыб','колбас','сосис','овощ','фрукт','яблок','банан','картош','картоф','помидор','огур','морков','круп','рис','греч','овсян','макарон','масло','сахар','соль','мука','вода','сок','чай','конфет','печен','шоколад','пиво','магнит','пятероч','перекрест','ашан','лента','дикси','вкусвилл','самокат','biedronka','lidl','zabka','żabka','auchan','carrefour','kaufland']]
+  ['Продукты', ['продукт','хлеб','батон','молок','кефир','сыр','творог','йогурт','сметан','яйц','мясо','куриц','курин','филе','фарш','рыб','колбас','сосис','овощ','фрукт','яблок','банан','картош','картоф','помидор','огур','морков','круп','рис','греч','овсян','макарон','масло','сахар','соль','мука','вода','сок','чай','конфет','печен','шоколад','пиво','лаваш','магнит','пятероч','перекрест','ашан','лента','дикси','вкусвилл','самокат','biedronka','lidl','zabka','żabka','auchan','carrefour','kaufland']]
 ];
 function cats() { return S.config && Array.isArray(S.config.categories) && S.config.categories.length ? S.config.categories : CATS_DEFAULT; }
 function otherCat() { const c = cats(); return c.includes('Другое') ? 'Другое' : c[c.length - 1]; }
 function curSym() { return (S.config && S.config.currency) || '₽'; }
+const kindOf = x => x.kind || 'spend';
+const KIND_NAMES = { spend: 'Трата', income: 'Доход', transfer: 'Перевод', cash: 'Наличные' };
+function catsFor(kind) {
+  const m = (S.config && S.config.money) || {};
+  if (kind === 'income') return m.incomeCategories || ['Зарплата', 'Поступления', 'Кэшбэк', 'Другое'];
+  if (kind === 'transfer') return m.transferCategories || ['Переводы', 'Свои счета'];
+  if (kind === 'cash') return ['Наличные'];
+  return cats();
+}
 function categorize(name) {
-  const n = norm(name), list = cats(), learned = S.learned || {};
-  if (learned[n] && list.includes(learned[n])) return { cat: learned[n], known: true };
+  const n = norm(name) + ' ', list = cats(), learned = S.learned || {};
+  const key = norm(name);
+  if (learned[key] && list.includes(learned[key])) return { cat: learned[key], known: true };
   for (const [c, words] of KW) { if (!list.includes(c)) continue; if (words.some(w => n.includes(w))) return { cat: c, known: true }; }
   return { cat: otherCat(), known: false };
 }
-function catOptions(sel) { return cats().map(c => `<option value="${esc(c)}"${c === sel ? ' selected' : ''}>${esc(c)}</option>`).join(''); }
+function catOptions(list, sel) { return list.map(c => `<option value="${esc(c)}"${c === sel ? ' selected' : ''}>${esc(c)}</option>`).join(''); }
 
 /* ---------- parsing "хлеб 45, такси 320" ---------- */
 function parseSpend(text) {
@@ -493,6 +595,29 @@ function parseSpend(text) {
   return { items, bad };
 }
 
+/* ---------- money periods ---------- */
+function pStartDay() { const p = Number(((S.config || {}).money || {}).periodStart || 1); return p >= 1 && p <= 28 ? p : 1; }
+function periodOf(d) { const P = pStartDay(), x = pd(d); let m = x.getMonth(); if (x.getDate() < P) m -= 1; return ds(new Date(x.getFullYear(), m, P, 12)); }
+function periodShift(start, n) { const x = pd(start); return ds(new Date(x.getFullYear(), x.getMonth() + n, x.getDate(), 12)); }
+function periodEnd(start) { return addDays(periodShift(start, 1), -1); }
+function periodLabel(start) {
+  const x = pd(start);
+  if (pStartDay() === 1) return MON_N[x.getMonth()] + ' ' + x.getFullYear();
+  const e = pd(periodEnd(start));
+  return `${x.getDate()} ${MON_S[x.getMonth()]} – ${e.getDate()} ${MON_S[e.getMonth()]}`;
+}
+function periodMonths(start) { const a = monthKey(start), b = monthKey(periodEnd(start)); return a === b ? [a] : [a, b]; }
+function periodItems(start) {
+  const end = periodEnd(start);
+  let out = [];
+  for (const mk of periodMonths(start)) { const d = S.money[mk]; if (d && Array.isArray(d.items)) out = out.concat(d.items.filter(x => x.date >= start && x.date <= end)); }
+  return out;
+}
+function ensurePeriod() {
+  const P = pStartDay();
+  if (!S.period || S.periodP !== P) { S.period = periodOf(today()); S.periodP = P; }
+}
+
 /* ---------- loading ---------- */
 function setSync(text, isErr) { const el = $('#sync'); el.textContent = text || ''; el.classList.toggle('err', !!isErr); }
 function syncLabel() { return S.lastLoad ? 'обновлено в ' + hhmm(new Date(S.lastLoad)) : ''; }
@@ -506,49 +631,61 @@ function errText(e) {
   return 'GitHub не ответил. Попробуй ещё раз.';
 }
 function applyData(d) {
-  S.config = d.config || null;
-  S.lessons = (d.lessons && Array.isArray(d.lessons.lessons)) ? d.lessons.lessons : [];
-  S.studyDays = (d.plan && d.plan.studyDays) || {};
-  S.sportMoves = (d.plan && d.plan.sportMoves) || {};
-  S.learned = (d.learned && d.learned.map) || {};
-  if (d.money) S.money = d.money;
+  if ('config' in d) S.config = d.config || null;
+  if (d.lessons) S.lessons = Array.isArray(d.lessons.lessons) ? d.lessons.lessons : [];
+  if (d.plan) { S.studyDays = d.plan.studyDays || {}; S.sportMoves = d.plan.sportMoves || {}; }
+  if (d.learned) S.learned = d.learned.map || {};
+  if (d.events) S.events = Array.isArray(d.events.events) ? d.events.events : [];
+  if (d.money) S.money = Object.assign({}, S.money, d.money);
+  if (d.workouts) S.workouts = Object.assign({}, S.workouts, d.workouts);
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves }, learned: { map: S.learned }, money: S.money, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves }, learned: { map: S.learned }, events: { events: S.events }, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+}
+async function fetchMonths(prefix, keys, empty) {
+  const res = await Promise.all(keys.map(k => GH.getJSON(prefix + k + '.json')));
+  const out = {};
+  keys.forEach((k, i) => { out[k] = res[i] || clone(empty); });
+  return out;
 }
 async function loadAll(quiet) {
   if (S.loading || !GH.cred) return;
   S.loading = true; $('#btn-refresh').classList.add('busy');
   if (!quiet) setSync('обновляю…');
   try {
-    const mk = S.month;
-    const [config, lessons, plan, learned, month, inbox] = await Promise.all([
-      GH.getJSON('config.json'), GH.getJSON('lessons.json'), GH.getJSON('plan.json'), GH.getJSON('learned.json'),
-      GH.getJSON('money/' + mk + '.json'), GH.list('inbox/receipts')
+    const [config, lessons, plan, learned, events, inbox] = await Promise.all([
+      GH.getJSON('config.json'), GH.getJSON('lessons.json'), GH.getJSON('plan.json'), GH.getJSON('learned.json'), GH.getJSON('events.json'), GH.list('inbox/receipts')
     ]);
-    const money = Object.assign({}, S.money); money[mk] = month || { items: [] };
-    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, money, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
-    S.missing = !config;
+    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    ensurePeriod();
+    const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
+    const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
+    const [money, workouts] = await Promise.all([fetchMonths('money/', mks, { items: [] }), fetchMonths('workouts/', wks, { logs: {} })]);
+    applyData({ money, workouts });
     S.ready = true; S.lastLoad = Date.now();
     cacheNow();
     setSync(syncLabel());
   } catch (e) {
     console.warn(e);
-    if (e.code === 'auth') { showSetup('Ключ не подошёл или истёк. Вставь новый.'); }
+    if (e.code === 'auth') showSetup('Ключ не подошёл или истёк. Вставь новый.');
     setSync(errText(e), true);
   } finally {
     S.loading = false; $('#btn-refresh').classList.remove('busy');
     render();
   }
 }
-async function loadMonth(mk) {
-  if (S.money[mk]) { renderMoney(); }
-  try {
-    const d = await GH.getJSON('money/' + mk + '.json');
-    S.money[mk] = d || { items: [] };
-  } catch (e) { setSync(errText(e), true); if (!S.money[mk]) S.money[mk] = { items: [] }; }
-  renderMoney();
+async function ensureMoney(keys) {
+  const miss = keys.filter(k => !S.money[k]);
+  if (!miss.length) return;
+  try { applyData({ money: await fetchMonths('money/', miss, { items: [] }) }); }
+  catch (e) { setSync(errText(e), true); miss.forEach(k => { if (!S.money[k]) S.money[k] = { items: [] }; }); }
+}
+async function ensureWorkouts(keys) {
+  const miss = keys.filter(k => !S.workouts[k]);
+  if (!miss.length) return;
+  try { applyData({ workouts: await fetchMonths('workouts/', miss, { logs: {} }) }); }
+  catch (e) { miss.forEach(k => { if (!S.workouts[k]) S.workouts[k] = { logs: {} }; }); }
 }
 
 /* ---------- writes ---------- */
@@ -583,6 +720,11 @@ async function writeConfig(fn, msg) {
   if (next) { S.config = next; cacheNow(); render(); }
   return !!next;
 }
+async function writeEvents(fn, msg) {
+  const next = await write('events.json', d => { d.events = Array.isArray(d.events) ? d.events : []; fn(d.events); return d; }, msg, { events: [] });
+  if (next) { S.events = next.events; cacheNow(); render(); }
+  return !!next;
+}
 async function writeMonth(mk, fn, msg) {
   const next = await write('money/' + mk + '.json', d => { d.items = fn(Array.isArray(d.items) ? d.items : []); return d; }, msg, { items: [] });
   if (next) { S.money[mk] = next; cacheNow(); renderMoney(); }
@@ -594,7 +736,10 @@ async function writeLearned(name, cat) {
 }
 function setMove(p, id, patch) {
   const cur = Object.assign({}, p.sportMoves[id] || {}, patch);
-  Object.keys(cur).forEach(k => { if (cur[k] === undefined || cur[k] === null || cur[k] === '') delete cur[k]; });
+  Object.keys(cur).forEach(k => {
+    const v = cur[k];
+    if (v === undefined || v === null || v === '' || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length) || (Array.isArray(v) && !v.length)) delete cur[k];
+  });
   if (Object.keys(cur).length) p.sportMoves[id] = cur; else delete p.sportMoves[id];
 }
 
@@ -619,7 +764,7 @@ function slotLabel(d, c) {
   return l || dur(c.cap);
 }
 function activity(d) { return S.lessons.some(l => l.done === d || (Array.isArray(l.progressDates) && l.progressDates.includes(d))); }
-function buildStudy(days) {
+function buildStudy(days, endDate) {
   days = days || S.studyDays;
   const st = S.config.study || {};
   const t = today();
@@ -627,7 +772,8 @@ function buildStudy(days) {
   const pending = pendingSorted().map(l => ({ key: l.id, doc: l, n: l.n, title: l.title || '', need: l.need ? Number(l.need) : null, rem: (Number(l.need) || 0) - (Number(l.progress) || 0), parts: 0 }));
   let nextN = maxN() + 1;
   const byDate = {}, first = {}, entries = [];
-  const end = addDays(t, HORIZON);
+  let end = addDays(t, HORIZON);
+  if (endDate && endDate > end) end = endDate;
   for (; d <= end; d = addDays(d, 1)) {
     const c = studyCap(d, days);
     if (c.blocked) { if (c.base > 0) (byDate[d] = byDate[d] || []).push({ blocked: true, date: d, cap: c.base }); continue; }
@@ -656,10 +802,10 @@ function studyTails(n) {
 }
 
 /* ---------- sport planning ---------- */
-function buildSport() {
+function buildSport(fromD, toD) {
   const cfg = S.config.sport || {};
   const t = today();
-  const from = addDays(t, -35), to = addDays(t, HORIZON + 8);
+  const from = fromD || addDays(t, -35), to = toD || addDays(t, HORIZON + 8);
   const list = [];
   if (!cfg.start || !Array.isArray(cfg.template)) return list;
   for (let w = mondayOf(from < cfg.start ? cfg.start : from); w <= to; w = addDays(w, 7)) {
@@ -670,12 +816,36 @@ function buildSport() {
       if (!s) continue;
       const id = orig + '_' + tp.key;
       const ov = S.sportMoves[id] || {};
-      list.push({ id, key: tp.key, orig, eff: ov.movedTo || orig, state: ov.state || null, note: ov.note || '', kind: s.kind, title: s.title || tp.key, sub: s.sub || '', ov });
+      const inst = { id, key: tp.key, orig, eff: ov.movedTo || orig, state: ov.state || null, note: ov.note || '', kind: s.kind, title: s.title || tp.key, sub: s.sub || '', ov };
+      if (ov.as && cfg.sessions[ov.as]) { inst.title = cfg.sessions[ov.as].title; inst.sub = 'вместо: ' + (s.title || tp.key); inst.replaced = true; }
+      else if (Array.isArray(ov.custom) && ov.custom.length) { inst.title = 'Своя тренировка'; inst.sub = ov.custom.join(' · '); inst.replaced = true; }
+      list.push(inst);
     }
   }
   return list;
 }
-function findInst(id) { return S.sportList.find(i => i.id === id); }
+function findInst(id) {
+  let i = S.sportList.find(x => x.id === id);
+  if (!i && /^\d{4}-\d{2}-\d{2}_/.test(id || '')) { const o = id.slice(0, 10); i = buildSport(addDays(o, -7), addDays(o, 7)).find(x => x.id === id); }
+  return i || null;
+}
+function itemsToBlocks(items) { return (items || []).map(t => ({ ex: [{ name: String(t), log: 'check' }] })); }
+function sessionFor(i) {
+  const ses = (S.config.sport || {}).sessions || {};
+  const ov = i.ov || {};
+  let key = i.key, title = ses[i.key] ? ses[i.key].title : i.key, blocks, replaced = null;
+  if (Array.isArray(ov.custom) && ov.custom.length) {
+    blocks = ov.custom.map(n => ({ sets: 3, ex: [{ name: n, log: 'wr' }] }));
+    title = 'Своя тренировка'; replaced = 'custom';
+  } else {
+    if (ov.as && ses[ov.as]) { key = ov.as; title = ses[ov.as].title; replaced = 'as'; }
+    const s = ses[key] || {};
+    blocks = clone(s.blocks || itemsToBlocks(s.items));
+  }
+  const swap = ov.swap || {};
+  blocks.forEach((b, bi) => (b.ex || []).forEach((x, ei) => { const k = bi + '.' + ei; if (swap[k]) { x.orig = x.name; x.name = swap[k]; x.swapped = true; } }));
+  return { key, title, blocks, replaced, note: (ses[key] || {}).note || '' };
+}
 function planMove(inst, target) {
   const list = S.sportList, t = today();
   const occ = (d, excl, virt) => list.filter(i => i.eff === d && i.state !== 'skipped' && !excl.includes(i.id)).concat(virt.filter(v => v.eff === d));
@@ -709,6 +879,98 @@ function planMove(inst, target) {
   return res;
 }
 
+/* ---------- workout logs ---------- */
+function logFor(i) { const w = S.workouts[monthKey(i.eff)]; return (w && w.logs && w.logs[i.id]) || null; }
+function prevSets(key, name, before) {
+  let best = null;
+  for (const mk of Object.keys(S.workouts)) {
+    const logs = (S.workouts[mk] || {}).logs || {};
+    for (const id of Object.keys(logs)) {
+      const L = logs[id];
+      if (!L || L.key !== key || !(L.date < before)) continue;
+      for (const b of L.blocks || []) for (const x of b.ex || []) {
+        if (x.name === name && Array.isArray(x.sets) && x.sets.some(s => s && (s.w != null || s.r != null))) {
+          if (!best || L.date > best.date) best = { date: L.date, sets: x.sets };
+        }
+      }
+    }
+  }
+  return best;
+}
+const exSets = (x, b) => Number(x.sets || b.sets || 3);
+function workoutForm(i, ses) {
+  const log = logFor(i), draft = LS.get('bj-draft-' + i.id);
+  const src = (draft && draft.blocks) || (log && log.blocks) || null;
+  const val = (bi, ei) => (src && src[bi] && src[bi].ex && src[bi].ex[ei]) || null;
+  let prevDate = null;
+  const html = ses.blocks.map((b, bi) => {
+    const ex = b.ex || [];
+    const multi = ex.length > 1;
+    const head = b.type ? `<div class="blk-h">${esc(b.type)}${b.sets ? ` · ${b.sets} ${plural(b.sets, 'круг', 'круга', 'кругов')}` : ''}</div>` : '';
+    const names = ex.map((x, ei) => `<div class="exl"><span class="let">${multi ? LET[ei] : ''}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${exSets(x, b) !== Number(b.sets || 3) && (x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${exSets(x, b)} ${plural(exSets(x, b), 'подход', 'подхода', 'подходов')}</span>` : ''}</span>${ses.replaced === 'custom' ? '<span></span>' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</div>
+      <div class="swap-form" id="swf-${bi}-${ei}" hidden><input id="swi-${bi}-${ei}" placeholder="Чем заменить" value="${esc(x.swapped ? x.name : '')}"><div class="two"><button type="button" class="btn sm" data-action="ex-swap-once" data-b="${bi}" data-e="${ei}">Только в этот раз</button><button type="button" class="btn sm" data-action="ex-swap-perm" data-b="${bi}" data-e="${ei}">В программе навсегда</button></div>${x.swapped ? `<button type="button" class="btn sm" data-action="ex-unswap" data-b="${bi}" data-e="${ei}">Вернуть по программе</button>` : ''}</div>`).join('');
+    let body = '';
+    const wr = ex.map((x, ei) => ({ x, ei })).filter(o => o.x.log === 'wr' || o.x.log === 'r');
+    if (wr.length) {
+      const rounds = Math.max(...wr.map(o => exSets(o.x, b)));
+      for (let r = 1; r <= rounds; r++) {
+        const inR = wr.filter(o => r <= exSets(o.x, b));
+        if (!inR.length) continue;
+        body += '<div class="round">' + inR.map(o => {
+          const v = val(bi, o.ei), s = (v && v.sets && v.sets[r - 1]) || {};
+          const p = prevSets(ses.key, o.x.name, i.eff);
+          if (p && (!prevDate || p.date > prevDate)) prevDate = p.date;
+          const ps = (p && p.sets[r - 1]) || {};
+          const lab = r + (multi ? LET[o.ei] : '');
+          const rIn = `<input id="lg-${bi}-${o.ei}-${r}-r" inputmode="numeric" value="${esc(s.r != null ? s.r : '')}" placeholder="${esc(ps.r != null ? ps.r : 'повт')}" aria-label="${esc(o.x.name)}, подход ${r}, повторы">`;
+          if (o.x.log === 'r') return `<div class="set r"><span class="sl">${lab}</span>${rIn}<span class="u">повт</span></div>`;
+          return `<div class="set"><span class="sl">${lab}</span><input id="lg-${bi}-${o.ei}-${r}-w" inputmode="decimal" value="${esc(s.w != null ? s.w : '')}" placeholder="${esc(ps.w != null ? ps.w : 'кг')}" aria-label="${esc(o.x.name)}, подход ${r}, вес"><span class="u">кг ×</span>${rIn}<span class="u">повт</span></div>`;
+        }).join('') + '</div>';
+      }
+    }
+    ex.forEach((x, ei) => {
+      const v = val(bi, ei);
+      if (x.log === 'check') body += `<label class="chk"><input type="checkbox" id="lg-${bi}-${ei}-c"${v && v.done ? ' checked' : ''}> ${multi ? LET[ei] + ': ' : ''}сделано</label>`;
+      else if (x.log === 'note') body += `<input class="note-in" id="lg-${bi}-${ei}-n" value="${esc((v && v.note) || '')}" placeholder="${esc(x.ph || 'заметка')}" aria-label="${esc(x.name)}">`;
+    });
+    return `<div class="blk">${head}${names}${body ? `<div class="sets">${body}</div>` : ''}</div>`;
+  }).join('');
+  const info = [];
+  if (prevDate) info.push(`Серые цифры — прошлый раз, ${short(prevDate)}.`);
+  if (draft) info.push('Есть несохранённые подходы — они подставлены.');
+  else if (log) info.push('Подходы сохранены ' + (log.ts ? hhmm(new Date(log.ts)) + ', ' : '') + short(log.date) + '.');
+  return html + (info.length ? `<p class="note">${info.join(' ')}</p>` : '');
+}
+function collectLog(ses) {
+  let any = false;
+  const blocks = ses.blocks.map((b, bi) => ({ type: b.type || '', ex: (b.ex || []).map((x, ei) => {
+    const o = { name: x.name, log: x.log || 'check' };
+    if (o.log === 'wr' || o.log === 'r') {
+      const sets = [];
+      for (let r = 1; r <= exSets(x, b); r++) {
+        const we = document.getElementById(`lg-${bi}-${ei}-${r}-w`), re = document.getElementById(`lg-${bi}-${ei}-${r}-r`);
+        const w = we ? numOrNull(we.value) : null, rr = re ? numOrNull(re.value) : null;
+        if (w == null && rr == null) sets.push(null);
+        else { any = true; const s = {}; if (w != null) s.w = w; if (rr != null) s.r = rr; sets.push(s); }
+      }
+      while (sets.length && sets[sets.length - 1] == null) sets.pop();
+      o.sets = sets;
+    } else if (o.log === 'check') {
+      const c = document.getElementById(`lg-${bi}-${ei}-c`); o.done = !!(c && c.checked); if (o.done) any = true;
+    } else if (o.log === 'note') {
+      const n = document.getElementById(`lg-${bi}-${ei}-n`); o.note = n ? n.value.trim() : ''; if (o.note) any = true;
+    }
+    return o;
+  }) }));
+  return { blocks, any };
+}
+async function saveLog(i, ses, blocks) {
+  const mk = monthKey(i.eff);
+  const next = await write('workouts/' + mk + '.json', d => { d.logs = d.logs || {}; d.logs[i.id] = { date: i.eff, key: ses.key, title: ses.title, blocks, ts: Date.now() }; return d; }, `Тренировка ${i.eff}: ${ses.title}`, { logs: {} });
+  if (next) { S.workouts[mk] = next; LS.del('bj-draft-' + i.id); cacheNow(); }
+  return !!next;
+}
+
 /* ---------- stats ---------- */
 function calcStats(sport) {
   const t = today(), from = addDays(t, -27);
@@ -735,7 +997,11 @@ function bannerHtml() {
 function render() {
   const t = today();
   $('#today-label').textContent = DOW_S[dow(t)] + ', ' + pd(t).getDate() + ' ' + MON_G[pd(t).getMonth()];
-  renderPlan(); renderLessons(); renderMoney();
+  renderPlan(); renderCal(); renderLessons(); renderMoney();
+}
+function eventsOn(d) { return S.events.filter(e => e.date === d).sort((a, b) => (a.time || '') < (b.time || '') ? -1 : (a.time || '') > (b.time || '') ? 1 : 0); }
+function rowEvent(ev) {
+  return `<button type="button" class="row slim" data-action="event" data-id="${esc(ev.id)}"><span class="tag event">Событие</span><span class="rb"><span class="t">${esc(ev.title)}</span></span><span class="s">${ev.time ? esc(ev.time) : 'весь день'}</span></button>`;
 }
 function rowStudy(e) {
   const L = e.L;
@@ -755,10 +1021,21 @@ function rowSport(i) {
   else if (i.state === 'other') { chip = '<span class="chip good">✓ другое</span>'; cls = ' is-done'; meta = i.note || 'сделал другое'; }
   else if (i.state === 'skipped') { chip = '<span class="chip">пропуск</span>'; cls = ' is-skipped'; }
   else if (i.eff !== i.orig) chip = `<span class="chip warn">с ${short(i.orig)}</span>`;
+  else if (i.replaced) chip = '<span class="chip warn">замена</span>';
   return `<button type="button" class="row${cls}" data-action="sport" data-id="${esc(i.id)}"><span class="tag sport">Спорт</span><span class="rb"><span class="t">${esc(i.title)}</span><span class="m">${esc(meta)}</span></span><span class="s">${chip}</span></button>`;
 }
 function rowGhost(i) {
   return `<button type="button" class="row ghost" data-action="sport" data-id="${esc(i.id)}"><span class="tag sport dim">Спорт</span><span class="rb"><span class="t">${esc(i.title)}</span><span class="m">${i.state === 'skipped' ? 'перенесено и пропущено' : 'перенесено'}</span></span><span class="s"><span class="chip warn">→ ${short(i.eff)}</span></span></button>`;
+}
+function dayRows(d, study, sport) {
+  const rows = [];
+  const evs = eventsOn(d);
+  evs.filter(e => !e.time).forEach(e => rows.push(rowEvent(e)));
+  evs.filter(e => e.time).forEach(e => rows.push(rowEvent(e)));
+  for (const e of (study.byDate[d] || [])) rows.push(e.blocked ? rowBlocked(e) : rowStudy(e));
+  for (const i of sport) if (i.eff === d) rows.push(rowSport(i));
+  for (const i of sport) if (i.orig === d && i.eff !== d) rows.push(rowGhost(i));
+  return rows;
 }
 function renderPlan() {
   const bn = $('#plan-banner'), st = $('#plan-stats'), tl = $('#plan-tails'), dy = $('#plan-days');
@@ -775,21 +1052,59 @@ function renderPlan() {
     const items = stT.map(d => ({ d, type: 'st' })).concat(spT.map(i => ({ d: i.eff, type: 'sp', i }))).sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
     tl.innerHTML = `<h2 class="sec">Не отмечено</h2><div class="stack">${items.map(it => it.type === 'st'
       ? `<div class="tail"><div class="tail-t"><span class="tag study">Учёба</span><span>Окно ${esc(slotLabel(it.d, studyCap(it.d)))}</span><span class="dd">${short(it.d)}</span></div><div class="acts"><button type="button" class="btn sm study" data-action="st-tail-done" data-date="${it.d}">Был урок</button><button type="button" class="btn sm" data-action="st-tail-skip" data-date="${it.d}">Пропустил</button></div></div>`
-      : `<div class="tail"><div class="tail-t"><span class="tag sport">Спорт</span><span>${esc(it.i.title)}</span><span class="dd">${short(it.d)}</span></div><div class="acts"><button type="button" class="btn sm sport" data-action="sp-done" data-id="${esc(it.i.id)}">Сделал</button><button type="button" class="btn sm" data-action="sport" data-id="${esc(it.i.id)}">Другое / перенести</button><button type="button" class="btn sm" data-action="sp-skip" data-id="${esc(it.i.id)}">Пропустил</button></div></div>`).join('')}</div>`;
+      : `<div class="tail"><div class="tail-t"><span class="tag sport">Спорт</span><span>${esc(it.i.title)}</span><span class="dd">${short(it.d)}</span></div><div class="acts"><button type="button" class="btn sm sport" data-action="sp-done" data-id="${esc(it.i.id)}">Сделал</button><button type="button" class="btn sm" data-action="sport" data-id="${esc(it.i.id)}">Подробнее</button><button type="button" class="btn sm" data-action="sp-skip" data-id="${esc(it.i.id)}">Пропустил</button></div></div>`).join('')}</div>`;
   } else tl.innerHTML = '';
   let h = '';
   for (let k = 0; k <= HORIZON; k++) {
     const d = addDays(t, k);
-    const rows = [];
-    for (const e of (study.byDate[d] || [])) rows.push(e.blocked ? rowBlocked(e) : rowStudy(e));
-    for (const i of sport) if (i.eff === d) rows.push(rowSport(i));
-    for (const i of sport) if (i.orig === d && i.eff !== d) rows.push(rowGhost(i));
+    const rows = dayRows(d, study, sport);
     if (k > 0 && dow(d) === 1) h += `<div class="week-sep"><span>Неделя ${dm(d)} – ${dm(addDays(d, 6))}</span></div>`;
     const dd = k <= 1 ? short(d) : dm(d);
-    h += `<section class="day${k === 0 ? ' is-today' : ''}"><div class="day-h"><span class="dn">${dayName(d)}</span><span class="dd">${dd}</span><button type="button" class="more" data-action="day" data-date="${d}" aria-label="Учёба ${short(d)}">${DOTS}</button></div>${rows.length ? `<div class="stack">${rows.join('')}</div>` : '<p class="empty-day">Свободный день</p>'}</section>`;
+    h += `<section class="day${k === 0 ? ' is-today' : ''}"><div class="day-h"><span class="dn">${dayName(d)}</span><span class="dd">${dd}</span><button type="button" class="more" data-action="day" data-date="${d}" aria-label="День ${short(d)}">${DOTS}</button></div>${rows.length ? `<div class="stack">${rows.join('')}</div>` : '<p class="empty-day">Свободный день</p>'}</section>`;
   }
-  dy.innerHTML = '<h2 class="sec">Ближайшие три недели</h2>' + h;
+  dy.innerHTML = '<div class="sec-row"><h2 class="sec">Ближайшие три недели</h2><button type="button" class="btn sm" data-action="ev-new">+ Событие</button></div>' + h;
 }
+
+/* ---------- calendar ---------- */
+function sportMark(d, list) {
+  const on = list.filter(i => i.eff === d), away = list.filter(i => i.orig === d && i.eff !== d);
+  if (on.some(i => i.state === 'done' || i.state === 'other')) return '<span class="mk sport" title="Тренировка сделана">✓</span>';
+  if (on.some(i => i.state === 'skipped')) return '<span class="mk sport x" title="Тренировка пропущена">✕</span>';
+  if (on.length) return d < today() ? '<span class="mk sport plan" title="Не отмечено">?</span>' : '<span class="mk sport plan" title="Тренировка по плану"></span>';
+  if (away.length) return '<span class="mk sport plan" title="Тренировка перенесена">→</span>';
+  return '';
+}
+function studyMark(d, plan) {
+  if (activity(d)) return '<span class="mk study" title="Урок пройден">✓</span>';
+  const c = studyCap(d), st = (S.config.study || {}).start || '';
+  if (c.blocked && c.base > 0) return '<span class="mk study x" title="Учёба пропущена">✕</span>';
+  if (d < today()) return c.cap > 0 && d >= st ? '<span class="mk study plan" title="Не отмечено">?</span>' : '';
+  if ((plan.byDate[d] || []).some(e => !e.blocked)) return '<span class="mk study plan" title="Урок по плану"></span>';
+  return '';
+}
+function renderCal() {
+  const body = $('#cal-body');
+  const p = S.calMonth.split('-').map(Number);
+  $('#cal-label').textContent = MON_N[p[1] - 1] + ' ' + p[0];
+  if (!isReady()) { body.innerHTML = bannerHtml(); return; }
+  const first = S.calMonth + '-01';
+  const gridStart = mondayOf(first);
+  const last = ds(new Date(p[0], p[1], 0, 12));
+  const gridEnd = addDays(mondayOf(last), 6);
+  const sport = buildSport(addDays(gridStart, -7), addDays(gridEnd, 7));
+  const plan = gridEnd >= today() ? buildStudy(null, gridEnd) : { byDate: {} };
+  const t = today();
+  let cells = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].map(x => `<div class="cal-dow">${x}</div>`).join('');
+  for (let d = gridStart; d <= gridEnd; d = addDays(d, 1)) {
+    const evs = S.events.filter(e => e.date === d).length;
+    const marks = sportMark(d, sport) + studyMark(d, plan) + (evs ? '<span class="mk ev" title="Событие"></span>'.repeat(Math.min(evs, 2)) : '');
+    cells += `<button type="button" class="cal-cell${monthKey(d) !== S.calMonth ? ' out' : ''}${d === t ? ' today' : ''}" data-action="day" data-date="${d}" aria-label="${esc(longDate(d))}"><span class="cal-num">${pd(d).getDate()}</span><span class="marks">${marks}</span></button>`;
+  }
+  body.innerHTML = `<div class="cal-grid">${cells}</div>
+    <div class="legend"><span><span class="mk sport">✓</span>сделано</span><span><span class="mk sport plan">→</span>перенесено</span><span><span class="mk sport x">✕</span>пропуск</span><span><span class="mk sport plan"></span>по плану</span><span><span class="mk study">✓</span>учёба</span><span><span class="mk ev"></span>событие</span></div>
+    <p class="note">Оранжевый — спорт, синий — учёба, серый — твои события. «?» — день прошёл, а отметки нет.</p>`;
+}
+
 function renderLessons() {
   const nx = $('#lessons-next'), sl = $('#lessons-slots'), dn = $('#lessons-done'), bn = $('#lessons-banner');
   if (!isReady()) { bn.innerHTML = bannerHtml(); nx.innerHTML = sl.innerHTML = dn.innerHTML = ''; S.slotsSig = ''; return; }
@@ -801,6 +1116,7 @@ function renderLessons() {
         const f = study.first[l.id];
         const meta = [Number(l.need) === 90 ? '1,5 ч' : Number(l.need) === 60 ? '1 ч' : 'одно окно'];
         if (l.progress) meta.push('сделано ' + dur(l.progress));
+        if (Array.isArray(l.goals) && l.goals.length) meta.push(l.goals.length + ' ' + plural(l.goals.length, 'вопрос', 'вопроса', 'вопросов'));
         return `<button type="button" class="row" data-action="lesson" data-id="${esc(l.id)}"><span class="ln">${esc(l.n)}</span><span class="rb"><span class="t">${esc(l.title || 'Тема не задана')}</span><span class="m">${esc(meta.join(' · '))}</span></span><span class="s">${f ? short(f) : 'позже'}</span></button>`;
       }).join('') + '<p class="note">Дальше план заполняют уроки без темы. Их можно назвать прямо из плана.</p>'
     : '<p class="note">Очередь пуста. План заполняют уроки без темы, их можно назвать прямо из плана.</p>';
@@ -820,56 +1136,97 @@ function renderLessons() {
     ? done.map(l => `<button type="button" class="row is-done" data-action="lesson" data-id="${esc(l.id)}"><span class="ln">${esc(l.n)}</span><span class="rb"><span class="t">${esc(l.title || 'Урок ' + l.n)}</span></span><span class="s">${short(l.done)}</span></button>`).join('')
     : '<p class="note">Пока пусто. Отмечай уроки в плане, и они появятся здесь.</p>';
 }
+
 function renderMoney() {
-  const p = S.month.split('-').map(Number), y = p[0], m = p[1];
-  $('#m-label').textContent = MON_N[m - 1] + ' ' + y;
-  $('#m-next').disabled = S.month >= monthKey(today());
+  ensurePeriod();
+  $('#m-label').textContent = periodLabel(S.period);
+  $('#m-next').disabled = periodShift(S.period, 1) > today();
   const curSel = $('#m-cur');
   if (document.activeElement !== curSel) curSel.value = curSym();
+  const perSel = $('#m-period');
+  if (document.activeElement !== perSel) {
+    const P = pStartDay();
+    const opts = [1, 5, 10, 15, 20, 21, 25]; if (!opts.includes(P)) opts.push(P);
+    perSel.innerHTML = opts.sort((a, b) => a - b).map(v => `<option value="${v}"${v === P ? ' selected' : ''}>${v === 1 ? 'с 1-го числа' : `с ${v}-го`}</option>`).join('');
+  }
   const sm = $('#money-summary'), ls = $('#money-list'), ib = $('#money-inbox');
   ib.innerHTML = S.inbox.length ? `<div class="inbox">Чеков ждут разбора: <b>${S.inbox.length}</b>. Разберу, когда позовёшь.</div>` : '';
-  const data = S.money[S.month];
-  if (!data) { sm.innerHTML = S.ready ? '<p class="loading"><span class="spin" aria-hidden="true"></span>Загружаю…</p>' : bannerHtml(); ls.innerHTML = ''; return; }
-  const items = data.items || [];
+  const loaded = periodMonths(S.period).every(mk => S.money[mk]);
+  if (!loaded) { sm.innerHTML = S.ready ? '<p class="loading"><span class="spin" aria-hidden="true"></span>Загружаю…</p>' : bannerHtml(); ls.innerHTML = ''; return; }
+  const items = periodItems(S.period);
   const cur = curSym();
-  const total = items.reduce((a, x) => a + (Number(x.amount) || 0), 0);
-  const days = S.month === monthKey(today()) ? pd(today()).getDate() : new Date(y, m, 0).getDate();
+  const sum = f => items.filter(f).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const spend = sum(x => kindOf(x) === 'spend'), income = sum(x => kindOf(x) === 'income');
+  const trOut = sum(x => kindOf(x) === 'transfer' && x.dir !== 'in'), trIn = sum(x => kindOf(x) === 'transfer' && x.dir === 'in');
+  const cash = sum(x => kindOf(x) === 'cash');
+  const bal = income + trIn - spend - trOut - cash;
+  const t = today(), pEnd = periodEnd(S.period);
+  const days = t >= S.period && t <= pEnd ? daysBetween(S.period, t) + 1 : daysBetween(S.period, pEnd) + 1;
   const byCat = {};
-  items.forEach(x => { const c = x.cat || otherCat(); byCat[c] = (byCat[c] || 0) + (Number(x.amount) || 0); });
+  items.filter(x => kindOf(x) === 'spend').forEach(x => { const c = x.cat || otherCat(); byCat[c] = (byCat[c] || 0) + (Number(x.amount) || 0); });
   const rows = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
   const max = rows.length ? rows[0][1] : 1;
-  sm.innerHTML = `<div class="total-block"><div class="total">${fmt(total)}<span class="cur">${esc(cur)}</span></div><div class="total-sub">${items.length} ${plural(items.length, 'запись', 'записи', 'записей')}${items.length ? ` · в среднем ${fmt(total / days)} ${esc(cur)} в день` : ''}</div></div>`
-    + (rows.length && total > 0 ? `<div class="cats">${rows.map(([c, v]) => `<div class="cat"><span class="cn">${esc(c)}</span><span class="ca">${fmt(v)}<span class="pc">${Math.round(v / total * 100)}%</span></span><span class="bar"><i style="width:${Math.max(2, v / max * 100).toFixed(1)}%"></i></span></div>`).join('')}</div>` : '');
-  if (!items.length) { ls.innerHTML = '<p class="note">В этом месяце записей нет.</p>'; return; }
+  const byTr = {};
+  items.filter(x => kindOf(x) === 'transfer' && x.dir !== 'in').forEach(x => { byTr[x.name] = (byTr[x.name] || 0) + (Number(x.amount) || 0); });
+  const trRows = Object.entries(byTr).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  let html = `<div class="total-block"><div class="total-k">Потрачено</div><div class="total">${fmt(spend)}<span class="cur">${esc(cur)}</span></div><div class="total-sub">${spend ? `в среднем ${fmt(spend / Math.max(1, days))} ${esc(cur)} в день` : 'трат пока нет'}</div></div>`;
+  if (income || trOut || trIn || cash) {
+    html += `<div class="kv"><span>Доход</span><span class="v pos">+${fmt(income)}</span>`
+      + (trIn ? `<span>Со своих счетов</span><span class="v">+${fmt(trIn)}</span>` : '')
+      + `<span>Траты</span><span class="v">−${fmt(spend)}</span>`
+      + (trOut ? `<span>Переводы</span><span class="v">−${fmt(trOut)}</span>` : '')
+      + (cash ? `<span>Наличные</span><span class="v">−${fmt(cash)}</span>` : '')
+      + `<span class="sum">Итог периода</span><span class="v sum${bal >= 0 ? ' pos' : ''}">${bal >= 0 ? '+' : '−'}${fmt(Math.abs(bal))}</span></div>`;
+  }
+  if (rows.length && spend > 0) html += `<h2 class="sec">Траты по категориям</h2><div class="cats">${rows.map(([c, v]) => `<div class="cat"><span class="cn">${esc(c)}</span><span class="ca">${fmt(v)}<span class="pc">${Math.round(v / spend * 100)}%</span></span><span class="bar"><i style="width:${Math.max(2, v / max * 100).toFixed(1)}%"></i></span></div>`).join('')}</div>`;
+  if (trRows.length) html += `<h2 class="sec">Куда ушли переводы</h2><div class="kv">${trRows.map(([n, v]) => `<span>${esc(n)}</span><span class="v">${fmt(v)}</span>`).join('')}</div>`;
+  sm.innerHTML = html;
+  if (!items.length) { ls.innerHTML = '<p class="note">В этом периоде записей нет.</p>'; return; }
   const groups = {};
   items.forEach(x => { (groups[x.date] = groups[x.date] || []).push(x); });
   const dates = Object.keys(groups).sort().reverse();
   ls.innerHTML = '<h2 class="sec">Записи</h2>' + dates.map(d => {
     const g = groups[d].slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
-    const sum = g.reduce((a, x) => a + (Number(x.amount) || 0), 0);
-    return `<div class="mday"><div class="mday-h"><span>${short(d)}</span><span>${fmt(sum)} ${esc(cur)}</span></div>${g.map(x => `<button type="button" class="mrow" data-action="mrow" data-id="${esc(x.id)}"><span class="mn">${esc(x.name)}</span><span class="mc">${esc(x.cat || otherCat())}${x.auto ? ' · уточнит Claude' : ''}</span><span class="ma">${fmt(x.amount)}</span></button>`).join('')}</div>`;
+    const daySpend = g.filter(x => kindOf(x) === 'spend').reduce((a, x) => a + (Number(x.amount) || 0), 0);
+    return `<div class="mday"><div class="mday-h"><span>${short(d)}</span><span>${daySpend ? fmt(daySpend) + ' ' + esc(cur) : ''}</span></div>${g.map(x => {
+      const k = kindOf(x);
+      const amt = k === 'income' ? `<span class="ma in">+${fmt(x.amount)}</span>` : k === 'transfer' ? `<span class="ma tr">${x.dir === 'in' ? '← ' : '→ '}${fmt(x.amount)}</span>` : k === 'cash' ? `<span class="ma tr">нал. ${fmt(x.amount)}</span>` : `<span class="ma">${fmt(x.amount)}</span>`;
+      const sub = (k === 'spend' ? (x.cat || otherCat()) : KIND_NAMES[k] + (x.cat && x.cat !== KIND_NAMES[k] ? ' · ' + x.cat : '')) + (x.auto ? ' · уточнит Claude' : '') + (x.group ? ' · ' + x.group : '');
+      return `<button type="button" class="mrow" data-action="mrow" data-id="${esc(x.id)}"><span class="mn">${esc(x.name)}</span><span class="mc">${esc(sub)}</span>${amt}</button>`;
+    }).join('')}</div>`;
   }).join('');
 }
 
 /* ---------- sheet + toast ---------- */
-function openSheet(html) {
+function openSheet(html, keepScroll) {
   const sh = $('#sheet');
+  const panel = sh.querySelector('.sheet-panel');
+  const top = panel.scrollTop;
   $('#sheet-body').innerHTML = html;
+  const wasHidden = sh.hidden;
   sh.hidden = false;
   document.body.classList.add('locked');
-  const panel = sh.querySelector('.sheet-panel');
-  panel.scrollTop = 0;
-  setTimeout(() => { try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }, 20);
+  panel.scrollTop = keepScroll && !wasHidden ? top : 0;
+  if (wasHidden) setTimeout(() => { try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }, 20);
 }
 function closeSheet() { S.cur = null; $('#sheet').hidden = true; document.body.classList.remove('locked'); }
 let toastT;
 function toast(msg) { const el = $('#toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 3400); }
-function busy(btn, on) { if (!btn) return; btn.disabled = on; }
+function busy(btn, on) { if (btn) btn.disabled = on; }
 
 /* ---------- study actions ---------- */
+function lessonInfo(doc) {
+  if (!doc) return '<p class="note">Учебные вопросы появятся, когда урок разберём в учебном чате.</p>';
+  let h = '';
+  if (doc.outcome) h += `<div class="outcome"><b>Чему научишься</b>${esc(doc.outcome)}</div>`;
+  if (Array.isArray(doc.goals) && doc.goals.length) h += `<ul class="goals">${doc.goals.map(g => `<li>${esc(g)}</li>`).join('')}</ul>`;
+  else h += '<p class="note">Учебные вопросы появятся, когда урок разберём в учебном чате.</p>';
+  return h;
+}
 function openStudy(d, key, part) {
-  const study = S.studyCache || buildStudy();
-  const e = study.entries.find(x => x.date === d && x.L.key === key && x.part === part);
+  const pick = st => st.entries.find(x => x.date === d && x.L.key === key && x.part === part);
+  let e = pick(S.studyCache || buildStudy());
+  if (!e) e = pick(buildStudy(null, d));
   if (!e) return;
   S.cur = { type: 'study', e };
   const L = e.L, multi = e.total > 1;
@@ -877,6 +1234,7 @@ function openStudy(d, key, part) {
   openSheet(`<div class="sh-eyebrow"><span class="tag study">Учёба</span></div>
     <h2 class="sh-title">${esc(lessonTitle(L))}</h2>
     <p class="sh-meta">${esc(cap1(longDate(d)))} · ${esc(slotLabel(d, { cap: e.cap, extra: e.extra }))}${multi ? ` · часть ${e.part} из ${e.total}` : ''}</p>
+    ${lessonInfo(L.doc)}
     ${multi ? `<p class="note">Урок рассчитан на ${dur(L.need)}, а окно — ${dur(e.cap)}, поэтому он занимает ${e.total} ${plural(e.total, 'окно', 'окна', 'окон')} подряд.</p>` : ''}
     <div class="sh-acts">
       <button type="button" class="btn study block" data-action="study-done">${doneLabel}</button>
@@ -887,7 +1245,7 @@ function openStudy(d, key, part) {
 function createUpToIn(list, n, extra) {
   const nums = list.map(l => Number(l.n) || 0);
   const start = Math.max(10, ...nums) + 1;
-  let base = Math.max(0, ...list.map(ord)) + 1;
+  const base = Math.max(0, ...list.map(ord)) + 1;
   for (let k = start; k < n; k++) list.push({ id: 'l' + k, n: k, title: '', order: base + (k - start) });
   const existing = list.find(l => Number(l.n) === n);
   if (existing) Object.assign(existing, extra);
@@ -916,13 +1274,27 @@ async function blockFlow(d) {
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="close">Готово</button><button type="button" class="btn block" data-action="unblock" data-date="${d}">Отменить</button></div>`);
 }
 function openDay(d) {
-  const c = studyCap(d);
-  let body;
-  if (c.blocked) body = `<p class="sh-meta">Окно для учёбы в этот день снято.</p><div class="sh-acts"><button type="button" class="btn study block" data-action="unblock" data-date="${d}">Вернуть окно (${dur(c.base)})</button></div>`;
-  else if (c.extra) body = `<p class="sh-meta">Добавлено окно: ${dur(c.cap)}.</p><div class="sh-acts"><button type="button" class="btn block" data-action="day-unextra" data-date="${d}">Убрать окно</button></div>`;
-  else if (c.cap > 0) body = `<p class="sh-meta">Учёба по плану: ${esc(slotLabel(d, c))}.</p><div class="sh-acts"><button type="button" class="btn block" data-action="study-block" data-date="${d}">Не получится учиться</button></div>`;
-  else body = `<p class="sh-meta">Учёбы по плану нет. Если добавить окно, очередь уроков подтянется.</p><div class="sh-acts two"><button type="button" class="btn study" data-action="day-extra" data-date="${d}" data-min="60">+ окно 1 ч</button><button type="button" class="btn study" data-action="day-extra" data-date="${d}" data-min="90">+ окно 1,5 ч</button></div>`;
-  openSheet(`<h2 class="sh-title">${esc(cap1(longDate(d)))}</h2>${body}<p class="note">Тренировки переносятся из своих карточек.</p>`);
+  const t = today();
+  const study = buildStudy(null, d);
+  const sport = buildSport(addDays(d, -14), addDays(d, 14));
+  const rows = [];
+  eventsOn(d).forEach(e => rows.push(rowEvent(e)));
+  if (d >= t) for (const e of (study.byDate[d] || [])) rows.push(e.blocked ? rowBlocked(e) : rowStudy(e));
+  else S.lessons.filter(l => l.done === d || (l.progressDates || []).includes(d)).forEach(l => rows.push(`<div class="row slim is-done"><span class="tag study">Учёба</span><span class="rb"><span class="t">Урок ${esc(l.n)}${l.title ? ' · ' + esc(l.title) : ''}</span><span class="m">${l.done === d ? 'пройден' : 'часть урока'}</span></span><span class="s">✓</span></div>`));
+  for (const i of sport) if (i.eff === d) rows.push(rowSport(i));
+  for (const i of sport) if (i.orig === d && i.eff !== d) rows.push(rowGhost(i));
+  S.sportList = Array.from(new Map(S.sportList.concat(sport).map(i => [i.id, i])).values());
+  let studyBox = '';
+  if (d >= t && S.config.study) {
+    const c = studyCap(d);
+    if (c.blocked) studyBox = `<button type="button" class="btn study block" data-action="unblock" data-date="${d}">Вернуть окно для учёбы (${dur(c.base)})</button>`;
+    else if (c.extra) studyBox = `<button type="button" class="btn block" data-action="day-unextra" data-date="${d}">Убрать доп. окно для учёбы</button>`;
+    else if (c.cap > 0) studyBox = `<button type="button" class="btn block" data-action="study-block" data-date="${d}">Не получится учиться</button>`;
+    else studyBox = `<div class="two"><button type="button" class="btn study" data-action="day-extra" data-date="${d}" data-min="60">+ учёба 1 ч</button><button type="button" class="btn study" data-action="day-extra" data-date="${d}" data-min="90">+ учёба 1,5 ч</button></div>`;
+  }
+  openSheet(`<h2 class="sh-title">${esc(cap1(longDate(d)))}</h2>
+    ${rows.length ? `<div class="stack" style="margin-top:12px">${rows.join('')}</div>` : '<p class="sh-meta">Ничего не запланировано.</p>'}
+    <div class="sh-acts"><button type="button" class="btn block" data-action="ev-new" data-date="${d}">+ Событие на этот день</button>${studyBox}</div>`);
 }
 
 /* ---------- lesson edit ---------- */
@@ -936,7 +1308,8 @@ function openLesson(id) {
   if (!l) return;
   S.cur = { type: 'lesson', l, need: l.need ? Number(l.need) : null, ph: false };
   const pend = !l.done;
-  openSheet(`<h2 class="sh-title">Урок ${esc(l.n)}</h2>${l.done ? `<p class="sh-meta">Пройден ${short(l.done)}</p>` : ''}
+  openSheet(`<h2 class="sh-title">Урок ${esc(l.n)}${l.title ? ' · ' + esc(l.title) : ''}</h2>${l.done ? `<p class="sh-meta">Пройден ${short(l.done)}</p>` : ''}
+    ${lessonInfo(l)}
     <label class="fld" for="le-title">Тема</label><input id="le-title" value="${esc(l.title || '')}" placeholder="Например: Docker — сети">
     ${pend ? `<span class="fld">Длина урока</span>${needSeg(S.cur.need)}<p class="note">«1,5 ч» — тяжёлая тема. Если такой урок попадёт на будний день, он займёт два окна.</p>` : ''}
     <div class="sh-acts">
@@ -977,37 +1350,52 @@ async function lessonMove(dir) {
 }
 
 /* ---------- sport ---------- */
-function openSport(id) {
+async function openSport(id, keepScroll) {
   const i = findInst(id); if (!i) return;
-  const s = ((S.config.sport || {}).sessions || {})[i.key] || {};
+  await ensureWorkouts([monthKey(i.eff), monthShift(monthKey(i.eff), -1)]);
+  const ses = sessionFor(i);
   const auto = i.state ? null : planMove(i);
-  S.cur = { type: 'sport', id, auto };
+  S.cur = { type: 'sport', id, auto, ses };
   const t = today();
-  let acts;
-  if (i.state === 'done' || i.state === 'other') acts = `<div class="callout ok">${i.state === 'other' ? 'Отмечено: сделал другое' + (i.note ? ' — ' + esc(i.note) : '') + '.' : 'Отмечено: сделано.'}</div><div class="sh-acts"><button type="button" class="btn block" data-action="sp-clear" data-id="${esc(i.id)}">Снять отметку</button></div>`;
-  else if (i.state === 'skipped') acts = `<div class="callout">Тренировка пропущена.</div><div class="sh-acts"><button type="button" class="btn block" data-action="sp-clear" data-id="${esc(i.id)}">Вернуть в план</button></div>`;
-  else {
+  const sessions = (S.config.sport || {}).sessions || {};
+  let status = '';
+  if (i.state === 'done') status = '<div class="callout ok">Отмечено: сделано.</div>';
+  else if (i.state === 'other') status = `<div class="callout ok">Отмечено: сделал другое${i.note ? ' — ' + esc(i.note) : ''}.</div>`;
+  else if (i.state === 'skipped') status = '<div class="callout">Тренировка пропущена.</div>';
+  let main;
+  if (i.state === 'skipped') main = `<div class="sh-acts"><button type="button" class="btn block" data-action="sp-clear" data-id="${esc(i.id)}">Вернуть в план</button></div>`;
+  else if (i.state) main = `<div class="sh-acts"><button type="button" class="btn sport block" data-action="sp-save-log" data-id="${esc(i.id)}">Сохранить подходы</button><button type="button" class="btn block" data-action="sp-clear" data-id="${esc(i.id)}">Снять отметку</button></div>`;
+  else main = `<div class="sh-acts"><button type="button" class="btn sport block" data-action="sp-done" data-id="${esc(i.id)}">Сделал</button><button type="button" class="btn block" data-action="sp-save-log" data-id="${esc(i.id)}">Сохранить подходы, отмечу позже</button></div>`;
+  let moveBox = '';
+  if (!i.state) {
     let mv;
     if (auto) {
       let sub = '';
       if (auto.bump) sub = auto.bumpTo ? `<span class="btn-sub">${esc(auto.bump.title)} ${short(auto.bump.eff)} уйдёт на ${short(auto.bumpTo)}</span>` : `<span class="btn-sub">${esc(auto.bump.title)} ${short(auto.bump.eff)} выпадет: на неделе нет свободного дня</span>`;
       mv = `<button type="button" class="btn block stacked" data-action="sp-move-auto" data-id="${esc(i.id)}"><span>Перенести на ${short(auto.date)}</span>${sub}</button>`;
     } else mv = '<p class="note">До конца недели свободного дня нет. Такое кардио лучше пропустить.</p>';
-    acts = `<div class="sh-acts">
-      <button type="button" class="btn sport block" data-action="sp-done" data-id="${esc(i.id)}">Сделал</button>
+    moveBox = `<details class="more-box"><summary>Перенести или пропустить</summary><div class="sh-acts" style="margin-top:0">
       ${mv}
-      <div class="other-box"><label class="fld" for="sp-note">Сделал другое — что именно</label><textarea id="sp-note" rows="2" placeholder="Например: бег 5 км вместо программы, бокс 40 мин"></textarea><div class="sh-acts"><button type="button" class="btn block" data-action="sp-other" data-id="${esc(i.id)}">Сделал другое</button></div></div>
-      <div class="date-move"><label class="fld" for="sp-date">Перенести на другую дату</label><div class="form-row"><input type="date" id="sp-date" min="${t}" value="${auto ? auto.date : addDays(t, 1)}"><button type="button" class="btn" data-action="sp-move-date" data-id="${esc(i.id)}">Перенести</button></div></div>
+      <div class="date-move"><label class="fld" for="sp-date">На другую дату</label><div class="form-row"><input type="date" id="sp-date" min="${t}" value="${auto ? auto.date : addDays(t, 1)}"><button type="button" class="btn" data-action="sp-move-date" data-id="${esc(i.id)}">Перенести</button></div></div>
       <button type="button" class="btn block" data-action="sp-skip" data-id="${esc(i.id)}">Пропустить</button>
       ${i.eff !== i.orig ? `<button type="button" class="btn block" data-action="sp-unmove" data-id="${esc(i.id)}">Вернуть на ${short(i.orig)}</button>` : ''}
-    </div>`;
+    </div></details>
+    <details class="more-box"><summary>Сделал другое</summary><div class="other-box"><label class="fld" for="sp-note" style="margin-top:0">Что сделал вместо программы</label><textarea id="sp-note" rows="2" placeholder="Например: бег 5 км, бокс 40 мин"></textarea><div class="sh-acts"><button type="button" class="btn block" data-action="sp-other" data-id="${esc(i.id)}">Отметить: сделал другое</button></div></div></details>`;
   }
+  const others = Object.keys(sessions).filter(k => k !== ses.key);
+  const replaceBox = `<details class="more-box"><summary>Заменить всю тренировку</summary><div class="sh-acts" style="margin-top:0">
+    <div class="sess-list">${others.map(k => `<button type="button" class="btn block" data-action="sp-as" data-id="${esc(i.id)}" data-as="${esc(k)}">${esc(sessions[k].title)}${sessions[k].sub ? ` <span class="btn-sub">· ${esc(sessions[k].sub)}</span>` : ''}</button>`).join('')}</div>
+    <label class="fld" for="sp-custom">Или своя — каждое упражнение с новой строки</label><textarea id="sp-custom" rows="3" placeholder="Подтягивания&#10;Отжимания на брусьях&#10;Планка">${esc(ses.replaced === 'custom' ? (i.ov.custom || []).join('\n') : '')}</textarea>
+    <button type="button" class="btn block" data-action="sp-custom" data-id="${esc(i.id)}">Заменить на свою</button>
+    ${ses.replaced ? `<button type="button" class="btn block" data-action="sp-as-clear" data-id="${esc(i.id)}">Вернуть тренировку по программе</button>` : ''}
+  </div></details>`;
   openSheet(`<div class="sh-eyebrow"><span class="tag sport">Спорт</span></div>
-    <h2 class="sh-title">${esc(i.title)}</h2>
-    <p class="sh-meta">${esc(cap1(longDate(i.eff)))}${i.eff !== i.orig ? ` · перенесено с ${short(i.orig)}` : ''}</p>
-    ${Array.isArray(s.items) && s.items.length ? `<ol class="sh-list">${s.items.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
-    ${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}
-    ${acts}`);
+    <h2 class="sh-title">${esc(ses.title)}</h2>
+    <p class="sh-meta">${esc(cap1(longDate(i.eff)))}${i.eff !== i.orig ? ` · перенесено с ${short(i.orig)}` : ''}${ses.replaced === 'as' ? ` · вместо: ${esc((sessions[i.key] || {}).title || i.key)}` : ''}${ses.replaced === 'custom' ? ` · вместо: ${esc((sessions[i.key] || {}).title || i.key)}` : ''}</p>
+    ${status}
+    <div id="wk">${workoutForm(i, ses)}</div>
+    ${ses.note ? `<p class="note">${esc(ses.note)}</p>` : ''}
+    ${main}${moveBox}${replaceBox}`, keepScroll);
 }
 async function commitMove(i, res) {
   if (!res) return;
@@ -1025,46 +1413,90 @@ async function commitMove(i, res) {
   closeSheet(); toast(msg);
 }
 async function setSportState(id, state, note) {
-  const i = findInst(id); if (!i) return;
+  const i = findInst(id); if (!i) return false;
   const label = { done: 'сделано', other: 'другое', skipped: 'пропуск' }[state] || 'снята отметка';
   const ok = await writePlan(p => setMove(p, id, { state: state || undefined, note: state === 'other' ? note : undefined, at: state ? today() : undefined }), `Спорт: ${id} — ${label}`);
   if (ok) { closeSheet(); toast(state === 'done' ? 'Отмечено' : state === 'other' ? 'Записал, что сделал другое' : state === 'skipped' ? 'Пропуск записан' : 'Вернул в план'); }
+  return ok;
+}
+function sheetSport(id) { return S.cur && S.cur.type === 'sport' && S.cur.id === id ? S.cur : null; }
+
+/* ---------- events ---------- */
+function openEvent(id, date) {
+  const ev = id ? S.events.find(e => e.id === id) : { id: null, date: date || today(), title: '', time: '' };
+  if (!ev) return;
+  S.cur = { type: 'event', ev };
+  openSheet(`<div class="sh-eyebrow"><span class="tag event">Событие</span></div>
+    <h2 class="sh-title">${id ? 'Событие' : 'Новое событие'}</h2>
+    <label class="fld" for="ev-title">Что</label><input id="ev-title" value="${esc(ev.title)}" placeholder="Например: наряд, встреча, врач">
+    <div class="two"><div><label class="fld" for="ev-date">Дата</label><input type="date" id="ev-date" value="${esc(ev.date)}"></div><div><label class="fld" for="ev-time">Время</label><input type="time" id="ev-time" value="${esc(ev.time || '')}"></div></div>
+    <p class="note">Без времени — событие на весь день.</p>
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="ev-save">Сохранить</button>${id ? '<button type="button" class="btn danger block" data-action="ev-del">Удалить</button>' : ''}</div>`);
+}
+async function eventSave() {
+  const c = S.cur; if (!c || c.type !== 'event') return;
+  const title = $('#ev-title').value.trim(), date = $('#ev-date').value, time = $('#ev-time').value;
+  if (!title) { toast('Напиши, что за событие'); $('#ev-title').focus(); return; }
+  if (!date) { toast('Выбери дату'); return; }
+  const id = c.ev.id;
+  const ok = await writeEvents(list => {
+    const rec = { id: id || rid(), date, title };
+    if (time) rec.time = time;
+    const k = list.findIndex(e => e.id === id);
+    if (id && k >= 0) list[k] = rec; else list.push(rec);
+    list.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  }, `События: ${title} ${date}`);
+  if (ok) { closeSheet(); toast(id ? 'Событие изменено' : 'Событие добавлено'); }
 }
 
 /* ---------- money ---------- */
+function findExpense(id) {
+  for (const mk of Object.keys(S.money)) { const x = ((S.money[mk] || {}).items || []).find(v => v.id === id); if (x) return x; }
+  return null;
+}
+function expenseCatBlock(kind, cat, dir) {
+  return `<label class="fld" for="me-cat">Категория</label><select id="me-cat">${catOptions(catsFor(kind), cat)}</select>
+    <div id="me-dir-row"${kind === 'transfer' ? '' : ' hidden'}><label class="fld" for="me-dir">Направление</label><select id="me-dir"><option value="out"${dir !== 'in' ? ' selected' : ''}>Отправил</option><option value="in"${dir === 'in' ? ' selected' : ''}>Получил</option></select></div>`;
+}
 function openExpense(id) {
-  const x = ((S.money[S.month] || {}).items || []).find(v => v.id === id); if (!x) return;
+  const x = findExpense(id); if (!x) return;
   S.cur = { type: 'exp', x };
+  const k = kindOf(x);
   openSheet(`<h2 class="sh-title">Запись</h2>
     <label class="fld" for="me-name">Что</label><input id="me-name" value="${esc(x.name)}">
     <div class="two"><div><label class="fld" for="me-amount">Сумма, ${esc(curSym())}</label><input id="me-amount" inputmode="decimal" value="${esc(x.amount)}"></div><div><label class="fld" for="me-date">Дата</label><input type="date" id="me-date" value="${esc(x.date)}"></div></div>
-    <label class="fld" for="me-cat">Категория</label><select id="me-cat">${catOptions(x.cat || otherCat())}</select>
-    <p class="note">Если сменишь категорию, журнал запомнит её для этого названия.</p>
+    <label class="fld" for="me-kind">Тип</label><select id="me-kind">${Object.keys(KIND_NAMES).map(v => `<option value="${v}"${v === k ? ' selected' : ''}>${KIND_NAMES[v]}</option>`).join('')}</select>
+    <div id="me-catbox">${expenseCatBlock(k, x.cat || catsFor(k)[0], x.dir)}</div>
+    ${x.raw ? `<p class="note">Из выписки: ${esc(x.raw)}${x.time ? ', ' + esc(x.time) : ''}</p>` : ''}
+    ${x.group ? `<p class="note">Из чека: ${esc(x.group)}</p>` : ''}
+    <p class="note">Если сменишь категорию траты, журнал запомнит её для этого названия.</p>
     <div class="sh-acts"><button type="button" class="btn money block" data-action="me-save">Сохранить</button><button type="button" class="btn danger block" data-action="me-del">Удалить</button></div>`);
 }
 async function expenseSave() {
   const c = S.cur; if (!c || c.type !== 'exp') return;
   const old = c.x;
-  const name = $('#me-name').value.trim(), amount = Number($('#me-amount').value.replace(',', '.')), cat = $('#me-cat').value, date = $('#me-date').value || old.date;
+  const name = $('#me-name').value.trim(), amount = numOrNull($('#me-amount').value), date = $('#me-date').value || old.date;
+  const kind = $('#me-kind').value, cat = $('#me-cat').value, dirEl = $('#me-dir');
   if (!name || !(amount > 0)) { toast('Нужны название и сумма больше нуля'); return; }
-  const upd = Object.assign({}, old, { name, amount: Math.round(amount * 100) / 100, cat, date });
+  const upd = Object.assign({}, old, { name, amount: Math.round(amount * 100) / 100, cat, date, kind });
   delete upd.auto;
+  if (kind === 'transfer') upd.dir = dirEl ? dirEl.value : 'out'; else delete upd.dir;
   let ok;
-  if (monthKey(date) === monthKey(old.date)) ok = await writeMonth(monthKey(old.date), items => items.map(x => x.id === old.id ? upd : x), `Траты: изменена запись «${name}»`);
+  if (monthKey(date) === monthKey(old.date)) ok = await writeMonth(monthKey(old.date), items => items.map(x => x.id === old.id ? upd : x), `Деньги: изменена запись «${name}»`);
   else {
-    ok = await writeMonth(monthKey(old.date), items => items.filter(x => x.id !== old.id), `Траты: запись «${name}» перенесена в ${monthKey(date)}`);
-    if (ok) ok = await writeMonth(monthKey(date), items => items.concat([upd]), `Траты: запись «${name}» перенесена из ${monthKey(old.date)}`);
+    ok = await writeMonth(monthKey(old.date), items => items.filter(x => x.id !== old.id), `Деньги: запись «${name}» перенесена в ${monthKey(date)}`);
+    if (ok) ok = await writeMonth(monthKey(date), items => items.concat([upd]), `Деньги: запись «${name}» перенесена из ${monthKey(old.date)}`);
   }
   if (!ok) return;
   closeSheet(); toast('Сохранено');
-  if (cat !== old.cat) writeLearned(name, cat);
+  if (kind === 'spend' && cat !== old.cat) writeLearned(name, cat);
 }
 function resizeImage(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const maxSide = 1800;
+      const maxSide = 2000;
       const k = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
       const w = Math.round(img.naturalWidth * k), h = Math.round(img.naturalHeight * k);
       const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
@@ -1077,22 +1509,27 @@ function resizeImage(file) {
     img.src = url;
   });
 }
-async function uploadReceipt(file) {
+async function uploadReceipts(files) {
+  const list = Array.from(files || []);
+  if (!list.length) return;
   const date = $('#m-date').value || today();
   const now = new Date();
-  const name = `${date}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}_${Math.random().toString(36).slice(2, 6)}.jpg`;
+  const stamp = pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
   const btn = $('#m-photo-btn');
-  btn.classList.add('busy'); setSync('загружаю чек…');
-  let b64;
-  try { b64 = await resizeImage(file); }
-  catch (_) { toast('Не получилось открыть фото. Попробуй другой снимок.'); setSync(syncLabel()); btn.classList.remove('busy'); return; }
-  try {
-    await GH.putRaw('inbox/receipts/' + name, b64, `Чек: ${date}`);
-    S.inbox = S.inbox.concat([name]); cacheNow(); renderMoney();
-    setSync('сохранено в ' + hhmm(new Date()));
-    toast('Чек сохранён. Разберу, когда позовёшь.');
-  } catch (e) { setSync(errText(e), true); toast('Чек не загрузился. ' + errText(e)); }
+  btn.classList.add('busy');
+  let ok = 0;
+  for (let k = 0; k < list.length; k++) {
+    setSync(list.length > 1 ? `загружаю фото ${k + 1} из ${list.length}…` : 'загружаю фото…');
+    const name = `${date}_${stamp}_${k + 1}of${list.length}_${Math.random().toString(36).slice(2, 6)}.jpg`;
+    let b64;
+    try { b64 = await resizeImage(list[k]); } catch (_) { continue; }
+    try { await GH.putRaw('inbox/receipts/' + name, b64, `Чек: ${date} (${k + 1}/${list.length})`); S.inbox = S.inbox.concat([name]); ok++; }
+    catch (e) { setSync(errText(e), true); }
+  }
   btn.classList.remove('busy');
+  cacheNow(); renderMoney();
+  if (ok === list.length) { setSync('сохранено в ' + hhmm(new Date())); toast(ok > 1 ? `Загружено фото: ${ok}. Разберу, когда позовёшь.` : 'Фото сохранено. Разберу, когда позовёшь.'); }
+  else toast(`Загружено ${ok} из ${list.length}. Остальные попробуй ещё раз.`);
 }
 
 /* ---------- setup ---------- */
@@ -1142,25 +1579,25 @@ function openSettings() {
     ${c ? `<p class="sh-meta">Данные: <span class="mono">${esc(c.owner)}/${esc(c.repo)}</span></p><p class="note">${esc(syncLabel() || 'ещё не загружено')}</p>` : '<p class="sh-meta">Не подключено.</p>'}
     <div class="sh-acts">
       <button type="button" class="btn block" data-action="refresh">Обновить данные</button>
-      ${c ? '<button type="button" class="btn danger block" data-action="logout">Отключить этот телефон</button>' : ''}
+      ${c ? '<button type="button" class="btn danger block" data-action="logout">Отключить это устройство</button>' : ''}
     </div>
     <p class="note">«Отключить» удаляет ключ и сохранённые данные только с этого устройства. Сам ключ отзывается на GitHub: Settings → Developer settings → Personal access tokens.</p>`);
 }
 
-/* ---------- events ---------- */
+/* ---------- events wiring ---------- */
+const TABS = ['plan', 'cal', 'lessons', 'money'];
 function setTab(t) {
-  if (!['plan', 'lessons', 'money'].includes(t)) t = 'plan';
-  ['plan', 'lessons', 'money'].forEach(x => { $('#tab-' + x).hidden = x !== t; });
+  if (!TABS.includes(t)) t = 'plan';
+  TABS.forEach(x => { $('#tab-' + x).hidden = x !== t; });
   document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
   LS.set('bj-tab', t);
   window.scrollTo(0, 0);
 }
-function shiftMonth(delta) {
-  const p = S.month.split('-').map(Number);
-  const d = new Date(p[0], p[1] - 1 + delta, 1, 12);
-  const k = d.getFullYear() + '-' + pad(d.getMonth() + 1);
-  if (k > monthKey(today())) return;
-  S.month = k; renderMoney(); loadMonth(k);
+async function shiftPeriod(delta) {
+  const k = periodShift(S.period, delta);
+  if (k > today()) return;
+  S.period = k; renderMoney();
+  await ensureMoney(periodMonths(k)); renderMoney();
 }
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-action]'); if (!b) return;
@@ -1179,13 +1616,34 @@ document.addEventListener('click', async ev => {
     case 'day': openDay(d); break;
     case 'day-extra': busy(b, true); if (await writePlan(p => { p.studyDays[d] = { extra: Number(b.dataset.min) }; }, `Учёба: доп. окно ${d}`)) { S.shift = {}; closeSheet(); toast('Окно добавлено, уроки подтянулись'); } busy(b, false); break;
     case 'day-unextra': busy(b, true); if (await writePlan(p => { delete p.studyDays[d]; }, `Учёба: доп. окно ${d} убрано`)) { closeSheet(); toast('Окно убрано'); } busy(b, false); break;
+    case 'cal-prev': S.calMonth = monthShift(S.calMonth, -1); renderCal(); break;
+    case 'cal-next': S.calMonth = monthShift(S.calMonth, 1); renderCal(); break;
+    case 'ev-new': openEvent(null, d); break;
+    case 'event': openEvent(id); break;
+    case 'ev-save': busy(b, true); await eventSave(); busy(b, false); break;
+    case 'ev-del': {
+      const e = S.cur && S.cur.ev; if (!e || !e.id) return;
+      if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
+      busy(b, true); if (await writeEvents(list => { const k = list.findIndex(x => x.id === e.id); if (k >= 0) list.splice(k, 1); }, `События: удалено «${e.title}»`)) { closeSheet(); toast('Событие удалено'); } busy(b, false); break;
+    }
     case 'sport': openSport(id); break;
-    case 'sp-done': busy(b, true); await setSportState(id, 'done'); busy(b, false); break;
+    case 'sp-done': {
+      busy(b, true);
+      const c = sheetSport(id);
+      if (c) { const lg = collectLog(c.ses); if (lg.any) { const i = findInst(id); if (i && !(await saveLog(i, c.ses, lg.blocks))) { busy(b, false); return; } } }
+      await setSportState(id, 'done'); busy(b, false); break;
+    }
+    case 'sp-save-log': {
+      const c = sheetSport(id), i = findInst(id); if (!c || !i) return;
+      const lg = collectLog(c.ses);
+      if (!lg.any) { toast('Пока нечего сохранять: впиши вес или повторы'); return; }
+      busy(b, true); if (await saveLog(i, c.ses, lg.blocks)) { toast('Подходы сохранены'); openSport(id, true); } busy(b, false); break;
+    }
     case 'sp-skip': busy(b, true); await setSportState(id, 'skipped'); busy(b, false); break;
     case 'sp-clear': busy(b, true); await setSportState(id, null); busy(b, false); break;
     case 'sp-other': {
-      const note = ($('#sp-note') && $('#sp-note').value || '').trim();
-      if (!note) { toast('Напиши, что сделал вместо программы'); $('#sp-note') && $('#sp-note').focus(); return; }
+      const note = (($('#sp-note') && $('#sp-note').value) || '').trim();
+      if (!note) { toast('Напиши, что сделал вместо программы'); if ($('#sp-note')) $('#sp-note').focus(); return; }
       busy(b, true); await setSportState(id, 'other', note); busy(b, false); break;
     }
     case 'sp-unmove': { const i = findInst(id); if (!i) return; busy(b, true); if (await writePlan(p => setMove(p, id, { movedTo: undefined }), `Спорт: ${id} возвращено`)) { closeSheet(); toast('Вернул на ' + short(i.orig)); } busy(b, false); break; }
@@ -1196,6 +1654,43 @@ document.addEventListener('click', async ev => {
       if (v < today()) { toast('Выбери сегодня или позже'); return; }
       if (v === i.eff) { closeSheet(); return; }
       busy(b, true); await commitMove(i, planMove(i, v)); busy(b, false); break;
+    }
+    case 'sp-as': {
+      const i = findInst(id); if (!i) return;
+      const k = b.dataset.as;
+      busy(b, true);
+      if (await writePlan(p => setMove(p, id, { as: k === i.key ? undefined : k, custom: undefined, swap: undefined }), `Спорт: ${id} заменена на ${k}`)) { LS.del('bj-draft-' + id); toast('Тренировка заменена'); const ni = findInst(id); if (ni) openSport(id); }
+      busy(b, false); break;
+    }
+    case 'sp-custom': {
+      const lines = (($('#sp-custom') && $('#sp-custom').value) || '').split('\n').map(s => s.trim()).filter(Boolean);
+      if (!lines.length) { toast('Впиши упражнения, каждое с новой строки'); return; }
+      busy(b, true);
+      if (await writePlan(p => setMove(p, id, { custom: lines, as: undefined, swap: undefined }), `Спорт: ${id} — своя тренировка`)) { LS.del('bj-draft-' + id); toast('Тренировка заменена'); openSport(id); }
+      busy(b, false); break;
+    }
+    case 'sp-as-clear': busy(b, true); if (await writePlan(p => setMove(p, id, { as: undefined, custom: undefined, swap: undefined }), `Спорт: ${id} — по программе`)) { LS.del('bj-draft-' + id); toast('Вернул тренировку по программе'); openSport(id); } busy(b, false); break;
+    case 'ex-swap': { const f = document.getElementById(`swf-${b.dataset.b}-${b.dataset.e}`); if (f) { f.hidden = !f.hidden; if (!f.hidden) { const inp = f.querySelector('input'); if (inp) inp.focus(); } } break; }
+    case 'ex-swap-once': case 'ex-swap-perm': case 'ex-unswap': {
+      const c = S.cur && S.cur.type === 'sport' ? S.cur : null; if (!c) return;
+      const bi = Number(b.dataset.b), ei = Number(b.dataset.e), key = bi + '.' + ei;
+      const inp = document.getElementById(`swi-${bi}-${ei}`);
+      const name = inp ? inp.value.trim() : '';
+      const i = findInst(c.id); if (!i) return;
+      const lg = collectLog(c.ses); if (lg.any) LS.set('bj-draft-' + i.id, { blocks: lg.blocks });
+      busy(b, true);
+      let ok = false;
+      if (a === 'ex-unswap') ok = await writePlan(p => { const sw = Object.assign({}, (p.sportMoves[i.id] || {}).swap || {}); delete sw[key]; setMove(p, i.id, { swap: sw }); }, `Спорт: ${i.id} — вернул упражнение`);
+      else if (!name) { toast('Впиши, чем заменить'); busy(b, false); return; }
+      else if (a === 'ex-swap-once') ok = await writePlan(p => { const sw = Object.assign({}, (p.sportMoves[i.id] || {}).swap || {}); sw[key] = name; setMove(p, i.id, { swap: sw }); }, `Спорт: ${i.id} — замена упражнения`);
+      else {
+        const sk = c.ses.key;
+        ok = await writeConfig(cfg => { const s = cfg.sport.sessions[sk]; if (!s.blocks) s.blocks = itemsToBlocks(s.items); const x = s.blocks[bi] && s.blocks[bi].ex[ei]; if (x) x.name = name; }, `Программа ${sk}: ${name}`);
+        if (ok && i.ov && i.ov.swap && i.ov.swap[key]) ok = await writePlan(p => { const sw = Object.assign({}, (p.sportMoves[i.id] || {}).swap || {}); delete sw[key]; setMove(p, i.id, { swap: sw }); }, `Спорт: ${i.id} — замена в программе`);
+      }
+      busy(b, false);
+      if (ok) { toast(a === 'ex-swap-perm' ? 'Упражнение заменено в программе' : a === 'ex-unswap' ? 'Вернул упражнение' : 'Заменил на этот раз'); openSport(i.id, true); }
+      break;
     }
     case 'st-tail-done': { const st = S.studyCache || buildStudy(); const e0 = st.entries[0]; if (e0) { busy(b, true); await studyDone(Object.assign({}, e0, { last: true }), d); busy(b, false); } break; }
     case 'st-tail-skip': busy(b, true); if (await writePlan(p => { p.studyDays[d] = { blocked: true }; }, `Учёба: пропуск ${d}`)) toast('Пропуск записан'); busy(b, false); break;
@@ -1211,28 +1706,46 @@ document.addEventListener('click', async ev => {
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
       busy(b, true); if (await writeLessons(list => { const k = list.findIndex(y => y.id === l.id); if (k >= 0) list.splice(k, 1); }, `Учёба: урок ${l.n} удалён`)) { closeSheet(); toast(`Урок ${l.n} удалён`); } busy(b, false); break;
     }
-    case 'm-prev': shiftMonth(-1); break;
-    case 'm-next': shiftMonth(1); break;
+    case 'm-prev': shiftPeriod(-1); break;
+    case 'm-next': shiftPeriod(1); break;
     case 'mrow': openExpense(id); break;
     case 'me-save': busy(b, true); await expenseSave(); busy(b, false); break;
     case 'me-del': {
       const x = S.cur && S.cur.x; if (!x) return;
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
-      busy(b, true); if (await writeMonth(monthKey(x.date), items => items.filter(y => y.id !== x.id), `Траты: удалена запись «${x.name}»`)) { closeSheet(); toast('Запись удалена'); } busy(b, false); break;
+      busy(b, true); if (await writeMonth(monthKey(x.date), items => items.filter(y => y.id !== x.id), `Деньги: удалена запись «${x.name}»`)) { closeSheet(); toast('Запись удалена'); } busy(b, false); break;
     }
   }
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
+let draftT;
+$('#sheet').addEventListener('input', ev => {
+  const c = S.cur;
+  if (c && c.type === 'sport' && ev.target.id && ev.target.id.startsWith('lg-')) {
+    clearTimeout(draftT);
+    draftT = setTimeout(() => { const lg = collectLog(c.ses); if (lg.any) LS.set('bj-draft-' + c.id, { blocks: lg.blocks }); }, 400);
+  }
+});
 document.addEventListener('change', async ev => {
   const el = ev.target;
+  if (el.id && el.id.startsWith('lg-') && el.type === 'checkbox') {
+    const c = S.cur; if (c && c.type === 'sport') { const lg = collectLog(c.ses); LS.set('bj-draft-' + c.id, { blocks: lg.blocks }); }
+    return;
+  }
   if (el.matches && el.matches('[data-slot]')) {
     const k = el.dataset.slot, v = Number(el.value);
     if (await writeConfig(c => { c.study = c.study || {}; c.study.slots = c.study.slots || {}; c.study.slots[k] = v; if (c.study.labels) delete c.study.labels[k]; }, `Учёба: окно ${DOW_S[Number(k)]} = ${v} мин`)) { S.shift = {}; toast(`${DOW_S[Number(k)]}: ${v ? dur(v) : 'без учёбы'}`); }
   } else if (el.id === 'm-cur') {
     if (await writeConfig(c => { c.currency = el.value; }, 'Валюта: ' + el.value)) toast('Валюта: ' + el.value);
+  } else if (el.id === 'm-period') {
+    const v = Number(el.value);
+    if (await writeConfig(c => { c.money = c.money || {}; c.money.periodStart = v; }, `Деньги: месяц бюджета с ${v}-го`)) { S.period = null; ensurePeriod(); await ensureMoney(periodMonths(S.period)); renderMoney(); toast(v === 1 ? 'Месяц бюджета — календарный' : `Месяц бюджета начинается ${v}-го`); }
   } else if (el.id === 'm-photo') {
-    const f = el.files && el.files[0]; el.value = '';
-    if (f) uploadReceipt(f);
+    const files = el.files ? Array.from(el.files) : []; el.value = '';
+    if (files.length) uploadReceipts(files);
+  } else if (el.id === 'me-kind') {
+    const box = $('#me-catbox'); const x = S.cur && S.cur.x;
+    if (box) box.innerHTML = expenseCatBlock(el.value, x && kindOf(x) === el.value ? x.cat : catsFor(el.value)[0], x && x.dir);
   }
 });
 $('#lesson-add').addEventListener('submit', async ev => {
@@ -1247,22 +1760,29 @@ $('#money-add').addEventListener('submit', async ev => {
   ev.preventDefault();
   const ta = $('#m-text'), err = $('#m-err'), btn = $('#m-submit');
   const date = $('#m-date').value || today();
+  const kind = $('#m-kind').value || 'spend';
   const res = parseSpend(ta.value);
   if (!res.items.length) {
-    err.textContent = ta.value.trim() ? 'Не нашёл суммы. Пиши так: хлеб 45, такси 320.' : 'Напиши, что купил и за сколько.';
+    err.textContent = ta.value.trim() ? 'Не нашёл суммы. Пиши так: хлеб 45, такси 320.' : 'Напиши, что и за сколько.';
     err.hidden = false; return;
   }
   const now = Date.now();
-  const recs = res.items.map((x, k) => { const c = categorize(x.name); const r = { id: rid(), date, name: x.name, amount: x.amount, cat: c.cat, ts: now + k }; if (!c.known) r.auto = true; return r; });
+  const recs = res.items.map((x, k) => {
+    const r = { id: rid(), date, name: x.name, amount: x.amount, kind, ts: now + k };
+    if (kind === 'spend') { const c = categorize(x.name); r.cat = c.cat; if (!c.known) r.auto = true; }
+    else { r.cat = catsFor(kind)[0]; if (kind === 'transfer') r.dir = 'out'; }
+    return r;
+  });
   btn.disabled = true;
   const mk = monthKey(date);
-  const ok = await writeMonth(mk, items => items.concat(recs), `Траты: +${recs.length} (${date})`);
+  const ok = await writeMonth(mk, items => items.concat(recs), `Деньги: +${recs.length} (${date})`);
   btn.disabled = false;
   if (!ok) return;
   if (res.bad.length) { ta.value = res.bad.join(', '); err.textContent = 'Для этого не нашёл сумму. Допиши и добавь ещё раз.'; err.hidden = false; }
   else { ta.value = ''; err.hidden = true; }
   toast(`Записал: ${recs.length} · ${fmt(recs.reduce((a, x) => a + x.amount, 0))} ${curSym()}`);
-  if (mk !== S.month) { S.month = mk; renderMoney(); }
+  if (date < S.period || date > periodEnd(S.period)) { S.period = periodOf(date); await ensureMoney(periodMonths(S.period)); }
+  renderMoney();
 });
 
 /* ---------- boot ---------- */
