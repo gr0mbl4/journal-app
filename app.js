@@ -155,7 +155,7 @@ const S = {
   config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {}, sportExtra: [], events: [], recipes: [], meals: { days: {} }, requests: [],
   ideas: [], sleep: { days: {} }, curriculum: { blocks: [] }, notes: null, notesErr: null, notesLoading: false, noteCache: {},
   openCur: new Set(), touchedCur: new Set(), showAllDone: false,
-  money: {}, workouts: {}, fresh: new Set(), reviews: [], rev: null, inbox: [], period: null, periodP: null, calMonth: monthKey(today()), foodDate: today(), img: {},
+  money: {}, workouts: {}, fresh: new Set(), reviews: [], rev: null, portfolio: null, notesDays: LS.get('bj-notes-days'), inbox: [], period: null, periodP: null, calMonth: monthKey(today()), foodDate: today(), img: {},
   shift: {}, cur: null, sportList: [], studyCache: null, lastToday: today(), slotsSig: '', pending: 0
 };
 
@@ -607,12 +607,13 @@ function applyData(d) {
   if (d.meals) S.meals = d.meals && d.meals.days ? d.meals : { days: {} };
   if (d.requests) S.requests = Array.isArray(d.requests.requests) ? d.requests.requests : [];
   if (d.reviews) S.reviews = Array.isArray(d.reviews.reviews) ? d.reviews.reviews : [];
+  if (d.portfolio) S.portfolio = d.portfolio;
   if (d.money) S.money = Object.assign({}, S.money, d.money);
   if (d.workouts) S.workouts = Object.assign({}, S.workouts, d.workouts);
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra }, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra }, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => GH.getJSON(prefix + k + '.json')));
@@ -626,11 +627,11 @@ async function loadAll(quiet) {
   if (!quiet) setSync('обновляю…');
   try {
     GH.info().then(j => { if (j && j.private === false) { toast('Внимание: репозиторий с данными стал открытым! Сделай его приватным.'); setSync('Репозиторий с данными открытый — сделай приватным', true); } }).catch(() => {});
-    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews] = await Promise.all([
+    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio] = await Promise.all([
       GH.getJSON('config.json'), GH.getJSON('lessons.json'), GH.getJSON('plan.json'), GH.getJSON('learned.json'), GH.getJSON('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
-      GH.getJSON('recipes.json'), GH.getJSON('meals.json'), GH.getJSON('requests.json'), GH.getJSON('ideas.json'), GH.getJSON('sleep.json'), GH.getJSON('curriculum.json'), GH.getJSON('reviews.json')
+      GH.getJSON('recipes.json'), GH.getJSON('meals.json'), GH.getJSON('requests.json'), GH.getJSON('ideas.json'), GH.getJSON('sleep.json'), GH.getJSON('curriculum.json'), GH.getJSON('reviews.json'), GH.getJSON('portfolio.json')
     ]);
-    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
@@ -643,6 +644,8 @@ async function loadAll(quiet) {
     if (!$('#tab-lessons').hidden) { S.notes = S.notes || null; loadNotes(true); }
     processQuick();
     checkNotesPushed();
+    loadNotesDays();
+    setTimeout(announceAchievements, 300);
   } catch (e) {
     console.warn(e);
     if (e.code === 'auth') showSetup('Ключ не подошёл или истёк. Вставь новый.');
@@ -1013,6 +1016,7 @@ function render() {
   $('#today-label').textContent = DOW_S[dow(t)] + ', ' + pd(t).getDate() + ' ' + MON_G[pd(t).getMonth()];
   renderPlan(); renderCal(); renderLessons(); renderFood(); renderMoney();
   renderClaudeBtn();
+  renderDayChip();
 }
 const REP_EVERY1 = { day: 'каждый день', week: 'каждую неделю', month: 'каждый месяц', year: 'каждый год' };
 const REP_FORMS = { day: ['день', 'дня', 'дней'], week: ['неделю', 'недели', 'недель'], month: ['месяц', 'месяца', 'месяцев'], year: ['год', 'года', 'лет'] };
@@ -1081,6 +1085,7 @@ function dayRows(d, study, sport) {
   for (const e of (study.byDate[d] || [])) rows.push(e.blocked ? rowBlocked(e) : rowStudy(e));
   for (const i of sport) if (i.eff === d) rows.push(rowSport(i));
   for (const i of sport) if (i.orig === d && i.eff !== d) rows.push(rowGhost(i));
+  regularRows(d).forEach(r => rows.push(r));
   return rows;
 }
 /* ---------- sleep ---------- */
@@ -1115,6 +1120,340 @@ function sleepDurNote() {
   el.textContent = m ? 'Получается ' + hm(m) + '.' : 'Дата — день, когда проснулся.';
 }
 
+/* ---------- план денег: бюджет «на жизнь», регулярные платежи, цели ---------- */
+function moneyCfg() { return (S.config && S.config.money) || {}; }
+function moneyPlan() { return moneyCfg().plan || null; }
+function regulars() { return moneyCfg().regular || []; }
+function goals() { return moneyCfg().goals || []; }
+function acctById(id) { return accounts().find(a => a.id === id) || null; }
+function regularOf(x) {
+  const k = kindOf(x); if (k !== 'spend' && k !== 'transfer') return null;
+  const n = norm((x.name || '') + ' ' + (x.raw || ''));
+  return regulars().find(r => (r.match && r.match.length ? r.match : [r.name]).some(w => w && n.includes(norm(w)))) || null;
+}
+function isLiving(x) { const p = moneyPlan() || {}; return kindOf(x) === 'spend' && !(p.fixedCats || []).includes(x.cat) && !regularOf(x); }
+const sumAmt = list => list.reduce((a, x) => a + (Number(x.amount) || 0), 0);
+function regularTotal() { return regulars().reduce((a, r) => a + (Number(r.amount) || 0), 0); }
+function budgetNow() {
+  const p = moneyPlan(); if (!p || !p.living) return null;
+  const t = today(), start = periodOf(t), end = periodEnd(start);
+  if (!periodMonths(start).every(mk => S.money[mk])) return null;
+  const items = periodItems(start).filter(isLiving);
+  const spent = sumAmt(items), spentToday = sumAmt(items.filter(x => x.date === t));
+  const daysLeft = daysBetween(t, end) + 1;
+  const todayCap = (p.living - (spent - spentToday)) / daysLeft;
+  return { living: p.living, spent, left: p.living - spent, daysLeft, perDay: (p.living - spent) / daysLeft, todayCap, spentToday, start, end };
+}
+function renderDayChip() {
+  const el = $('#day-chip'); if (!el) return;
+  const b = S.ready ? budgetNow() : null;
+  if (!b) { el.hidden = true; return; }
+  el.hidden = false;
+  const over = b.left < 0;
+  el.classList.toggle('over', over);
+  el.textContent = over ? `перерасход ${fmt(Math.round(-b.left))} ₽` : `${fmt(Math.max(0, Math.floor(b.perDay)))} ₽/день`;
+  el.setAttribute('aria-label', over ? `Бюджет на жизнь превышен на ${fmt(Math.round(-b.left))} рублей` : `Можно тратить ${fmt(Math.floor(b.perDay))} рублей в день до ${dm(b.end)}`);
+}
+function nextDue(r, from) {
+  if (!r.day) return null;
+  const f = pd(from || today());
+  for (let k = 0; k < 2; k++) {
+    const y = f.getFullYear(), m = f.getMonth() + k;
+    const last = new Date(y, m + 1, 0).getDate();
+    const d = ds(new Date(y, m, Math.min(Number(r.day), last), 12));
+    if (d >= (from || today())) return d;
+  }
+  return null;
+}
+function regularPaid(r) {
+  const start = periodOf(today());
+  return periodItems(start).some(x => regularOf(x) === r) ;
+}
+function freePerMonth() { const p = moneyPlan() || {}; return (Number(p.salary) || 0) - regularTotal() - (Number(p.living) || 0); }
+// Помесячная прикидка: свободные деньги (+ ожидаемые разовые) идут сначала на кредитку, потом на долг Сбера, остальное — на цель накопления.
+function simulatePlan() {
+  const free = freePerMonth(); if (!(free > 0)) return null;
+  const debts = goals().filter(g => g.type === 'debt').map(g => ({ g, a: acctById(g.acc) })).filter(o => o.a).map(o => ({ id: o.g.id, bal: Math.max(0, Number(o.a.balance) || 0), done: null }));
+  const save = goals().filter(g => g.type === 'save').map(g => ({ g, a: acctById(g.acc) })).filter(o => o.a)[0];
+  let car = save ? Number(save.a.balance) || 0 : 0, carDone = null;
+  const exp = moneyCfg().expected || [];
+  let pay = periodShift(periodOf(today()), 1);
+  debts.forEach(d => { if (d.bal <= 0) d.done = today(); });
+  for (let k = 0; k < 60; k++, pay = periodShift(pay, 1)) {
+    const prev = periodShift(pay, -1);
+    let cash = free + exp.filter(e => e.date && e.date > prev && e.date <= pay && e.date >= today()).reduce((a, e) => a + (Number(e.amount) || 0), 0);
+    for (const d of debts) { if (d.bal <= 0) continue; const x = Math.min(d.bal, cash); d.bal -= x; cash -= x; if (d.bal <= 0.5 && !d.done) d.done = pay; }
+    car += cash;
+    if (save && save.g.target && !carDone && car >= save.g.target) carDone = pay;
+    if (debts.every(d => d.done) && (!save || !save.g.target || carDone)) break;
+  }
+  return { free, debts, carDone, save };
+}
+const MON_P = ['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре'];
+const monthName = d => MON_P[pd(d).getMonth()] + (pd(d).getFullYear() !== pd(today()).getFullYear() ? ' ' + pd(d).getFullYear() : '');
+function monthsUntil(d) { return Math.max(1, Math.round(daysBetween(today(), d) / 30.4)); }
+function goalHtml(g, sim) {
+  const a = acctById(g.acc); if (!a) return '';
+  const cur = Number(a.balance) || 0, stale = a.asOf && daysBetween(a.asOf, today()) > (g.type === 'debt' ? 5 : 20);
+  let pct = null, lines = [];
+  if (g.type === 'debt') {
+    if (g.start) { pct = Math.max(0, Math.min(100, (g.start - cur) / g.start * 100)); lines.push(`погашено ${fmt(g.start - cur)} из ${fmt(g.start)}`); }
+    if (cur <= 0) lines.push(stale ? 'был закрыт' : 'закрыто ✓');
+    else {
+      const sd = sim && sim.debts.find(d => d.id === g.id);
+      if (sd && sd.done) lines.push(`по плану закроется в ${monthName(sd.done)}`);
+      if (g.by) lines.push(`чтобы к ${dm(g.by)} — по ${fmt(Math.ceil(cur / monthsUntil(g.by)))} ₽/мес`);
+    }
+  } else {
+    if (g.target) {
+      pct = Math.max(0, Math.min(100, cur / g.target * 100));
+      lines.push(`${fmt(cur)} из ${fmt(g.target)}`);
+      if (sim && sim.carDone) lines.push(`после долгов — к ${monthName(sim.carDone)}`);
+      if (g.by && cur < g.target) lines.push(`чтобы к ${dm(g.by)} — по ${fmt(Math.ceil((g.target - cur) / monthsUntil(g.by)))} ₽/мес`);
+    } else lines.push('нажми и задай сумму цели и срок');
+  }
+  return `<button type="button" class="goal ${g.type}" data-action="goal" data-id="${esc(g.id)}"><span class="gt"><b>${esc(g.name)}</b><span class="gv">${g.type === 'debt' && cur > 0 ? '−' : ''}${fmt(cur)} ${esc(curSym())}</span></span>${pct != null ? `<span class="bar"><i style="width:${pct.toFixed(1)}%"></i></span>` : ''}<span class="gm">${esc(lines.join(' · '))}${stale ? ` · остаток на ${dm(a.asOf)} — обнови` : ''}</span></button>`;
+}
+function moneyPlanHtml() {
+  if (!S.ready || !S.config) return '';
+  const p = moneyPlan(), b = budgetNow(), sim = simulatePlan(), cur = esc(curSym());
+  let h = '';
+  if (p && b) {
+    const pct = Math.max(0, Math.min(100, b.spent / b.living * 100));
+    h += `<button type="button" class="budget ${b.left < 0 ? 'over' : ''}" data-action="budget"><span class="gt"><b>На жизнь до ${dm(b.end)}</b><span class="gv">${b.left < 0 ? 'перерасход ' + fmt(Math.round(-b.left)) : fmt(Math.max(0, Math.floor(b.perDay))) + ' ₽/день'}</span></span><span class="bar"><i style="width:${pct.toFixed(1)}%"></i></span><span class="gm">потрачено ${fmt(Math.round(b.spent))} из ${fmt(b.living)} · осталось ${fmt(Math.round(b.left))} ${cur} на ${b.daysLeft} ${plural(b.daysLeft, 'день', 'дня', 'дней')}</span></button>`;
+  }
+  const gl = goals();
+  if (gl.length) {
+    h += `<div class="sec-row"><h2 class="sec">Цели</h2>${sim ? `<span class="sec-note">свободно ~${fmt(Math.round(sim.free))} ${cur}/мес</span>` : ''}</div><div class="stack">${gl.map(g => goalHtml(g, sim)).join('')}</div>`;
+  }
+  const rg = regulars();
+  if (rg.length) {
+    const t = today();
+    const rows = rg.slice().sort((a, c) => (nextDue(a) || '9') < (nextDue(c) || '9') ? -1 : 1).map(r => {
+      const nd = nextDue(r), paid = regularPaid(r);
+      const when = paid ? 'оплачено ✓' : nd ? (nd === t ? 'сегодня' : daysBetween(t, nd) === 1 ? 'завтра' : `${dm(nd)} · через ${daysBetween(t, nd)} ${plural(daysBetween(t, nd), 'день', 'дня', 'дней')}`) : 'дата не задана';
+      return `<button type="button" class="reg" data-action="reg" data-id="${esc(r.id)}"><span class="rn">${esc(r.name)}</span><span class="ra">${fmt(r.amount)} ${cur}</span><span class="rw${paid ? ' ok' : ''}">${r.day ? esc(r.day) + '-го · ' : ''}${esc(when)}</span></button>`;
+    }).join('');
+    h += `<details class="regs"${LS.get('bj-regs-open') ? ' open' : ''}><summary><span class="rs-t">Регулярные платежи</span><span class="sec-note">${fmt(regularTotal())} ${cur}/мес · ${fmt(regularTotal() * 12)} в год</span></summary><div class="stack">${rows}</div><button type="button" class="link-btn" data-action="reg-new">+ Платёж</button></details>`;
+  }
+  return h;
+}
+function openBudget() {
+  const p = moneyPlan() || {}, b = budgetNow(), cur = esc(curSym());
+  S.cur = { type: 'budget' };
+  const reg = regularTotal(), free = freePerMonth();
+  openSheet(`<h2 class="sh-title">Бюджет на жизнь</h2>
+    ${b ? `<div class="big-num">${b.left < 0 ? '−' + fmt(Math.round(-b.left)) : fmt(Math.max(0, Math.floor(b.perDay)))}<small>${b.left < 0 ? ' ₽ перерасход' : ' ₽ в день до ' + dm(b.end)}</small></div>
+    <div class="kv"><span>Бюджет на период</span><span class="v">${fmt(b.living)}</span><span>Потрачено</span><span class="v">${fmt(Math.round(b.spent))}</span><span>Осталось</span><span class="v">${fmt(Math.round(b.left))}</span><span>Дней до ${dm(b.end)}</span><span class="v">${b.daysLeft}</span><span>Сегодня потрачено</span><span class="v">${fmt(Math.round(b.spentToday))} из ${fmt(Math.max(0, Math.floor(b.todayCap)))}</span></div>` : ''}
+    <p class="note">Считаются траты «на жизнь»: еда, кафе, транспорт, покупки и всё остальное. Не считаются аренда и связь (${esc((p.fixedCats || []).join(', '))}) и регулярные платежи — они идут отдельно. Если сегодня потратил больше — завтрашняя цифра станет меньше.</p>
+    <div class="two"><div><label class="fld" for="bg-living">На жизнь в месяц, ${cur}</label><input id="bg-living" inputmode="numeric" value="${esc(p.living || '')}"></div><div><label class="fld" for="bg-salary">Зарплата в месяц, ${cur}</label><input id="bg-salary" inputmode="numeric" value="${esc(p.salary || '')}"></div></div>
+    <div class="kv"><span>Зарплата</span><span class="v">${fmt(p.salary || 0)}</span><span>Регулярные платежи</span><span class="v">−${fmt(reg)}</span><span>На жизнь</span><span class="v">−${fmt(p.living || 0)}</span><span class="sum">Свободно на долги и цели</span><span class="v sum${free >= 0 ? ' pos' : ''}">${free >= 0 ? '' : '−'}${fmt(Math.abs(free))}</span></div>
+    <div class="sh-acts"><button type="button" class="btn money block" data-action="budget-save">Сохранить</button></div>`);
+}
+async function budgetSave() {
+  const living = numOrNull($('#bg-living').value), salary = numOrNull($('#bg-salary').value);
+  if (!(living > 0)) { toast('Впиши сумму на жизнь'); return; }
+  const ok = await writeConfig(c => { c.money = c.money || {}; c.money.plan = Object.assign({ fixedCats: ['Жильё и связь'] }, c.money.plan || {}, { living: Math.round(living) }, salary > 0 ? { salary: Math.round(salary) } : {}); }, `Деньги: бюджет на жизнь ${Math.round(living)}`);
+  if (ok) { closeSheet(); toast('Бюджет сохранён'); }
+}
+function openRegular(id) {
+  const r = id ? regulars().find(x => x.id === id) : { id: null, name: '', amount: '', day: '', cat: otherCat() };
+  if (!r) return;
+  S.cur = { type: 'reg', r };
+  openSheet(`<h2 class="sh-title">${id ? esc(r.name) : 'Новый регулярный платёж'}</h2>
+    <label class="fld" for="rg-name">Название</label><input id="rg-name" value="${esc(r.name)}" placeholder="Например: Яндекс Плюс">
+    <div class="two"><div><label class="fld" for="rg-amount">Сумма, ${esc(curSym())}</label><input id="rg-amount" inputmode="decimal" value="${esc(r.amount)}"></div><div><label class="fld" for="rg-day">Число месяца</label><input id="rg-day" inputmode="numeric" value="${esc(r.day || '')}" placeholder="—"></div></div>
+    <label class="fld" for="rg-cat">Категория</label><select id="rg-cat">${catOptions(cats(), r.cat)}</select>
+    <p class="note">Журнал сам узнаёт этот платёж в записях по названию и не считает его в бюджет «на жизнь». За день до списания он появится в плане.</p>
+    <div class="sh-acts"><button type="button" class="btn money block" data-action="reg-save">Сохранить</button>${id ? '<button type="button" class="btn danger block" data-action="reg-del">Удалить</button>' : ''}</div>`);
+}
+async function regularSave(del) {
+  const c = S.cur; if (!c || c.type !== 'reg') return;
+  if (del) { if (await writeConfig(cfg => { cfg.money.regular = (cfg.money.regular || []).filter(x => x.id !== c.r.id); }, `Деньги: удалён платёж ${c.r.name}`)) { closeSheet(); toast('Удалено'); } return; }
+  const name = $('#rg-name').value.trim(), amount = numOrNull($('#rg-amount').value), day = numOrNull($('#rg-day').value);
+  if (!name || !(amount > 0)) { toast('Нужны название и сумма'); return; }
+  const rec = Object.assign({}, c.r, { id: c.r.id || 'r' + rid().slice(0, 6), name, amount: Math.round(amount * 100) / 100, cat: $('#rg-cat').value });
+  if (day >= 1 && day <= 31) rec.day = Math.round(day); else delete rec.day;
+  if (!rec.match || !rec.match.length || (c.r.name && c.r.name !== name && rec.match.length === 1 && norm(rec.match[0]) === norm(c.r.name))) rec.match = [norm(name)];
+  const ok = await writeConfig(cfg => { cfg.money = cfg.money || {}; const l = cfg.money.regular = cfg.money.regular || []; const k = l.findIndex(x => x.id === rec.id); if (k >= 0) l[k] = rec; else l.push(rec); }, `Деньги: платёж ${name}`);
+  if (ok) { closeSheet(); toast('Сохранено'); }
+}
+function openGoal(id) {
+  const g = goals().find(x => x.id === id); if (!g) return;
+  const a = acctById(g.acc);
+  S.cur = { type: 'goal', g };
+  openSheet(`<h2 class="sh-title">${esc(g.name)}</h2>
+    ${a ? `<p class="sh-meta">${g.type === 'debt' ? 'Остаток долга' : 'Сейчас на счёте'}: ${fmt(a.balance || 0)} ${esc(curSym())}${a.asOf ? ' на ' + dm(a.asOf) : ''}</p>` : ''}
+    <label class="fld" for="gl-name">Название</label><input id="gl-name" value="${esc(g.name)}">
+    ${g.type === 'save' ? `<label class="fld" for="gl-target">Сколько нужно, ${esc(curSym())}</label><input id="gl-target" inputmode="numeric" value="${esc(g.target || '')}" placeholder="например, 600000">` : `<label class="fld" for="gl-start">Долг в начале, ${esc(curSym())}</label><input id="gl-start" inputmode="numeric" value="${esc(g.start || '')}" placeholder="для полоски прогресса">`}
+    <label class="fld" for="gl-by">К какой дате</label><input type="date" id="gl-by" value="${esc(g.by || '')}">
+    <label class="fld" for="gl-bal">${g.type === 'debt' ? 'Остаток долга сейчас' : 'Сейчас на счёте'}, ${esc(curSym())}</label><input id="gl-bal" inputmode="decimal" value="${a ? esc(a.balance ?? '') : ''}">
+    <p class="note">Прогноз считается так: зарплата минус регулярные платежи и бюджет на жизнь — это свободные деньги. Они по очереди идут на кредитку, потом на долг Сбера, потом на машину. Ожидаемая разовая выплата тоже учитывается.</p>
+    <div class="sh-acts"><button type="button" class="btn money block" data-action="goal-save">Сохранить</button></div>`);
+}
+async function goalSave() {
+  const c = S.cur; if (!c || c.type !== 'goal') return;
+  const name = $('#gl-name').value.trim() || c.g.name, by = $('#gl-by').value || null;
+  const target = $('#gl-target') ? numOrNull($('#gl-target').value) : null, start = $('#gl-start') ? numOrNull($('#gl-start').value) : null, bal = numOrNull($('#gl-bal').value);
+  const ok = await writeConfig(cfg => {
+    const g = (cfg.money.goals || []).find(x => x.id === c.g.id); if (!g) return;
+    g.name = name; if (by) g.by = by; else delete g.by;
+    if ($('#gl-target')) { if (target > 0) g.target = Math.round(target); else delete g.target; }
+    if ($('#gl-start')) { if (start > 0) g.start = Math.round(start); else delete g.start; }
+    const a = (cfg.money.accounts || []).find(x => x.id === g.acc);
+    if (a && bal != null && Number(a.balance) !== bal) { a.balance = Math.round(bal * 100) / 100; a.asOf = today(); a.ts = Date.now(); }
+  }, `Деньги: цель «${name}»`);
+  if (ok) { closeSheet(); toast('Сохранено'); }
+}
+function regularRows(d) {
+  const t = today(); if (d < t) return [];
+  return regulars().filter(r => nextDue(r, d) === d && !(d <= periodEnd(periodOf(t)) && regularPaid(r))).map(r => `<button type="button" class="row slim" data-action="reg" data-id="${esc(r.id)}"><span class="tag pay">Платёж</span><span class="rb"><span class="t">${esc(r.name)}</span></span><span class="s">${fmt(r.amount)} ${esc(curSym())}</span></button>`);
+}
+/* ---------- простые графики (одна серия, без легенды) ---------- */
+const compact = v => Math.abs(v) >= 1000 ? (Math.round(v / 100) / 10).toString().replace('.', ',') + 'к' : String(Math.round(v));
+function barChart(data, o) {
+  o = o || {}; const W = 320, H = 150, pb = 22, pt = 18, n = data.length; if (n < 2) return '';
+  const max = Math.max(...data.map(d => d.v), 1), gap = 14, bw = Math.min(46, (W - (n - 1) * gap) / n), x0 = (W - (n * bw + (n - 1) * gap)) / 2;
+  const bars = data.map((d, i) => { const h = Math.max(2, (H - pb - pt) * d.v / max), x = x0 + i * (bw + gap), y = H - pb - h; return `<g><title>${esc(d.title || d.label + ': ' + fmt(d.v))}</title><path d="M${x},${H - pb} V${y + 4} Q${x},${y} ${x + 4},${y} H${x + bw - 4} Q${x + bw},${y} ${x + bw},${y + 4} V${H - pb} Z" class="ch-bar${d.hi ? ' hi' : ''}"/><text x="${x + bw / 2}" y="${y - 5}" class="ch-v" text-anchor="middle">${esc(o.fmt ? o.fmt(d.v) : compact(d.v))}</text><text x="${x + bw / 2}" y="${H - 6}" class="ch-l" text-anchor="middle">${esc(d.label)}</text></g>`; }).join('');
+  return `<figure class="chart ${o.cls || ''}"><figcaption>${esc(o.title || '')}</figcaption><svg viewBox="0 -2 ${W} ${H + 2}" role="img" aria-label="${esc(o.title || '')}"><line x1="0" x2="${W}" y1="${H - pb}" y2="${H - pb}" class="ch-axis"/>${bars}</svg></figure>`;
+}
+function lineChart(data, o) {
+  o = o || {}; const W = 320, H = 130, pl = 6, pr = 6, pt = 16, pb = 20, n = data.length; if (n < 2) return '';
+  const ys = data.map(d => d.v), lo = o.min != null ? Math.min(o.min, ...ys) : Math.min(...ys), hi = Math.max(...ys), span = hi - lo || 1;
+  const X = i => pl + (W - pl - pr) * i / (n - 1), Y = v => pt + (H - pt - pb) * (1 - (v - lo) / span);
+  const pts = data.map((d, i) => `${X(i).toFixed(1)},${Y(d.v).toFixed(1)}`).join(' ');
+  const last = data[n - 1], imax = ys.indexOf(hi);
+  const lab = (i, above) => `<text x="${Math.min(W - 18, Math.max(18, X(i)))}" y="${Y(data[i].v) + (above ? -7 : 14)}" class="ch-v" text-anchor="middle">${esc(o.fmt ? o.fmt(data[i].v) : compact(data[i].v))}</text>`;
+  return `<figure class="chart ${o.cls || ''}"><figcaption>${esc(o.title || '')}</figcaption><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.title || '')}"><line x1="0" x2="${W}" y1="${H - pb}" y2="${H - pb}" class="ch-axis"/><polyline points="${pts}" class="ch-line"/>${data.map((d, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(d.v).toFixed(1)}" r="4" class="ch-dot"><title>${esc(d.label + ': ' + (o.fmt ? o.fmt(d.v) : fmt(d.v)))}</title></circle>`).join('')}${lab(n - 1, true)}${imax !== n - 1 ? lab(imax, true) : ''}<text x="${pl}" y="${H - 5}" class="ch-l">${esc(data[0].label)}</text><text x="${W - pr}" y="${H - 5}" class="ch-l" text-anchor="end">${esc(last.label)}</text></svg></figure>`;
+}
+function spendChartHtml() {
+  const since = moneyCfg().since; if (!since) return '';
+  const cur = periodOf(today()); const list = [];
+  for (let p = periodOf(since), k = 0; p <= cur && k < 24; p = periodShift(p, 1), k++) list.push(p);
+  const shown = list.slice(-6);
+  const mks = Array.from(new Set(shown.flatMap(periodMonths)));
+  if (!mks.every(mk => S.fresh.has('money/' + mk))) { if (!S.chartLoading) { S.chartLoading = true; ensureMoney(mks).then(() => { S.chartLoading = false; renderMoney(); }); } return ''; }
+  const data = shown.map(p => { const it = periodItems(p); return { label: MON_S[pd(p).getMonth()] + (p === cur ? '*' : ''), v: sumAmt(it.filter(x => kindOf(x) === 'spend')), hi: p === S.period, title: periodLabel(p) + ': ' + fmt(sumAmt(it.filter(x => kindOf(x) === 'spend'))) + ' ₽' }; });
+  return barChart(data, { title: 'Траты по месяцам бюджета' + (shown.includes(cur) ? ' · * — идёт сейчас' : ''), cls: 'money' });
+}
+/* ---------- портфолио NetDevOps: опыт, звания, ачивки ---------- */
+const RANKS = ['Новобранец', 'Курсант', 'Рядовой терминала', 'Ефрейтор скриптов', 'Младший сержант Linux', 'Сержант Git', 'Старшина сетей', 'Прапорщик Python', 'Лейтенант контейнеров', 'Старший лейтенант CI/CD', 'Капитан Ansible', 'Майор Kubernetes', 'Подполковник наблюдаемости', 'Полковник инфраструктуры', 'Генерал NetDevOps'];
+const lvlXp = n => 150 * n * (n - 1);
+const XP = { lesson: 100, lesson90: 150, part: 40, artifact: 50, project: 250, block: 500, notes: 20 };
+function curBlocks() { return (S.curriculum && S.curriculum.blocks) || []; }
+function blockLessons(b) { return (b.topics || []).flatMap(t => t.lessons || []); }
+function blockSize(b) { return (b.topics || []).reduce((a, t) => a + (t.lessons || []).length + (t.items || []).length, 0); }
+function lessonDoneN(n) { const l = S.lessons.find(x => Number(x.n) === Number(n)); return !!(l && l.done); }
+function blockClosed(b) { const ls = blockLessons(b); return ls.length > 0 && !(b.topics || []).some(t => (t.items || []).length) && ls.every(lessonDoneN); }
+function pfStats() {
+  const pf = S.portfolio || {}, projects = pf.projects || [], arts = pf.artifacts || [];
+  const done = S.lessons.filter(l => l.done);
+  const parts = S.lessons.filter(l => !l.done && (l.progressDates || []).length).reduce((a, l) => a + l.progressDates.length, 0);
+  const pDone = projects.filter(p => p.status === 'done'), keyDone = pDone.filter(p => p.key);
+  const blocks = curBlocks(), closed = blocks.filter(blockClosed);
+  const total = blocks.reduce((a, b) => a + blockSize(b), 0) || 1;
+  const topicsDone = blocks.reduce((a, b) => a + blockLessons(b).filter(lessonDoneN).length, 0);
+  const notes = S.notesDays ? S.notesDays.length : 0;
+  const xp = done.reduce((a, l) => a + (Number(l.need) >= 90 ? XP.lesson90 : XP.lesson), 0) + parts * XP.part + arts.length * XP.artifact + pDone.length * XP.project + closed.length * XP.block + notes * XP.notes;
+  let lvl = 1; while (lvl < RANKS.length && xp >= lvlXp(lvl + 1)) lvl++;
+  const from = lvlXp(lvl), to = lvl < RANKS.length ? lvlXp(lvl + 1) : xp;
+  return { xp, lvl, rank: RANKS[lvl - 1], next: RANKS[lvl] || null, from, to, pctLvl: to > from ? (xp - from) / (to - from) * 100 : 100,
+    lessons: done.length, parts, arts, projects, pDone: pDone.length, keyDone: keyDone.length, blocks, closed, total, topicsDone, pctPath: topicsDone / total * 100, notes, streak: studyStreakWeeks() };
+}
+// недели подряд (последние завершённые), где все учебные окна были использованы
+function studyStreakWeeks() {
+  if (!S.config || !S.config.study) return 0;
+  const st = S.config.study.start; if (!st) return 0;
+  let w = addDays(mondayOf(today()), -7), n = 0;
+  while (w >= mondayOf(st)) {
+    let win = 0, miss = 0;
+    for (let k = 0; k < 7; k++) { const d = addDays(w, k); if (d < st) continue; const c = studyCap(d); if (c.blocked) { if (c.base > 0) { win++; miss++; } continue; } if (c.cap <= 0) continue; win++; if (!activity(d)) miss++; }
+    if (!win || miss) break;
+    n++; w = addDays(w, -7);
+  }
+  return n;
+}
+function achievements(c) {
+  const proj = id => (c.projects.find(p => p.id === id) || {}).status === 'done';
+  const list = [
+    { id: 'l1', ic: '🎯', t: 'Первый шаг', d: 'Пройти первый урок', ok: c.lessons >= 1 },
+    { id: 'lab', ic: '🖥️', t: 'Свой стенд', d: 'Поднять лабораторную виртуалку', ok: proj('linux1-1') },
+    { id: 'script', ic: '📜', t: 'Первый скрипт', d: 'Написать первый bash-скрипт', ok: lessonDoneN(7) },
+    { id: 'l10', ic: '🔟', t: 'Десятка', d: 'Пройти 10 уроков', ok: c.lessons >= 10 },
+    { id: 'gitvault', ic: '🗂️', t: 'Конспект под git', d: 'Хранилище Obsidian в приватном репозитории', ok: proj('git-1') },
+    { id: 'cron', ic: '⏰', t: 'Работает без меня', d: 'Первый скрипт по расписанию (cron)', ok: lessonDoneN(11) },
+    { id: 'monitor', ic: '📡', t: 'Не стыдно выложить', d: 'Собрать monitor.sh — финал блока Bash', ok: lessonDoneN(12) },
+    { id: 'n5', ic: '📝', t: 'Конспектёр', d: '5 дней с отправленными заметками', ok: c.notes >= 5 },
+    { id: 'n30', ic: '📚', t: 'Летописец', d: '30 дней с отправленными заметками', ok: c.notes >= 30 },
+    { id: 'wk1', ic: '🔥', t: 'Неделя без пропусков', d: 'Все учебные окна недели использованы', ok: c.streak >= 1 },
+    { id: 'wk4', ic: '💪', t: 'Месяц без пропусков', d: '4 недели подряд без пропусков', ok: c.streak >= 4 },
+    { id: 'l25', ic: '🥉', t: 'Четверть сотни', d: 'Пройти 25 уроков', ok: c.lessons >= 25 },
+    { id: 'p1', ic: '🛠️', t: 'Строитель', d: 'Первый проект из плана', ok: c.pDone >= 1 },
+    { id: 'p5', ic: '🏗️', t: 'Прораб', d: '5 проектов из плана', ok: c.pDone >= 5 },
+    { id: 'key1', ic: '⭐', t: 'Сквозной проект', d: 'Закрыть первый сквозной проект', ok: c.keyDone >= 1 },
+    { id: 'path25', ic: '🗺️', t: 'Четверть пути', d: '25% тем NetDevOps', ok: c.pctPath >= 25 },
+    { id: 'l50', ic: '🥈', t: 'Полтинник', d: 'Пройти 50 уроков', ok: c.lessons >= 50 },
+    { id: 'path50', ic: '🧭', t: 'Экватор', d: 'Половина пути NetDevOps', ok: c.pctPath >= 50 },
+    { id: 'p15', ic: '🏛️', t: 'Портфолио', d: '15 проектов из плана', ok: c.pDone >= 15 },
+    { id: 'path100', ic: '🥇', t: 'Весь путь', d: 'Все темы плана NetDevOps', ok: c.pctPath >= 99.9 }
+  ];
+  c.blocks.forEach(b => list.push({ id: 'b-' + b.id, ic: '🏅', t: b.title, d: 'Закрыть блок «' + b.title + '»', ok: blockClosed(b), block: true }));
+  return list;
+}
+function pfCardHtml() {
+  if (!S.ready || !S.curriculum || !curBlocks().length) return '';
+  const c = pfStats(), ach = achievements(c), got = ach.filter(a => a.ok).length;
+  const fresh = newAchievements(ach).length;
+  return `<button type="button" class="pf-card" data-action="pf-open"><span class="pf-top"><span class="pf-lvl">${c.lvl}</span><span class="pf-rt"><b>${esc(c.rank)}</b><small>${fmt(c.xp)} XP${c.next ? ' · до «' + esc(c.next) + '» ' + fmt(c.to - c.xp) : ''}</small></span>${fresh ? `<span class="pf-new">+${fresh} 🏆</span>` : ''}</span><span class="bar pf-bar"><i style="width:${c.pctLvl.toFixed(1)}%"></i></span><span class="pf-sub">Путь NetDevOps ${c.topicsDone} из ~${c.total} тем · проекты ${c.pDone} из ${c.projects.length} · ачивки ${got} из ${ach.length}</span></button>`;
+}
+function newAchievements(ach) { const seen = new Set(LS.get('bj-ach') || []); return ach.filter(a => a.ok && !seen.has(a.id)); }
+const PF_ST = { done: 'сделано', doing: 'в работе', todo: 'впереди' };
+function openPortfolio(tab) {
+  tab = tab || (S.cur && S.cur.type === 'pf' && S.cur.tab) || 'prog';
+  S.cur = { type: 'pf', tab };
+  const c = pfStats(), ach = achievements(c), fresh = new Set(newAchievements(ach).map(a => a.id));
+  const seg = `<div class="seg4 seg-4" role="group" aria-label="Раздел">${[['prog', 'Прогресс'], ['ach', 'Ачивки'], ['proj', 'Проекты'], ['done', 'Сделано']].map(([k, l]) => `<button type="button" data-action="pf-tab" data-tab="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>`;
+  let body = '';
+  if (tab === 'prog') {
+    body = `<div class="pf-hero"><span class="pf-lvl big">${c.lvl}</span><span><b>${esc(c.rank)}</b><br><small>${fmt(c.xp)} XP${c.next ? ` · следующее звание «${esc(c.next)}» через ${fmt(c.to - c.xp)} XP` : ''}</small></span></div><span class="bar pf-bar"><i style="width:${c.pctLvl.toFixed(1)}%"></i></span>
+      <div class="kv"><span>Уроки · ${c.lessons}</span><span class="v">+${fmt(S.lessons.filter(l => l.done).reduce((a, l) => a + (Number(l.need) >= 90 ? XP.lesson90 : XP.lesson), 0))}</span>${c.parts ? `<span>Части уроков · ${c.parts}</span><span class="v">+${fmt(c.parts * XP.part)}</span>` : ''}<span>Сделанные вещи · ${c.arts.length}</span><span class="v">+${fmt(c.arts.length * XP.artifact)}</span><span>Проекты · ${c.pDone}</span><span class="v">+${fmt(c.pDone * XP.project)}</span><span>Закрытые блоки · ${c.closed.length}</span><span class="v">+${fmt(c.closed.length * XP.block)}</span><span>Дни с конспектом · ${c.notes}</span><span class="v">+${fmt(c.notes * XP.notes)}</span></div>
+      <p class="note">Урок — ${XP.lesson} XP (тяжёлый — ${XP.lesson90}), сделанная вещь — ${XP.artifact}, проект из плана — ${XP.project}, закрытый блок — ${XP.block}, день с отправленным конспектом — ${XP.notes}.</p>
+      <h3 class="sec">Путь NetDevOps · ${Math.round(c.pctPath)}%</h3><div class="pf-blocks">${c.blocks.map(b => { const n = blockSize(b), d = blockLessons(b).filter(lessonDoneN).length; return `<div class="pf-b${blockClosed(b) ? ' ok' : ''}"><span class="bn">${esc(b.title)}</span><span class="bc">${blockClosed(b) ? '✓' : d + '/' + n}</span><span class="bar"><i style="width:${(n ? d / n * 100 : 0).toFixed(1)}%"></i></span></div>`; }).join('')}</div>`;
+  } else if (tab === 'ach') {
+    const got = ach.filter(a => a.ok).length;
+    body = `<p class="sh-meta">Открыто ${got} из ${ach.length}</p><div class="ach-grid">${ach.map(a => `<div class="ach${a.ok ? ' ok' : ''}${fresh.has(a.id) ? ' fresh' : ''}"><span class="ai">${a.ok ? a.ic : '🔒'}</span><span class="at">${esc(a.t)}</span><span class="ad">${esc(a.d)}</span></div>`).join('')}</div>`;
+  } else if (tab === 'proj') {
+    body = `<p class="sh-meta">Проекты «Построение» из плана — то, что потом можно показать на собеседовании. ⭐ — части сквозного проекта.</p>` + c.blocks.map(b => { const ps = c.projects.filter(p => p.block === b.id); if (!ps.length) return ''; return `<h3 class="sec">${esc(b.title)} · ${ps.filter(p => p.status === 'done').length}/${ps.length}</h3><div class="stack">${ps.map(p => `<div class="pf-p ${p.status}"><span class="pn">${p.key ? '⭐ ' : ''}${esc(p.title)}</span><span class="chip${p.status === 'done' ? ' good' : p.status === 'doing' ? ' warn' : ''}">${PF_ST[p.status] || p.status}${p.date && p.status === 'done' ? ' ' + dm(p.date) : ''}</span>${p.note ? `<span class="pm">${esc(p.note)}</span>` : ''}</div>`).join('')}</div>`; }).join('');
+  } else {
+    const arts = c.arts.slice().sort((a, b) => (b.date || '') < (a.date || '') ? -1 : 1);
+    const les = S.lessons.filter(l => l.done).sort((a, b) => b.done < a.done ? -1 : 1);
+    body = `<h3 class="sec">Сделанные вещи</h3>${arts.length ? `<div class="stack">${arts.map(a => `<div class="pf-p done"><span class="pn">${esc(a.title)}</span><span class="chip good">${a.date ? dm(a.date) : '✓'}</span>${a.desc ? `<span class="pm">${esc(a.desc)}</span>` : ''}</div>`).join('')}</div>` : '<p class="note">Пока пусто — появятся после уроков.</p>'}
+      <h3 class="sec">Навыки по урокам</h3><div class="stack">${les.map(l => `<div class="pf-p done"><span class="pn">Урок ${esc(l.n)} · ${esc(l.title || '')}</span><span class="chip good">${dm(l.done)}</span>${l.outcome ? `<span class="pm">${esc(l.outcome)}</span>` : ''}</div>`).join('')}</div>
+      <p class="note">После урока, когда ты отправишь заметки, Claude сам допишет сюда, что сделано, и отметит проекты.</p>`;
+  }
+  openSheet(`<h2 class="sh-title">Портфолио NetDevOps</h2>${seg}${body}`, true);
+  if (tab === 'ach' || fresh.size) { LS.set('bj-ach', ach.filter(a => a.ok).map(a => a.id)); renderLessons(); }
+}
+function announceAchievements() {
+  if (!S.ready || !S.curriculum || !curBlocks().length) return;
+  const c = pfStats(), ach = achievements(c), fresh = newAchievements(ach);
+  const lv = LS.get('bj-lvl');
+  if (lv != null && c.lvl > lv) toast(`🎖 Новое звание: ${c.rank}! Уровень ${c.lvl}`);
+  else if (fresh.length && LS.get('bj-ach')) toast(fresh.length === 1 ? `🏆 Ачивка: ${fresh[0].t}` : `🏆 Новые ачивки: ${fresh.length} — загляни в портфолио`);
+  LS.set('bj-lvl', c.lvl);
+}
+async function loadNotesDays() {
+  const src = notesRepoSep(); if (!src) { S.notesDays = null; return; }
+  const st = (S.config.study || {}).start || '2026-01-01';
+  try {
+    const r = await GH.req('GET', `/repos/${encodeURIComponent(src.owner)}/${encodeURIComponent(src.repo)}/commits?per_page=100&since=${encodeURIComponent(new Date(pd(st).setHours(0, 0, 0, 0)).toISOString())}`);
+    if (!r.ok) return;
+    const j = await r.json();
+    S.notesDays = Array.from(new Set((j || []).filter(x => !/noreply@anthropic\.com/i.test(((x.commit || {}).author || {}).email || '')).map(x => ds(new Date(((x.commit || {}).author || {}).date || ((x.commit || {}).committer || {}).date)))));
+    LS.set('bj-notes-days', S.notesDays);
+    renderLessons(); announceAchievements();
+  } catch (_) {}
+}
 /* ---------- итоги: неделя (пн–вс) / месяц (бюджетный, с periodStart) / год ----------
    Цифры журнал считает сам из своих данных; разбор словами пишет Claude в reviews.json. */
 const REV_T = { week: 'Неделя', month: 'Месяц', year: 'Год' };
@@ -1193,6 +1532,21 @@ function revStatsHtml(R) {
   if (sp.reasons.length || st.reasons.length) more.push(`<b>Причины переносов и пропусков:</b> ${sp.reasons.concat(st.reasons).map(esc).join('; ')}`);
   if (m.tracked && m.cats.length) more.push(`<b>Траты:</b> ${m.cats.map(([c, v]) => `${esc(c)} ${fmt(v)}`).join(' · ')}${m.big ? ` · самая крупная — ${esc(m.big.name)} ${fmt(m.big.amount)} ${cur}` : ''}${m.unclear ? ` · не разобрано переводов: ${m.unclear}` : ''}`);
   if (more.length) h += `<div class="rev-more">${more.map(x => `<p>${x}</p>`).join('')}</div>`;
+  const nights = Object.keys(S.sleep.days || {}).filter(d => d >= R.from && d <= R.to).sort().map(d => ({ label: dm(d), v: (sleepMin(S.sleep.days[d]) || 0) / 60 })).filter(x => x.v > 0);
+  if (nights.length >= 2) h += lineChart(nights.slice(-31), { title: 'Сон, часов', fmt: v => String(Math.round(v * 10) / 10).replace('.', ','), cls: 'study' });
+  const ex = {};
+  for (const mk of monthsIn(R.from, R.to)) for (const lg of Object.values(((S.workouts[mk] || {}).logs) || {})) {
+    if (!(lg.date >= R.from && lg.date <= R.to)) continue;
+    for (const bl of lg.blocks || []) for (const e of bl.ex || []) {
+      if (e.log !== 'wr' && e.log !== 'r') continue;
+      const sets = (e.sets || []).filter(Boolean); if (!sets.length) continue;
+      const best = e.log === 'wr' ? Math.max(...sets.map(x => Number(x.w) || 0)) : Math.max(...sets.map(x => Number(x.r) || 0));
+      if (!(best > 0)) continue;
+      (ex[e.name] = ex[e.name] || { unit: e.log === 'wr' ? 'кг' : 'повт.', pts: [] }).pts.push({ d: lg.date, v: best });
+    }
+  }
+  Object.entries(ex).filter(([, o]) => o.pts.length >= 2).sort((a, b) => b[1].pts.length - a[1].pts.length).slice(0, 3)
+    .forEach(([name, o]) => { h += lineChart(o.pts.sort((a, b) => a.d < b.d ? -1 : 1).map(x => ({ label: dm(x.d), v: x.v })), { title: `${name}, лучший подход (${o.unit})`, cls: 'sport' }); });
   return h;
 }
 function reviewFor(type, from) { return S.reviews.find(r => r.type === type && r.from === from) || null; }
@@ -1228,8 +1582,8 @@ async function checkNotesPushed() {
   const src = notesRepoSep(); if (!src) { S.notesPush = null; return; }
   const t = today(), since = new Date(pd(t).setHours(0, 0, 0, 0)).toISOString();
   try {
-    const r = await GH.req('GET', `/repos/${encodeURIComponent(src.owner)}/${encodeURIComponent(src.repo)}/commits?since=${encodeURIComponent(since)}&per_page=1`);
-    S.notesPush = r.ok ? { date: t, pushed: ((await r.json()) || []).length > 0 } : null;
+    const r = await GH.req('GET', `/repos/${encodeURIComponent(src.owner)}/${encodeURIComponent(src.repo)}/commits?since=${encodeURIComponent(since)}&per_page=20`);
+    S.notesPush = r.ok ? { date: t, pushed: ((await r.json()) || []).some(x => !/noreply@anthropic\.com/i.test(((x.commit || {}).author || {}).email || '')) } : null;
   } catch (_) { S.notesPush = null; }
   if (S.ready) renderPlan();
 }
@@ -1314,6 +1668,7 @@ function renderLessons() {
   const nx = $('#lessons-next'), sl = $('#lessons-slots'), dn = $('#lessons-done'), bn = $('#lessons-banner');
   if (!isReady()) { bn.innerHTML = bannerHtml(); nx.innerHTML = sl.innerHTML = dn.innerHTML = ''; S.slotsSig = ''; return; }
   bn.innerHTML = '';
+  const pfc = $('#pf-card'); if (pfc) pfc.innerHTML = pfCardHtml();
   const study = S.studyCache || buildStudy();
   const pend = pendingSorted();
   nx.innerHTML = pend.length
@@ -1534,6 +1889,8 @@ function renderMoney() {
   }
   const sm = $('#money-summary'), ls = $('#money-list'), ib = $('#money-inbox');
   $('#money-accounts').innerHTML = S.ready && S.config ? accountsHtml() : '';
+  const mp = $('#money-plan'); if (mp) mp.innerHTML = moneyPlanHtml();
+  renderDayChip();
   ib.innerHTML = S.inbox.length ? `<div class="inbox">Фото ждут разбора: <b>${S.inbox.length}</b>. Разберу, когда позовёшь.</div>` : '';
   const loaded = periodMonths(S.period).every(mk => S.money[mk]);
   if (!loaded) { sm.innerHTML = S.ready ? '<p class="loading"><span class="spin" aria-hidden="true"></span>Загружаю…</p>' : bannerHtml(); ls.innerHTML = ''; return; }
@@ -1569,6 +1926,7 @@ function renderMoney() {
       + '<p class="note">Переводы между своими счетами в итог не входят.</p>';
   }
   if (rows.length && spend > 0) html += `<h2 class="sec">Траты по категориям</h2><div class="cats">${rows.map(([c, v]) => `<div class="cat"><span class="cn">${esc(c)}</span><span class="ca">${fmt(v)}<span class="pc">${Math.round(v / spend * 100)}%</span></span><span class="bar"><i style="width:${Math.max(2, v / max * 100).toFixed(1)}%"></i></span></div>`).join('')}</div>`;
+  html += spendChartHtml();
   if (trRows.length) html += `<h2 class="sec">Куда ушли переводы</h2><div class="kv">${trRows.map(([n, v]) => `<span>${esc(n)}</span><span class="v">${fmt(v)}</span>`).join('')}</div>`;
   sm.innerHTML = html;
   if (!items.length) { ls.innerHTML = '<p class="note">В этом периоде записей нет.</p>'; return; }
@@ -1872,7 +2230,7 @@ async function studyOn(id, d) {
   const l = S.lessons.find(x => x.id === id); if (!l) return;
   let ok = await writeLessons(list => { const x = list.find(y => y.id === id); if (x) x.done = d; }, `Учёба: урок ${l.n} пройден ${d}`);
   if (ok && S.studyDays[d] && S.studyDays[d].blocked) ok = await writePlan(p => { delete p.studyDays[d]; }, `Учёба: окно ${d} восстановлено — урок был`);
-  if (ok) { closeSheet(); toast(`Урок ${l.n} отмечен на ${short(d)}` + (d === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (d === today()) checkNotesPushed(); }
+  if (ok) { closeSheet(); toast(`Урок ${l.n} отмечен на ${short(d)} · +${XP.lesson} XP` + (d === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (d === today()) checkNotesPushed(); }
 }
 function createUpToIn(list, n, extra) {
   const nums = list.map(l => Number(l.n) || 0);
@@ -1889,7 +2247,7 @@ async function studyDone(e, when) {
   if (L.placeholder) ok = await writeLessons(list => createUpToIn(list, L.n, { done: when }), `Учёба: урок ${L.n} пройден ${when}`);
   else if (L.need != null && !e.last) ok = await writeLessons(list => { const x = list.find(l => l.id === L.key); if (x) { x.progress = (Number(x.progress) || 0) + e.cap; x.progressDates = (x.progressDates || []).concat([when]); } }, `Учёба: часть урока ${L.n} ${when}`);
   else ok = await writeLessons(list => { const x = list.find(l => l.id === L.key); if (x) x.done = when; }, `Учёба: урок ${L.n} пройден ${when}`);
-  if (ok) { closeSheet(); toast((L.need != null && !e.last ? `Часть урока ${L.n} отмечена` : `Урок ${L.n} пройден`) + (when === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (when === today()) checkNotesPushed(); }
+  if (ok) { closeSheet(); toast((L.need != null && !e.last ? `Часть урока ${L.n} отмечена · +${XP.part} XP` : `Урок ${L.n} пройден · +${Number(L.need) >= 90 ? XP.lesson90 : XP.lesson} XP`) + (when === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (when === today()) checkNotesPushed(); }
 }
 async function blockFlow(d, reason) {
   const before = buildStudy();
@@ -2602,6 +2960,16 @@ document.addEventListener('click', async ev => {
     }
     case 'acct-cards': openCards(); break;
     case 'auto-setup': openAutoSetup(); break;
+    case 'budget': openBudget(); break;
+    case 'budget-save': busy(b, true); await budgetSave(); busy(b, false); break;
+    case 'reg': openRegular(b.dataset.id); break;
+    case 'reg-new': openRegular(null); break;
+    case 'reg-save': busy(b, true); await regularSave(false); busy(b, false); break;
+    case 'reg-del': busy(b, true); await regularSave(true); busy(b, false); break;
+    case 'goal': openGoal(b.dataset.id); break;
+    case 'goal-save': busy(b, true); await goalSave(); busy(b, false); break;
+    case 'pf-open': openPortfolio('prog'); break;
+    case 'pf-tab': openPortfolio(b.dataset.tab); break;
     case 'rev-open': openReview(b.dataset.type || 'week', b.dataset.from || null); break;
     case 'rev-type': openReview(b.dataset.type, null); break;
     case 'rev-prev': if (S.rev) openReview(S.rev.type, revShift(S.rev.type, S.rev.from, -1)); break;

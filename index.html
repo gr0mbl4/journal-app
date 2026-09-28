@@ -507,6 +507,65 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 .brand{font-size:20px;white-space:nowrap}
 @media (max-width:430px){ .today{display:none} .top{gap:4px} .brand{margin-right:auto} }
 .tabs{background:var(--glass)}
+/* money plan */
+.subbar{display:flex;align-items:center;gap:8px;min-height:22px}
+.subbar .sync{flex:1;min-width:0;margin-top:0}
+.day-chip{flex:0 0 auto;font:600 12.5px var(--f-body);padding:3px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--money) 35%,transparent);background:color-mix(in srgb,var(--money) 12%,var(--glass));color:var(--money);cursor:pointer;white-space:nowrap}
+.day-chip.over{color:#C0392B;border-color:rgba(192,57,43,.35);background:rgba(192,57,43,.1)}
+.budget,.goal,.reg{display:grid;gap:6px;width:100%;text-align:left;padding:12px 14px;border-radius:var(--r);border:1px solid var(--glass-line);background:var(--glass-2);box-shadow:var(--hl);color:var(--ink);cursor:pointer}
+.budget{margin-top:12px}
+.budget .bar i{background:var(--money)} .budget.over .bar i{background:#C0392B}
+.goal.debt .bar i{background:var(--sport)} .goal.save .bar i{background:var(--study)}
+.gt{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.gv{font:700 16px var(--f-disp);white-space:nowrap}
+.gm{font-size:12.5px;color:var(--muted)}
+.sec-note{font-size:12.5px;color:var(--muted);font-weight:400}
+.regs{margin-top:14px}
+.regs summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 8px;cursor:pointer;font:700 15px var(--f-disp);padding:6px 2px;list-style:none}
+.regs summary .sec-note{grid-column:1;grid-row:2}
+.regs summary::after{grid-column:2;grid-row:1}
+.regs summary::-webkit-details-marker{display:none}
+.regs summary::after{content:"▾";color:var(--muted);font-size:13px}
+.regs[open] summary::after{content:"▴"}
+.regs .stack{margin-top:6px}
+.reg{grid-template-columns:minmax(0,1fr) auto;padding:10px 12px;gap:2px 10px}
+.reg .rn{font-weight:600} .reg .ra{font-weight:600;white-space:nowrap} .reg .rw{grid-column:1/-1;font-size:12.5px;color:var(--muted)} .reg .rw.ok{color:var(--good)}
+.tag.pay{color:var(--money);background:var(--money-soft)}
+.big-num{font:700 38px/1.1 var(--f-disp);margin:6px 0 4px}
+.big-num small{font:500 15px var(--f-body);color:var(--muted)}
+/* charts */
+.chart{margin:14px 0 0;padding:10px 12px 6px;border:1px solid var(--line);border-radius:16px;background:var(--glass-3)}
+.chart figcaption{font-size:12.5px;color:var(--muted);margin-bottom:4px}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.ch-bar{fill:color-mix(in srgb,var(--money) 45%,transparent)} .ch-bar.hi{fill:var(--money)}
+.ch-line{fill:none;stroke:var(--study);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart.sport .ch-line{stroke:var(--sport)} .chart.sport .ch-dot{fill:var(--sport)}
+.ch-dot{fill:var(--study);stroke:var(--surface);stroke-width:2}
+.ch-axis{stroke:var(--line);stroke-width:1}
+.ch-v{font:600 11px var(--f-body);fill:var(--ink)} .ch-l{font:11px var(--f-body);fill:var(--muted)}
+/* portfolio */
+.seg-4{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.seg-4 button{padding-inline:2px;font-size:14px}
+.pf-card{display:grid;gap:8px;width:100%;text-align:left;margin-top:12px;padding:14px;border-radius:var(--r);cursor:pointer;color:var(--ink);border:1px solid color-mix(in srgb,var(--study) 35%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--study) 16%,var(--glass-2)),color-mix(in srgb,#8E6CF0 12%,var(--glass-2)));box-shadow:var(--hl)}
+.pf-top{display:flex;align-items:center;gap:12px}
+.pf-lvl{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font:800 19px var(--f-disp);color:#fff;background:linear-gradient(135deg,var(--study),#8E6CF0);flex:0 0 auto;box-shadow:0 6px 16px -8px rgba(40,60,160,.7)}
+.pf-lvl.big{width:56px;height:56px;font-size:26px;border-radius:16px}
+.pf-rt{display:grid;flex:1;min-width:0} .pf-rt b{font:700 16px var(--f-disp)} .pf-rt small{font-size:12.5px;color:var(--muted)}
+.pf-new{font:700 12.5px var(--f-body);padding:4px 9px;border-radius:999px;background:#FFB020;color:#3A2600}
+.pf-bar{height:8px;border-radius:4px} .pf-bar i{background:linear-gradient(90deg,var(--study),#8E6CF0)}
+.pf-sub{font-size:12.5px;color:var(--muted)}
+.pf-hero{display:flex;align-items:center;gap:12px;margin:10px 0}
+.pf-blocks{display:grid;gap:8px}
+.pf-b{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;font-size:13.5px}
+.pf-b .bc{color:var(--muted);font-size:12.5px} .pf-b.ok .bc{color:var(--good);font-weight:700} .pf-b .bar i{background:var(--study)} .pf-b.ok .bar i{background:var(--good)}
+.ach-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.ach{display:grid;gap:2px;padding:10px;border-radius:16px;border:1px solid var(--line);background:var(--glass-3);opacity:.55}
+.ach.ok{opacity:1;border-color:color-mix(in srgb,#FFB020 45%,transparent);background:color-mix(in srgb,#FFB020 10%,var(--glass-3))}
+.ach.fresh{box-shadow:0 0 0 2px #FFB020}
+.ach .ai{font-size:24px} .ach .at{font-weight:700;font-size:13.5px} .ach .ad{font-size:12px;color:var(--muted)}
+.pf-p{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;align-items:start;padding:9px 12px;border-radius:14px;border:1px solid var(--line);background:var(--glass-3);font-size:13.5px}
+.pf-p.todo{opacity:.7} .pf-p .pm{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
+.chip.warn{background:var(--warn-soft)}
 /* reviews */
 .rev-links{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:8px 2px 0;font-size:14px;color:var(--muted)}
 .rev-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;text-align:left;margin-top:12px;padding:12px 14px;border-radius:var(--r);border:1px solid rgba(224,133,95,.45);background:color-mix(in srgb,#E0855F 13%,var(--glass-2));box-shadow:var(--hl);color:var(--ink);cursor:pointer}
@@ -561,7 +620,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
     <button type="button" class="icon-btn" id="btn-refresh" data-action="refresh" aria-label="Обновить данные"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4.6L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.5 4.6L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button>
     <button type="button" class="icon-btn" data-action="settings" aria-label="Подключение"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
-  <div class="sync" id="sync" role="status" aria-live="polite"></div>
+  <div class="subbar"><div class="sync" id="sync" role="status" aria-live="polite"></div><button type="button" class="day-chip" id="day-chip" data-action="budget" hidden></button></div>
 
   <section id="setup" class="setup" hidden>
     <h2>Подключение к данным</h2>
@@ -596,6 +655,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 
     <section id="tab-lessons" class="tab" aria-label="Уроки" hidden>
       <div id="lessons-banner"></div>
+      <div id="pf-card"></div>
       <h2 class="sec">Очередь уроков</h2>
       <div id="lessons-next" class="stack"></div>
       <form id="lesson-add" class="card" autocomplete="off">
@@ -631,6 +691,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 
     <section id="tab-money" class="tab" aria-label="Деньги" hidden>
       <div id="money-accounts"></div>
+      <div id="money-plan"></div>
       <div class="month-bar">
         <button type="button" class="btn sm" data-action="m-prev" aria-label="Предыдущий период">‹</button>
         <div class="ml" id="m-label"></div>
@@ -714,6 +775,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20260928g"></script>
+<script src="app.js?v=20260928i"></script>
 </body>
 </html>
