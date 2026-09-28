@@ -43,6 +43,8 @@ const LS = {
   del(k) { try { localStorage.removeItem(k); } catch (_) {} }
 };
 
+const demo = () => !!LS.get('bj-demo');
+const demoBad = t => demo() && /кредит|долг|займ|ипотек/i.test(String(t || ''));
 /* ---------- GitHub storage ---------- */
 const GH = {
   cred: null, sha: {}, q: {},
@@ -218,9 +220,9 @@ function accountsHtml() {
   const list = accounts(), cur = curSym(), av = availableNow();
   const full = av.cards.length && !av.missing.length;
   const top = av.cards.length ? `<button type="button" class="acct" style="width:100%;margin-top:12px" data-action="acct-cards"><span class="k">Доступно на картах · без накоплений</span><span class="v">${full ? fmt(av.sum + av.delta) + ' ' + esc(cur) : 'нажми и впиши остатки'}</span><span class="d">${av.known.map(a => `${esc(bankName(a.bank) || a.name)} ${fmt(a.balance)}${a.asOf ? ' (' + dm(a.asOf) + ')' : ''}`).join(' · ')}${av.missing.length ? (av.known.length ? ' · ' : '') + 'нет остатка: ' + av.missing.map(a => esc(bankName(a.bank) || a.name)).join(', ') : ''}${full && av.n ? ` · с учётом ${av.n} ${plural(av.n, 'записи', 'записей', 'записей')} после обновления (${av.delta < 0 ? '−' : '+'}${fmt(Math.abs(av.delta))})` : ''}</span></button>` : '';
-  const rest = list.filter(a => a.type !== 'card');
+  const rest = list.filter(a => a.type !== 'card' && !(demo() && a.type === 'debt'));
   return top + `<div class="accts">${rest.map(a => `<button type="button" class="acct ${a.type === 'debt' ? 'debt' : ''}" data-action="acct" data-id="${esc(a.id)}"><span class="k">${ACCT_TYPE[a.type] || 'Счёт'}${a.bank ? ' · ' + esc(bankName(a.bank)) : ''}</span><span class="v">${a.balance == null || a.balance === '' ? 'уточнить' : fmt(a.balance) + ' ' + esc(cur)}</span><span class="d">${esc(a.name)}${a.asOf ? ' · на ' + dm(a.asOf) : ''}</span></button>`).join('')}</div>
-    <div class="acct-links"><button type="button" class="link-btn" data-action="acct-new">+ Карта, накопление или долг</button><button type="button" class="link-btn" data-action="auto-setup">⚡ Автозапись трат из SMS</button></div>`;
+    <div class="acct-links"><button type="button" class="link-btn" data-action="acct-new">+ ${demo() ? 'Карта или накопление' : 'Карта, накопление или долг'}</button><button type="button" class="link-btn" data-action="auto-setup">⚡ Автозапись трат из SMS</button></div>`;
 }
 function openCards() {
   const av = availableNow(), cur = curSym();
@@ -574,7 +576,7 @@ function periodMonths(start) { const a = monthKey(start), b = monthKey(periodEnd
 function periodItems(start) {
   const end = periodEnd(start);
   let out = [];
-  for (const mk of periodMonths(start)) { const d = S.money[mk]; if (d && Array.isArray(d.items)) out = out.concat(d.items.filter(x => x.date >= start && x.date <= end)); }
+  for (const mk of periodMonths(start)) { const d = S.money[mk]; if (d && Array.isArray(d.items)) out = out.concat(d.items.filter(x => x.date >= start && x.date <= end && !demoBad((x.cat || '') + ' ' + x.name))); }
   return out;
 }
 function ensurePeriod() {
@@ -1362,7 +1364,7 @@ function qProgress(g, k) {
 }
 function quarterHtml() {
   if (!isReady()) return '';
-  const k = qShown(), list = ((S.quarters || {})[k]) || [], r = qRange(k);
+  const k = qShown(), list = (((S.quarters || {})[k]) || []).filter(g => !(demo() && (g.type === 'debt' || demoBad(g.title)))), r = qRange(k);
   const left = daysBetween(today(), r.to) + 1, q = k.split('-Q')[1];
   if (!list.length) return `<button type="button" class="q-card empty" data-action="q-edit">+ Три цели на ${q}-й квартал</button>`;
   return `<button type="button" class="q-card" data-action="q-edit"><span class="q-h"><b>Цели на ${q}-й квартал</b><span class="sec-note">${today() < r.from ? 'с ' + dm(r.from) : 'осталось ' + left + ' ' + plural(left, 'день', 'дня', 'дней')}</span></span>${list.map(g => { const p = qProgress(g, k), pct = Math.max(0, Math.min(100, p.cur / p.target * 100)); return `<span class="q-g"><span class="q-t">${esc(g.title || QT[g.type])}</span><span class="q-n">${p.money ? fmt(Math.round(p.cur)) + ' / ' + fmt(Math.round(p.target)) : String(p.cur).replace('.', ',') + ' / ' + String(p.target).replace('.', ',')}</span><span class="bar"><i style="width:${pct.toFixed(1)}%"></i></span></span>`; }).join('')}</button>`;
@@ -1531,7 +1533,7 @@ function hideFocus() { const el = $('#focus'); if (el) { el.hidden = true; docum
 function moneyCfg() { return (S.config && S.config.money) || {}; }
 function moneyPlan() { return moneyCfg().plan || null; }
 function regulars() { return moneyCfg().regular || []; }
-function goals() { return moneyCfg().goals || []; }
+function goals() { return (moneyCfg().goals || []).filter(g => !(demo() && (g.type === 'debt' || demoBad(g.name)))); }
 function acctById(id) { return accounts().find(a => a.id === id) || null; }
 function regularOf(x) {
   const k = kindOf(x); if (k !== 'spend' && k !== 'transfer') return null;
@@ -1664,7 +1666,7 @@ function openBudget() {
     <div class="kv"><span>Бюджет на период</span><span class="v">${fmt(b.living)}</span><span>Потрачено</span><span class="v">${fmt(Math.round(b.spent))}</span><span>Осталось</span><span class="v">${fmt(Math.round(b.left))}</span><span>Дней до ${dm(b.end)}</span><span class="v">${b.daysLeft}</span><span>Сегодня потрачено</span><span class="v">${fmt(Math.round(b.spentToday))} из ${fmt(Math.max(0, Math.floor(b.todayCap)))}</span>${(() => { const cn = canteenInfo(); return cn ? `<span>Столовая до ${dm(cn.end)}</span><span class="v">${cn.meals} × ${fmt(cn.price)} ≈ ${fmt(cn.need)}</span><span>Наличных на руках, примерно</span><span class="v">${fmt(cn.cashLeft)}</span>` : ''; })()}</div>` : ''}
     
     <div class="two"><div><label class="fld" for="bg-living">На жизнь в месяц, ${cur}</label><input id="bg-living" inputmode="numeric" value="${esc(p.living || '')}"></div><div><label class="fld" for="bg-salary">Зарплата в месяц, ${cur}</label><input id="bg-salary" inputmode="numeric" value="${esc(p.salary || '')}"></div></div>
-    <div class="kv"><span>Зарплата</span><span class="v">${fmt(p.salary || 0)}</span><span>Регулярные платежи</span><span class="v">−${fmt(reg)}</span><span>На жизнь</span><span class="v">−${fmt(p.living || 0)}</span><span class="sum">Свободно на долги и цели</span><span class="v sum${free >= 0 ? ' pos' : ''}">${free >= 0 ? '' : '−'}${fmt(Math.abs(free))}</span></div>
+    <div class="kv"><span>Зарплата</span><span class="v">${fmt(p.salary || 0)}</span><span>Регулярные платежи</span><span class="v">−${fmt(reg)}</span><span>На жизнь</span><span class="v">−${fmt(p.living || 0)}</span><span class="sum">${demo() ? 'Свободно на цели' : 'Свободно на долги и цели'}</span><span class="v sum${free >= 0 ? ' pos' : ''}">${free >= 0 ? '' : '−'}${fmt(Math.abs(free))}</span></div>
     <div class="sh-acts"><button type="button" class="btn money block" data-action="budget-save">Сохранить</button></div>`);
 }
 async function budgetSave() {
@@ -1979,7 +1981,7 @@ async function openReview(type, from) {
   const r = from ? { from, to: revRange(type, from).to } : revRange(type, today());
   S.rev = { type, from: r.from };
   S.cur = { type: 'rev' };
-  const cv = reviewFor(type, r.from);
+  const cv = demo() ? null : reviewFor(type, r.from);
   const seg = `<div class="seg" role="group" aria-label="Период">${Object.keys(REV_T).map(k => `<button type="button" data-action="rev-type" data-type="${k}" aria-pressed="${k === type}">${REV_T[k]}</button>`).join('')}</div>`;
   const nav = `<div class="cal-bar rev-nav"><button type="button" class="btn sm" data-action="rev-prev" aria-label="Раньше">‹</button><b>${esc(revLabel(type, r))}</b><button type="button" class="btn sm" data-action="rev-next" aria-label="Позже"${r.from > today() ? ' disabled' : ''}>›</button></div>`;
   const draw = loading => openSheet(`<h2 class="sh-title">Итоги</h2>${seg}${nav}
@@ -1991,6 +1993,7 @@ async function openReview(type, from) {
   if (S.cur && S.cur.type === 'rev' && S.rev.from === r.from && S.rev.type === type) draw(false);
 }
 function reviewCardHtml() {
+  if (demo()) return '';
   const r = latestReview();
   const seen = new Set(LS.get('bj-seen-rev') || []);
   if (r && !seen.has(r.id) && daysBetween(r.to, today()) <= 10) {
@@ -2406,8 +2409,8 @@ function openRequests(tab, keepScroll) {
   const seg = `<div class="seg4" role="group" aria-label="Раздел">${[['req', 'Запросы'], ['sport', 'Идеи: спорт'], ['study', 'Идеи: учёба']].map(([k, l]) => `<button type="button" data-action="req-tab" data-tab="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>`;
   let body;
   if (tab === 'req') {
-    const open = S.requests.filter(r => r.status !== 'done').sort(byNewest);
-    const done = S.requests.filter(r => r.status === 'done').sort((a, b) => (b.doneAt || '') < (a.doneAt || '') ? -1 : (b.doneAt || '') > (a.doneAt || '') ? 1 : byNewest(a, b)).slice(0, 15);
+    const open = S.requests.filter(r => r.status !== 'done' && !demoBad(r.text + ' ' + (r.answer || ''))).sort(byNewest);
+    const done = S.requests.filter(r => r.status === 'done' && !demoBad(r.text + ' ' + (r.answer || ''))).sort((a, b) => (b.doneAt || '') < (a.doneAt || '') ? -1 : (b.doneAt || '') > (a.doneAt || '') ? 1 : byNewest(a, b)).slice(0, 15);
     body = `
     <label class="fld" for="rq-text">Новый запрос</label><textarea id="rq-text" rows="3" placeholder="Например: добавь в программу подтягивания"></textarea>
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="rq-add">Записать</button></div>
@@ -2939,7 +2942,16 @@ function recipeMeta(r) {
   if (!m.length && Array.isArray(r.meals) && r.meals.length) m.push(r.meals.map(k => MEAL_NAME[k] || k).join(', '));
   return m.join(' · ');
 }
-function splitNames(text) { return String(text || '').split(/[,;\n]/).map(s => s.trim().replace(/\s{2,}/g, ' ')).filter(Boolean); }
+const QTY_W = '(?:одн[оаи]|один|две|два|три|четыре|пять|пара|пару|немного|\\d+\\s*(?:шт\\.?|штук[иа]?)?)';
+function splitNames(text) {
+  const parts = String(text || '').split(/[,;\n+]|\s+и\s+|\s+с\s+собой/i).map(s => s.trim()).filter(Boolean);
+  const out = [];
+  for (const p of parts) p.split(new RegExp('\\s+(?=' + QTY_W + '\\s+[а-яёa-z])', 'i')).forEach(x => {
+    const t = x.replace(new RegExp('^' + QTY_W + '\\s+', 'i'), '').trim().replace(/\s{2,}/g, ' ');
+    if (t) out.push(cap1(t));
+  });
+  return out;
+}
 function ensureDishes(names, meal, fresh) {
   const ids = [];
   for (const n of names) {
@@ -3291,6 +3303,7 @@ function openSettings() {
     ${c ? `<p class="sh-meta">Данные: <span class="mono">${esc(c.owner)}/${esc(c.repo)}</span></p><p class="note">${esc(syncLabel() || 'ещё не загружено')}</p>` : '<p class="sh-meta">Не подключено.</p>'}
     <div class="sh-acts">
       <button type="button" class="btn block" data-action="refresh">Обновить данные</button>
+      <button type="button" class="btn block" data-action="demo-toggle">${demo() ? '🎬 Демо-режим включён — выключить' : '🎬 Демо-режим (скрыть долги и кредиты)'}</button>
       ${c ? '<button type="button" class="btn danger block" data-action="logout">Отключить это устройство</button>' : ''}
     </div>
     <p class="note">«Отключить» удаляет ключ и сохранённые данные только с этого устройства. Сам ключ отзывается на GitHub: Settings → Developer settings → Personal access tokens.</p>`);
@@ -3389,6 +3402,7 @@ document.addEventListener('click', async ev => {
     case 'acct-cards': openCards(); break;
     case 'auto-setup': openAutoSetup(); break;
     case 'budget': openBudget(); break;
+    case 'demo-toggle': if (demo()) LS.del('bj-demo'); else LS.set('bj-demo', 1); closeSheet(); render(); toast(demo() ? 'Демо-режим: долги и кредиты скрыты' : 'Демо-режим выключен'); break;
     case 'q-edit': openQuarter(); break;
     case 'q-save': busy(b, true); await quarterSave(); busy(b, false); break;
     case 'dates': openDates(); break;

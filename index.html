@@ -632,6 +632,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 .cp-k{font-size:12.5px;color:var(--muted)}
 .cp-v{font:12.5px var(--f-mono);overflow-wrap:anywhere;word-break:break-all}
 .acct-links{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}
+/* Claude button — круглый */
+.claude-fab{width:58px;height:58px;min-height:0;padding:0!important;border-radius:50%!important;justify-content:center;gap:0!important}
+.claude-fab .cf-ic{width:28px;height:28px}
+.claude-fab .cf-count{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;font-size:11.5px;line-height:20px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
 /* Claude button */
 .claude-fab{position:fixed;z-index:41;right:max(14px, calc((100vw - 552px) / 2 + 14px));bottom:calc(88px + env(safe-area-inset-bottom,0px));
   display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 18px 8px 14px;border-radius:28px;cursor:pointer;
@@ -806,7 +810,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 </nav>
 <button type="button" class="claude-fab" id="claude-fab" data-action="req" aria-label="Claude: запросы, идеи и ответы" hidden>
   <svg class="cf-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/><path d="M19 15.5c.2 1.7.9 2.4 2.5 2.5-1.6.2-2.3.9-2.5 2.5-.2-1.6-.9-2.3-2.5-2.5 1.6-.1 2.3-.8 2.5-2.5z" fill="currentColor" opacity=".8"/></svg>
-  <span class="cf-t"><b>Claude</b><small>запросы и идеи</small></span><span class="cf-count" id="req-count" hidden></span>
+  <span class="cf-count" id="req-count" hidden></span>
 </button>
 
 <div id="sheet" class="sheet" hidden>
@@ -819,6 +823,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 <div id="focus" class="focus" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20260929b"></script>
+<script src="app.js?v=20260929c"></script>
 </body>
 </html>
