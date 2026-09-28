@@ -774,7 +774,7 @@ function parseSpend(text) {
   const chunks = src.split(/\n|;|,(?=\s*[^\d\s])/).map(s => s.trim()).filter(Boolean);
   for (const ch of chunks) {
     const re = /([^\d]*?)(\d+(?:[.,]\d{1,2})?)(?:\s*(к|k|тыс\.?)(?![a-zа-яё]))?(?:\s*(?:руб(?:лей|ля|ль)?\.?|р\.?|₽|zł|zl|pln|eur|€|usd|\$)(?![a-zа-яё]))?/gi;
-    let m, last = 0;
+    let m, last = 0, found = 0;
     while ((m = re.exec(ch)) !== null) {
       const name = m[1].replace(/^[\s,.;:–—\-+=*]+|[\s,.;:–—\-+=*]+$/g, '').replace(/\s+(за|на|—)$/i, '').replace(/\s{2,}/g, ' ').trim();
       let amount = parseFloat(m[2].replace(',', '.'));
@@ -782,9 +782,14 @@ function parseSpend(text) {
       last = re.lastIndex;
       if (!(amount > 0)) continue;
       items.push({ name: cap1(name) || 'Без названия', amount: Math.round(amount * 100) / 100 });
+      found++;
     }
     const rest = ch.slice(last).replace(/^[\s,.;:–—\-]+|[\s,.;:–—\-]+$/g, '');
-    if (/[a-zа-яё]/i.test(rest)) bad.push(rest);
+    if (/[a-zа-яё]/i.test(rest)) {
+      // «перевод 600 за алкоголь» — хвост после суммы это продолжение названия, а не новая покупка
+      if (found) { const it = items[items.length - 1]; it.name = (it.name === 'Без названия' ? cap1(rest) : it.name + ' ' + rest).replace(/\s{2,}/g, ' '); }
+      else bad.push(rest);
+    }
   }
   return { items, bad };
 }
