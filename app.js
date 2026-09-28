@@ -640,6 +640,7 @@ async function loadAll(quiet) {
     setSync(syncLabel());
     if (!$('#tab-lessons').hidden) { S.notes = S.notes || null; loadNotes(true); }
     processQuick();
+    checkNotesPushed();
   } catch (e) {
     console.warn(e);
     if (e.code === 'auth') showSetup('Ключ не подошёл или истёк. Вставь новый.');
@@ -1111,11 +1112,30 @@ function sleepDurNote() {
   el.textContent = m ? 'Получается ' + hm(m) + '.' : 'Дата — день, когда проснулся.';
 }
 
+/* ---------- напоминание: отправить заметки Obsidian после урока ---------- */
+function notesRepoSep() { const src = notesSrc(); return src.repo && GH.cred && src.repo !== GH.cred.repo ? src : null; }
+async function checkNotesPushed() {
+  const src = notesRepoSep(); if (!src) { S.notesPush = null; return; }
+  const t = today(), since = new Date(pd(t).setHours(0, 0, 0, 0)).toISOString();
+  try {
+    const r = await GH.req('GET', `/repos/${encodeURIComponent(src.owner)}/${encodeURIComponent(src.repo)}/commits?since=${encodeURIComponent(since)}&per_page=1`);
+    S.notesPush = r.ok ? { date: t, pushed: ((await r.json()) || []).length > 0 } : null;
+  } catch (_) { S.notesPush = null; }
+  if (S.ready) renderPlan();
+}
+function notesReminderHtml() {
+  const t = today(), np = S.notesPush;
+  if (!np || np.date !== t || np.pushed || LS.get('bj-notes-skip') === t) return '';
+  const late = new Date().getHours() >= 21 && studyCap(t).cap > 0;
+  if (!activity(t) && !late) return '';
+  const L = S.lessons.find(l => l.done === t || (l.progressDates || []).includes(t));
+  return `<div class="callout notes-rem"><b>📝 Отправь заметки с урока</b><br>GitHub Desktop → поле <b>Summary</b> слева внизу (например «${L ? 'Урок ' + esc(L.n) + (L.title ? ' ' + esc(L.title) : '') : 'Урок'}») → <b>Commit to main</b> → вверху <b>Push origin</b>. Если там <b>Pull origin</b> — сначала её.<div class="acts" style="margin-top:10px"><button type="button" class="btn sm study" data-action="notes-check">Отправил — проверить</button><button type="button" class="btn sm" data-action="notes-skip">Сегодня без заметок</button></div></div>`;
+}
 function renderPlan() {
   const bn = $('#plan-banner'), st = $('#plan-stats'), tl = $('#plan-tails'), dy = $('#plan-days');
   renderSleep();
   if (!isReady()) { bn.innerHTML = bannerHtml(); st.innerHTML = tl.innerHTML = dy.innerHTML = ''; return; }
-  bn.innerHTML = '';
+  bn.innerHTML = notesReminderHtml();
   const study = buildStudy(); S.studyCache = study;
   const sport = buildSport(); S.sportList = sport;
   const t = today();
@@ -1672,7 +1692,7 @@ function closeSheet() {
   panel.addEventListener('touchcancel', end);
 })();
 let toastT;
-function toast(msg) { const el = $('#toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 3400); }
+function toast(msg) { const el = $('#toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, String(msg).length > 70 ? 6500 : 3400); }
 function busy(btn, on) { if (btn) btn.disabled = on; }
 
 /* ---------- study actions ---------- */
@@ -1742,7 +1762,7 @@ async function studyOn(id, d) {
   const l = S.lessons.find(x => x.id === id); if (!l) return;
   let ok = await writeLessons(list => { const x = list.find(y => y.id === id); if (x) x.done = d; }, `Учёба: урок ${l.n} пройден ${d}`);
   if (ok && S.studyDays[d] && S.studyDays[d].blocked) ok = await writePlan(p => { delete p.studyDays[d]; }, `Учёба: окно ${d} восстановлено — урок был`);
-  if (ok) { closeSheet(); toast(`Урок ${l.n} отмечен на ${short(d)}`); }
+  if (ok) { closeSheet(); toast(`Урок ${l.n} отмечен на ${short(d)}` + (d === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (d === today()) checkNotesPushed(); }
 }
 function createUpToIn(list, n, extra) {
   const nums = list.map(l => Number(l.n) || 0);
@@ -1759,7 +1779,7 @@ async function studyDone(e, when) {
   if (L.placeholder) ok = await writeLessons(list => createUpToIn(list, L.n, { done: when }), `Учёба: урок ${L.n} пройден ${when}`);
   else if (L.need != null && !e.last) ok = await writeLessons(list => { const x = list.find(l => l.id === L.key); if (x) { x.progress = (Number(x.progress) || 0) + e.cap; x.progressDates = (x.progressDates || []).concat([when]); } }, `Учёба: часть урока ${L.n} ${when}`);
   else ok = await writeLessons(list => { const x = list.find(l => l.id === L.key); if (x) x.done = when; }, `Учёба: урок ${L.n} пройден ${when}`);
-  if (ok) { closeSheet(); toast(L.need != null && !e.last ? `Часть урока ${L.n} отмечена` : `Урок ${L.n} пройден`); }
+  if (ok) { closeSheet(); toast((L.need != null && !e.last ? `Часть урока ${L.n} отмечена` : `Урок ${L.n} пройден`) + (when === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (when === today()) checkNotesPushed(); }
 }
 async function blockFlow(d, reason) {
   const before = buildStudy();
@@ -2472,6 +2492,8 @@ document.addEventListener('click', async ev => {
     }
     case 'acct-cards': openCards(); break;
     case 'auto-setup': openAutoSetup(); break;
+    case 'notes-check': busy(b, true); await checkNotesPushed(); busy(b, false); toast(S.notesPush && S.notesPush.pushed ? 'Заметки за сегодня на месте ✓' : 'Пока не вижу отправленных заметок за сегодня'); break;
+    case 'notes-skip': LS.set('bj-notes-skip', today()); renderPlan(); break;
     case 'auto-test': autoTest(); break;
     case 'copy': {
       const t = b.dataset.text || '';
