@@ -8,15 +8,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Журнал">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#ECEFEA" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111513" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#E8EDF4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A0C11" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Tektur:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
   color-scheme:light;
@@ -381,6 +381,133 @@ details.more-box[open] summary::after{content:"▴"}
 .tab-btn[aria-selected="true"] .ic{background:var(--surface-2)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:var(--on-ink);padding:10px 14px;border-radius:10px;font-size:14px;width:max-content;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
 @media (prefers-reduced-motion: reduce){.sheet-panel{animation:none}.spin,.icon-btn.busy svg{animation:none}}
+
+/* ===== Liquid glass ===== */
+:root{
+  --bg:#E8EDF4;
+  --glass:rgba(255,255,255,.58); --glass-2:rgba(255,255,255,.74); --glass-3:rgba(255,255,255,.36);
+  --glass-line:rgba(255,255,255,.75); --glass-edge:rgba(20,30,50,.07);
+  --hl:inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1px 0 rgba(255,255,255,.25);
+  --lift:0 10px 30px -14px rgba(25,40,80,.28), 0 1px 2px rgba(25,40,80,.06);
+  --blob-a:rgba(88,150,255,.42); --blob-b:rgba(255,150,90,.38); --blob-c:rgba(90,210,150,.30); --blob-d:rgba(190,120,255,.22);
+  --ink:#141922; --muted:#5A6272; --faint:#8A92A0; --line:rgba(20,30,50,.10);
+  --study:#1E6FD9; --study-soft:rgba(30,111,217,.14);
+  --sport:#E0621F; --sport-soft:rgba(224,98,31,.14);
+  --money:#17904D; --money-soft:rgba(23,144,77,.14); --good:#17904D;
+  --event:#6C7485; --event-soft:rgba(108,116,133,.16);
+  --warn-soft:rgba(255,190,70,.24); --surface:var(--glass-2); --surface-2:rgba(255,255,255,.55);
+  --f-body:-apple-system, "SF Pro Text", "Golos Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --f-disp:ui-rounded, "SF Pro Rounded", -apple-system, "Golos Text", system-ui, sans-serif;
+  --r:20px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0A0C11;
+    --glass:rgba(42,46,56,.52); --glass-2:rgba(48,52,64,.72); --glass-3:rgba(38,42,52,.36);
+    --glass-line:rgba(255,255,255,.14); --glass-edge:rgba(0,0,0,.35);
+    --hl:inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(255,255,255,.04);
+    --lift:0 12px 34px -14px rgba(0,0,0,.7), 0 1px 2px rgba(0,0,0,.4);
+    --blob-a:rgba(50,110,255,.30); --blob-b:rgba(255,120,60,.22); --blob-c:rgba(40,190,130,.18); --blob-d:rgba(160,90,255,.20);
+    --ink:#EEF1F6; --muted:#A2A9B6; --faint:#737B88; --line:rgba(255,255,255,.10);
+    --study:#6AAEFF; --study-soft:rgba(106,174,255,.18);
+    --sport:#FF9C5E; --sport-soft:rgba(255,156,94,.18);
+    --money:#5DD795; --money-soft:rgba(93,215,149,.16); --good:#5DD795;
+    --event:#AAB2C0; --event-soft:rgba(170,178,192,.16);
+    --warn-soft:rgba(255,190,70,.16); --surface:var(--glass-2); --surface-2:rgba(255,255,255,.08);
+  }
+}
+body{background:var(--bg);font-family:var(--f-body);letter-spacing:-.005em}
+body::before{content:"";position:fixed;inset:-20vmax;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(38vmax 34vmax at 12% 8%, var(--blob-a), transparent 70%),
+    radial-gradient(34vmax 30vmax at 92% 22%, var(--blob-b), transparent 70%),
+    radial-gradient(40vmax 34vmax at 20% 78%, var(--blob-c), transparent 70%),
+    radial-gradient(30vmax 28vmax at 88% 90%, var(--blob-d), transparent 70%);
+  filter:saturate(120%)}
+.brand{font:700 22px/1.1 var(--f-disp);letter-spacing:-.01em}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;margin-inline:-8px;padding:8px 10px;border-radius:22px;
+  background:var(--glass-3);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);
+  border:1px solid var(--glass-line);box-shadow:var(--hl),var(--lift)}
+.icon-btn{border-radius:50%}
+.icon-btn:hover{border-color:transparent;background:var(--glass-2)}
+.sec{letter-spacing:.06em;color:var(--muted)}
+
+/* glass surfaces */
+.row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.inbox,.cal-cell,.blk,.dish.card-like,.outcome,.callout{
+  background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--hl),var(--lift);border-radius:var(--r)}
+.row:hover,.cal-cell:hover,.acct:hover,.sleep-card:hover{border-color:var(--glass-line);background:var(--glass-2)}
+.row.ghost{background:var(--glass-3);border:1px dashed var(--glass-line);box-shadow:none}
+.stat+.stat{border-left:1px solid var(--line)}
+.blk{background:var(--glass-3);box-shadow:var(--hl)}
+.cal-cell{border-radius:16px;min-height:64px}
+.cal-cell.today{box-shadow:var(--hl),0 0 0 2px var(--study)}
+.outcome{background:color-mix(in srgb, var(--study) 12%, var(--glass))}
+.callout{background:color-mix(in srgb, #FFB020 16%, var(--glass))}
+.callout.ok{background:color-mix(in srgb, var(--money) 14%, var(--glass))}
+.cur-topic{border-top:1px solid var(--line)}
+.mday-h,.mrow{border-bottom:1px solid var(--line)}
+
+/* chips and tags */
+.tag{border-radius:999px;padding:5px 9px;min-width:62px}
+.tag.study{background:var(--study-soft)} .tag.sport{background:var(--sport-soft)} .tag.event{background:var(--event-soft)}
+.chip{border-radius:999px;padding:3px 8px;background:var(--glass-2);border:1px solid var(--glass-line)}
+.chip.warn{background:color-mix(in srgb, #FFB020 20%, var(--glass-2))}
+.chip.good{background:color-mix(in srgb, var(--money) 18%, var(--glass-2))}
+.chip-btn{border-radius:999px;background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--hl)}
+.chip-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:transparent}
+
+/* buttons: glass pills */
+.btn{border-radius:999px;background:var(--glass-2);border:1px solid var(--glass-line);box-shadow:var(--hl),0 4px 14px -8px rgba(20,30,60,.3);font-weight:600;letter-spacing:-.005em}
+.btn:hover{border-color:var(--glass-line);filter:brightness(1.03)}
+.btn:active{transform:scale(.98)}
+.btn.sm{border-radius:999px}
+.btn.primary{background:linear-gradient(180deg, color-mix(in srgb, var(--ink) 88%, #fff), var(--ink));color:var(--bg);border-color:transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 8px 20px -10px rgba(0,0,0,.5)}
+.btn.study,.btn.sport,.btn.money{color:#fff;border-color:transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 20px -10px rgba(0,0,0,.45)}
+.btn.study{background:linear-gradient(180deg, color-mix(in srgb, var(--study) 80%, #fff), var(--study))}
+.btn.sport{background:linear-gradient(180deg, color-mix(in srgb, var(--sport) 80%, #fff), var(--sport))}
+.btn.money{background:linear-gradient(180deg, color-mix(in srgb, var(--money) 80%, #fff), var(--money))}
+@media (prefers-color-scheme: dark){ .btn.study,.btn.sport,.btn.money{color:#0B0E14} }
+.seg,.seg4{border-radius:999px;background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--hl);padding:3px;gap:3px;display:grid}
+.seg button,.seg4 button{border-radius:999px;background:transparent;border:0!important}
+.seg button[aria-pressed="true"],.seg4 button[aria-pressed="true"]{background:var(--glass-2);color:var(--ink);box-shadow:var(--hl),0 2px 10px -4px rgba(0,0,0,.3)}
+input,select,textarea{background:var(--glass-3);border:1px solid var(--glass-line);border-radius:14px;box-shadow:inset 0 1px 2px rgba(0,0,0,.05)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);box-shadow:0 0 0 3px var(--study-soft)}
+
+/* floating tab bar */
+.tabs{left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom,0px));padding:6px;border-radius:30px;
+  background:var(--glass-3);-webkit-backdrop-filter:blur(26px) saturate(190%);backdrop-filter:blur(26px) saturate(190%);
+  border:1px solid var(--glass-line);box-shadow:var(--hl),0 16px 40px -16px rgba(20,30,60,.45)}
+.tabs-in{max-width:540px}
+.tab-btn{border-radius:24px;padding:6px 1px}
+.tab-btn .ic{padding:3px 12px;border-radius:999px}
+.tab-btn[aria-selected="true"]{color:var(--study)}
+.tab-btn[aria-selected="true"] .ic{background:var(--glass-2);box-shadow:var(--hl)}
+.wrap{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
+
+/* sheet */
+.sheet-backdrop{background:rgba(10,14,24,.28);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.sheet-panel{background:var(--glass-2);-webkit-backdrop-filter:blur(34px) saturate(190%);backdrop-filter:blur(34px) saturate(190%);
+  border:1px solid var(--glass-line);border-bottom:0;border-radius:30px 30px 0 0;box-shadow:var(--hl),0 -20px 50px -20px rgba(0,0,0,.45);max-width:552px}
+.sheet-top{background:transparent}
+.sheet-panel .row,.sheet-panel .req-item,.sheet-panel .blk,.sheet-panel .dish.card-like{background:var(--glass-3)}
+.sheet-x{background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--hl)}
+.toast{border-radius:999px;background:color-mix(in srgb, var(--ink) 82%, transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);padding:11px 18px}
+
+/* numbers */
+.total{font-family:var(--f-disp);font-weight:700;letter-spacing:-.02em}
+.stat .v,.acct .v{font-family:var(--f-disp);letter-spacing:-.01em}
+.bar,.cur-prog{background:var(--glass-3)}
+.thumb{border-radius:12px;background:var(--glass-2);box-shadow:var(--hl)}
+.mk.plan{background:var(--glass)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .top,.tabs,.sheet-panel{background:var(--glass-2)}
+}
+@media (prefers-reduced-transparency: reduce){
+  .top,.tabs,.sheet-panel,.row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.cal-cell{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+.brand{font-size:20px;white-space:nowrap}
+@media (max-width:430px){ .today{display:none} .top{gap:4px} .brand{margin-right:auto} }
+.tabs{background:var(--glass)}
 </style>
 </head>
 <body>
