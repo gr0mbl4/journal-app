@@ -507,6 +507,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 .brand{font-size:20px;white-space:nowrap}
 @media (max-width:430px){ .today{display:none} .top{gap:4px} .brand{margin-right:auto} }
 .tabs{background:var(--glass)}
+/* schedule */
+.tag.hol{color:#D0342C;background:rgba(208,52,44,.12)} .tag.abs{color:#0E8C7A;background:rgba(14,140,122,.13)}
+.tag.duty{color:#6A4BD8;background:rgba(106,75,216,.13)} .tag.duty.soft{opacity:.8}
+.day.hol .dn,.day.hol .dd{color:#D0342C}
+.cal-cell.hol .cal-num{color:#D0342C;font-weight:700}
+.cal-cell.abs-vacation{background:rgba(14,140,122,.10)} .cal-cell.abs-sick{background:rgba(208,120,44,.12)}
+.cal-cell{position:relative}
+.cal-duty{position:absolute;top:3px;right:4px;font:700 9.5px var(--f-body);color:#fff;background:#6A4BD8;border-radius:5px;padding:1px 3px;line-height:1.2}
+.legend .cal-duty{position:static;display:inline-block;margin-right:4px}
+.lg-hol{color:#D0342C;font-weight:700;margin-right:4px}
+.day-chip.timer{color:var(--study);border-color:color-mix(in srgb,var(--study) 35%,transparent);background:color-mix(in srgb,var(--study) 12%,var(--glass));font-variant-numeric:tabular-nums}
+.chips-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chips-row .btn{flex:1 0 28%}
+.rev-c .mono{font-size:11.5px}
 /* money plan */
 .subbar{display:flex;align-items:center;gap:8px;min-height:22px}
 .subbar .sync{flex:1;min-width:0;margin-top:0}
@@ -620,7 +634,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
     <button type="button" class="icon-btn" id="btn-refresh" data-action="refresh" aria-label="Обновить данные"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4.6L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.5 4.6L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button>
     <button type="button" class="icon-btn" data-action="settings" aria-label="Подключение"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
-  <div class="subbar"><div class="sync" id="sync" role="status" aria-live="polite"></div><button type="button" class="day-chip" id="day-chip" data-action="budget" hidden></button></div>
+  <div class="subbar"><div class="sync" id="sync" role="status" aria-live="polite"></div><button type="button" class="day-chip timer" id="timer-chip" data-action="timer-stop" hidden></button><button type="button" class="day-chip" id="day-chip" data-action="budget" hidden></button></div>
 
   <section id="setup" class="setup" hidden>
     <h2>Подключение к данным</h2>
@@ -667,7 +681,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
       </form>
       <h2 class="sec">Окна для учёбы, минут</h2>
       <div id="lessons-slots"></div>
-      <p class="note">Урок, который не отмечен, сам уходит на следующее окно, и вся очередь сдвигается за ним.</p>
       <div class="sec-row"><h2 class="sec">Заметки Obsidian</h2><button type="button" class="btn sm" data-action="notes-setup">Настроить</button></div>
       <div id="notes"></div>
       <h2 class="sec">Пройдено</h2>
@@ -717,7 +730,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
           <button type="submit" class="btn money" id="m-submit">Добавить</button>
           <label class="btn file-btn" id="m-photo-btn">Фото<input type="file" id="m-photo" accept="image/*" multiple aria-label="Фото: чеки, скриншоты"></label>
         </div>
-        <p class="hint">Название и сумма, несколько — через запятую или с новой строки. Фото можно выбрать сразу несколько: я разберу их, когда ты меня позовёшь.</p>
       </form>
       <div id="money-inbox"></div>
       <div id="money-list"></div>
@@ -775,6 +787,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20260928i"></script>
+<script src="app.js?v=20260929a"></script>
 </body>
 </html>
