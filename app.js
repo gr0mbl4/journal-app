@@ -227,16 +227,22 @@ function openCards() {
   S.cur = { type: 'cards' };
   openSheet(`<h2 class="sh-title">Остатки на картах</h2>
     <p class="sh-meta">Впиши, сколько сейчас на каждой карте (из приложения банка). Накопления и долги сюда не входят.</p>
-    ${av.cards.map(a => `<label class="fld" for="cb-${esc(a.id)}">${esc(a.name)}${a.asOf ? ` <span class="m">· было на ${dm(a.asOf)}: ${fmt(a.balance)} ${esc(cur)}</span>` : ''}</label><input id="cb-${esc(a.id)}" data-card="${esc(a.id)}" inputmode="decimal" value="${a.balance != null ? esc(a.balance) : ''}" placeholder="0">`).join('')}
+    ${av.cards.map(a => `<label class="fld" for="cb-${esc(a.id)}">${esc(a.name)}${a.asOf ? ` <span class="m">· было на ${dm(a.asOf)}: ${fmt(a.balance)} ${esc(cur)}</span>` : ''}</label><div class="two"><input id="cb-${esc(a.id)}" data-card="${esc(a.id)}" inputmode="decimal" value="${a.balance != null ? esc(a.balance) : ''}" placeholder="0" aria-label="Остаток"><input data-l4="${esc(a.id)}" inputmode="numeric" maxlength="14" value="${esc(a.last4 || '')}" placeholder="4 цифры" aria-label="Последние 4 цифры карты"></div>`).join('')}
+    <p class="note">«4 цифры» — последние цифры номера карты: по ним журнал узнаёт её SMS и обновляет остаток сам.</p>
     <p class="note">Потом траты, которые записываешь здесь, будут вычитаться из этой суммы — до следующего обновления.</p>
     <div class="sh-acts"><button type="button" class="btn money block" data-action="cards-save">Сохранить</button><button type="button" class="btn block" data-action="acct-new">+ Другая карта</button></div>`);
 }
 async function cardsSave() {
   const vals = {};
   document.querySelectorAll('[data-card]').forEach(el => { const v = numOrNull(el.value); if (v != null) vals[el.dataset.card] = Math.round(v * 100) / 100; });
-  if (!Object.keys(vals).length) { toast('Впиши хотя бы один остаток'); return; }
+  const l4s = {};
+  document.querySelectorAll('[data-l4]').forEach(el => { const v = String(el.value || '').split(/[,\s]+/).filter(x => /^\d{4}$/.test(x)).join(','); l4s[el.dataset.l4] = v; });
+  if (!Object.keys(vals).length && !Object.values(l4s).some(Boolean)) { toast('Впиши хотя бы один остаток'); return; }
   const now = Date.now(), t = today();
-  const ok = await writeConfig(cfg => { ((cfg.money || {}).accounts || []).forEach(a => { if (a.id in vals) { a.balance = vals[a.id]; a.asOf = t; a.ts = now; } }); }, 'Деньги: остатки на картах');
+  const ok = await writeConfig(cfg => { ((cfg.money || {}).accounts || []).forEach(a => {
+    if (a.id in vals) { a.balance = vals[a.id]; a.asOf = t; a.ts = now; }
+    if (a.id in l4s) { if (l4s[a.id]) a.last4 = l4s[a.id]; else delete a.last4; }
+  }); }, 'Деньги: остатки на картах');
   if (ok) { closeSheet(); toast('Остатки обновлены'); }
 }
 function openAccount(id) {
@@ -344,6 +350,12 @@ function cardBank(text) {
   if (l4) { const a = accounts().find(x => x.last4 && String(x.last4).split(/[,\s]+/).includes(l4)); if (a) return a.bank || ''; }
   return '';
 }
+// Остаток по SMS меняем только у карты, чьи последние 4 цифры есть в тексте: название банка в SMS может написать кто угодно,
+// а «Доступно» по кредитке — это лимит, а не деньги на дебетовой карте.
+function cardAcct(text) {
+  const l4 = (text.match(/(?:[*•]\s?|(?:mir|visa|ecmc|maestro|сч[её]т|сч|мир)[\s-]?)(\d{4})(?!\d)/i) || [])[1];
+  return l4 ? accounts().find(x => x.type === 'card' && x.last4 && String(x.last4).split(/[,\s]+/).includes(l4)) || null : null;
+}
 function looksLikeBankSms(t) {
   return BAL_RE.test(t) || /[*•]\s?\d{4}(?!\d)|(?:mir|visa|ecmc|сч[её]т)[\s-]?\d{4}(?!\d)/i.test(t)
     || (MONEY_RE.test(t) && /покупк|оплат|списан|зачислен|пополнен|перевод|снятие|выдача|pokupk|oplat|spisan|perevod/i.test(t));
@@ -397,7 +409,8 @@ function parseBankSms(text, ts) {
     r.cat = /между своими|себе|своих сч/.test(low) && tc.includes('Свои счета') ? 'Свои счета' : person(t) && tc.includes('Переводы людям') ? 'Переводы людям' : tc.includes('Не разобрано') ? 'Не разобрано' : tc[0];
   }
   if (r.kind === 'spend') { const c = categorize(r.name); r.cat = c.cat; if (!c.known) r.auto = true; }
-  return { recs: [r], bal: bal != null && bank ? { bank, value: Math.round(bal * 100) / 100, date, ts } : null };
+  const ac = cardAcct(t);
+  return { recs: [r], bal: bal != null && ac ? { id: ac.id, bank: ac.bank, value: Math.round(bal * 100) / 100, date, ts } : null };
 }
 // То, что Олег продиктовал или написал сам: «такси 320, кофе 150», «вчера потратил 300 на такси», «получил 5000».
 function parseQuickText(text, ts) {
@@ -426,7 +439,7 @@ function parseQuick(text, ts) {
   const t = smsClean(text);
   if (!t) return { recs: [] };
   const ig = ignoreReason(t); if (ig) return { ignore: ig, recs: [] };
-  if (looksLikeBankSms(t)) { const b = parseBankSms(t, ts); if (b) return b; }
+  if (looksLikeBankSms(t)) return parseBankSms(t, ts) || { recs: [], bal: null };  // похоже на SMS банка, но не понял — отложить для Claude
   const m = parseQuickText(t, ts);
   return { recs: m.recs, bal: null };
 }
@@ -469,7 +482,7 @@ function openAutoSetup() {
       <li>Для проверки запусти команду и напиши «тест 1» — потом открой журнал.</li>
     </ol>
     <h3 class="sec">3. Автоматически из SMS банка</h3>
-    <ol class="ing"><li>Команды → Автоматизация → + → <b>Сообщение</b> → «Сообщение содержит»: <b>Доступно</b> (так пишет Т-Банк; для ВТБ и Сбера — вторая автоматизация со словом <b>Баланс</b>). Если есть — выбери «Отправитель» (контакт банка).</li>
+    <ol class="ing"><li>Команды → Автоматизация → + → <b>Сообщение</b> → «Сообщение содержит»: <b>Доступно</b> (так пишет Т-Банк; для ВТБ и Сбера — вторая автоматизация со словом <b>Баланс</b>). Обязательно укажи и «Отправитель» — контакт банка (сохрани номер, с которого приходят SMS, в Контакты). Без этого журнал примет SMS от кого угодно.</li>
     <li>«Запускать сразу» → Далее → «Новая пустая автоматизация» → действие «Запустить команду» → «В журнал», входные данные — <b>Входные данные команды</b>.</li>
     <li>SMS об операциях включаются в приложении банка и обычно платные — push-уведомления Команды читать не умеют.</li></ol>
     <h3 class="sec">4. Руками — двойным касанием по задней крышке</h3>
@@ -487,7 +500,7 @@ function autoTest() {
   if (r.ignore) { out.innerHTML = `<p class="note">${r.ignore === 'code' ? 'Это код подтверждения — журнал его пропустит и ничего не запишет.' : 'Это отказ по операции — записывать нечего.'}</p>`; return; }
   if (!r.recs || !r.recs.length) { out.innerHTML = '<p class="err">Не понял. Такой текст журнал отложит для Claude.</p>'; return; }
   out.innerHTML = `<div class="kv">${r.recs.map(x => `<span>${esc(x.name)}<br><small class="m">${esc(KIND_NAMES[x.kind] || '')} · ${esc(x.cat || '')}${x.acc ? ' · ' + esc(bankName(x.acc)) : ' · банк не определён'}</small></span><span class="v">${fmt(x.amount)}</span>`).join('')}${r.bal ? `<span>Остаток ${esc(bankName(r.bal.bank))}</span><span class="v">${fmt(r.bal.value)}</span>` : ''}</div>`
-    + (r.recs.some(x => !x.acc) && looksLikeBankSms(t) ? '<p class="note">Банк не определился — впиши последние 4 цифры карты в «Остатки на картах» → карта → «Последние 4 цифры».</p>' : '');
+    + (!r.bal && looksLikeBankSms(t) ? '<p class="note">Остаток по этому SMS не обновится: журнал меняет остаток только у карты, чьи последние 4 цифры есть в тексте. Впиши их: Деньги → «Доступно на картах» → поле «4 цифры» у карты.</p>' : '');
 }
 async function processQuick() {
   if (S.quickBusy || !GH.cred) return;
@@ -507,7 +520,7 @@ async function processQuick() {
       if (out.ignore) continue;
       if (!out.recs || !out.recs.length) { keep.push({ n: it.number, ts, date: ds(new Date(ts)), text: maskRaw(smsClean(it.body)).slice(0, 600) }); continue; }
       out.recs.forEach((x, i) => { x.qf = 'issue:' + it.number + (i ? '/' + i : ''); x.id = rid(); recs.push(x); });
-      if (out.bal && (!bals[out.bal.bank] || bals[out.bal.bank].ts < out.bal.ts)) bals[out.bal.bank] = out.bal;
+      if (out.bal && (!bals[out.bal.id] || bals[out.bal.id].ts < out.bal.ts)) bals[out.bal.id] = out.bal;
     }
     const byMonth = {};
     recs.forEach(x => { (byMonth[monthKey(x.date)] = byMonth[monthKey(x.date)] || []).push(x); });
@@ -526,10 +539,15 @@ async function processQuick() {
       if (!next) return;
       S.money[mk] = next; added += a; merged += m; sum += sm;
     }
-    const upd = Object.values(bals).filter(b => { const a = accounts().find(x => x.type === 'card' && x.bank === b.bank); return a && !(Number(a.ts) > b.ts); });
-    if (upd.length) await writeConfig(cfg => { ((cfg.money || {}).accounts || []).forEach(a => { const b = upd.find(v => v.bank === a.bank); if (a.type === 'card' && b && !(Number(a.ts) > b.ts)) { a.balance = b.value; a.asOf = b.date; a.ts = b.ts + 1; } }); }, 'Автозапись: остаток по SMS');
-    if (keep.length) await write('inbox/quick.json', d => { d.items = Array.isArray(d.items) ? d.items : []; keep.forEach(k => { if (!d.items.some(x => x.n === k.n)) d.items.push(k); }); return d; }, `Автозапись: не разобрал ${keep.length}`, { items: [] });
-    for (const n of close) { try { await GH.req('PATCH', GH.base() + '/issues/' + n, { state: 'closed', state_reason: 'completed' }); } catch (_) {} }
+    const upd = Object.values(bals).filter(b => { const a = accounts().find(x => x.id === b.id && x.type === 'card'); return a && !(Number(a.ts) > b.ts); });
+    if (upd.length) await writeConfig(cfg => { ((cfg.money || {}).accounts || []).forEach(a => { const b = upd.find(v => v.id === a.id); if (a.type === 'card' && b && !(Number(a.ts) > b.ts)) { a.balance = b.value; a.asOf = b.date; a.ts = b.ts + 1; } }); }, 'Автозапись: остаток по SMS');
+    let kept = true;
+    if (keep.length) kept = !!(await write('inbox/quick.json', d => { d.items = Array.isArray(d.items) ? d.items : []; keep.forEach(k => { if (!d.items.some(x => x.n === k.n)) d.items.push(k); }); return d; }, `Автозапись: не разобрал ${keep.length}`, { items: [] }));
+    // закрываем только то, что сохранено; текст из issue стираем — он уже лежит в записи (с замаскированными номерами)
+    for (const n of close) {
+      if (!kept && keep.some(k => k.n === n)) continue;
+      try { await GH.req('PATCH', GH.base() + '/issues/' + n, { state: 'closed', state_reason: 'completed', body: '' }); } catch (_) {}
+    }
     cacheNow(); render();
     const bits = [];
     if (added) bits.push(`+${added} ${plural(added, 'запись', 'записи', 'записей')}${sum ? ' · ' + fmt(sum) + ' ' + curSym() : ''}`);
@@ -1434,7 +1452,7 @@ function renderMoney() {
       const k = kindOf(x);
       const amt = k === 'income' ? `<span class="ma in">+${fmt(x.amount)}</span>` : k === 'transfer' ? `<span class="ma tr">${x.dir === 'in' ? '← ' : '→ '}${fmt(x.amount)}</span>` : k === 'cash' ? `<span class="ma tr">нал. ${fmt(x.amount)}</span>` : `<span class="ma">${fmt(x.amount)}</span>`;
       const bank = bankName(x.acc);
-      const sub = (k === 'spend' ? (x.cat || otherCat()) : internal(x) ? 'Между своими счетами' : KIND_NAMES[k] + (x.cat && x.cat !== KIND_NAMES[k] ? ' · ' + x.cat : '')) + (bank ? ' · ' + bank : '') + (x.auto ? ' · уточнит Claude' : '') + (x.group ? ' · ' + x.group : '');
+      const sub = (k === 'spend' ? (x.cat || otherCat()) : internal(x) ? 'Между своими счетами' : KIND_NAMES[k] + (x.cat && x.cat !== KIND_NAMES[k] ? ' · ' + x.cat : '')) + (bank ? ' · ' + bank : '') + (x.src === 'auto:sms' ? ' · из SMS' : '') + (x.auto ? ' · уточнит Claude' : '') + (x.group ? ' · ' + x.group : '');
       return `<button type="button" class="mrow" data-action="mrow" data-id="${esc(x.id)}"><span class="mn">${esc(x.name)}</span><span class="mc">${esc(sub)}</span>${amt}</button>`;
     }).join('')}</div>`;
   }).join('');
