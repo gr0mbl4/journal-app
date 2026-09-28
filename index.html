@@ -456,7 +456,7 @@ details.more-box[open] summary::after{content:"▴"}
         <button type="button" class="btn sm" data-action="food-next" aria-label="Следующий день">›</button>
       </div>
       <div id="food-day"></div>
-      <div class="sec-row"><h2 class="sec">Мои рецепты</h2><button type="button" class="btn sm" data-action="rc-new">+ Рецепт</button></div>
+      <div class="sec-row"><h2 class="sec">Мои блюда</h2><span class="acts"><button type="button" class="btn sm" data-action="combo-new">+ Составное</button><button type="button" class="btn sm" data-action="rc-new">+ Рецепт</button></span></div>
       <div id="food-recipes"></div>
     </section>
 
@@ -723,7 +723,7 @@ function accountsHtml() {
   const full = av.cards.length && !av.missing.length;
   const top = av.cards.length ? `<button type="button" class="acct" style="width:100%;margin-top:12px" data-action="acct-cards"><span class="k">Доступно на картах · без накоплений</span><span class="v">${full ? fmt(av.sum + av.delta) + ' ' + esc(cur) : 'нажми и впиши остатки'}</span><span class="d">${av.known.map(a => `${esc(bankName(a.bank) || a.name)} ${fmt(a.balance)}${a.asOf ? ' (' + dm(a.asOf) + ')' : ''}`).join(' · ')}${av.missing.length ? (av.known.length ? ' · ' : '') + 'нет остатка: ' + av.missing.map(a => esc(bankName(a.bank) || a.name)).join(', ') : ''}${full && av.n ? ` · с учётом ${av.n} ${plural(av.n, 'записи', 'записей', 'записей')} после обновления (${av.delta < 0 ? '−' : '+'}${fmt(Math.abs(av.delta))})` : ''}</span></button>` : '';
   const rest = list.filter(a => a.type !== 'card');
-  return top + `<div class="accts">${rest.map(a => `<button type="button" class="acct ${a.type === 'debt' ? 'debt' : ''}" data-action="acct" data-id="${esc(a.id)}"><span class="k">${ACCT_TYPE[a.type] || 'Счёт'}${a.bank ? ' · ' + esc(bankName(a.bank)) : ''}</span><span class="v">${fmt(a.balance)} ${esc(cur)}</span><span class="d">${esc(a.name)}${a.asOf ? ' · на ' + dm(a.asOf) : ''}</span></button>`).join('')}</div>
+  return top + `<div class="accts">${rest.map(a => `<button type="button" class="acct ${a.type === 'debt' ? 'debt' : ''}" data-action="acct" data-id="${esc(a.id)}"><span class="k">${ACCT_TYPE[a.type] || 'Счёт'}${a.bank ? ' · ' + esc(bankName(a.bank)) : ''}</span><span class="v">${a.balance == null || a.balance === '' ? 'уточнить' : fmt(a.balance) + ' ' + esc(cur)}</span><span class="d">${esc(a.name)}${a.asOf ? ' · на ' + dm(a.asOf) : ''}</span></button>`).join('')}</div>
     <button type="button" class="link-btn" data-action="acct-new">+ Карта, накопление или долг</button>`;
 }
 function openCards() {
@@ -2132,18 +2132,59 @@ const MEALS = [['breakfast', 'Завтрак'], ['lunch', 'Обед'], ['dinner'
 const MEAL_NAME = Object.fromEntries(MEALS);
 const MEAL_GEN = { breakfast: 'завтрак', lunch: 'обед', dinner: 'ужин', snack: 'перекус' };
 function recipeById(id) { return S.recipes.find(r => r.id === id) || null; }
+const isSimple = r => !!r && (r.kind === 'simple' || r.simple === true);
+const isCombo = r => !!r && r.kind === 'combo';
+function comboParts(r) { return (isCombo(r) && Array.isArray(r.parts) ? r.parts : []).map(recipeById).filter(Boolean); }
+function dishNums(r) {
+  if (isCombo(r)) {
+    const ps = comboParts(r); let kcal = 0, protein = 0, known = 0;
+    ps.forEach(p => { if (p.kcal || p.protein) { known++; kcal += Number(p.kcal) || 0; protein += Number(p.protein) || 0; } });
+    return known ? { kcal, protein, partial: known < ps.length } : null;
+  }
+  return r.kcal || r.protein ? { kcal: Number(r.kcal) || 0, protein: Number(r.protein) || 0 } : null;
+}
 function thumbHtml(r) {
-  const p = r && Array.isArray(r.photos) && r.photos[0];
-  return `<span class="thumb">${p ? `<img data-gh="${esc(p)}" alt="">` : esc(((r && r.title) || '?').trim().charAt(0).toUpperCase())}</span>`;
+  const src = isCombo(r) ? comboParts(r).find(p => Array.isArray(p.photos) && p.photos.length) : r;
+  const p = src && Array.isArray(src.photos) && src.photos[0];
+  const letter = isCombo(r) ? comboParts(r).map(x => (x.title || '?').trim().charAt(0).toUpperCase()).slice(0, 2).join('+') || '?' : ((r && r.title) || '?').trim().charAt(0).toUpperCase();
+  return `<span class="thumb">${p ? `<img data-gh="${esc(p)}" alt="">` : esc(letter)}</span>`;
 }
 function recipeMeta(r) {
   const m = [];
+  if (isCombo(r)) {
+    m.push('из: ' + (comboParts(r).map(p => p.title.toLowerCase()).join(' + ') || '—'));
+    const n = dishNums(r); if (n) m.push(`≈ ${Math.round(n.kcal)} ккал${n.partial ? ' (не всё)' : ''}`);
+    return m.join(' · ');
+  }
   if (r.time) m.push(r.time);
   if (r.kcal) m.push('≈ ' + r.kcal + ' ккал');
   if (r.protein) m.push('белок ' + r.protein + ' г');
   if (r.draft) m.push('ждёт разбора');
+  if (isSimple(r) && !r.draft) m.push('без рецепта');
   if (!m.length && Array.isArray(r.meals) && r.meals.length) m.push(r.meals.map(k => MEAL_NAME[k] || k).join(', '));
   return m.join(' · ');
+}
+function splitNames(text) { return String(text || '').split(/[,;\n]/).map(s => s.trim().replace(/\s{2,}/g, ' ')).filter(Boolean); }
+function ensureDishes(names, meal, fresh) {
+  const ids = [];
+  for (const n of names) {
+    const ex = S.recipes.find(r => norm(r.title) === norm(n)) || fresh.find(r => norm(r.title) === norm(n));
+    if (ex) { ids.push(ex.id); continue; }
+    const rec = { id: 'd' + rid().slice(0, 10), title: cap1(n), kind: 'simple', meals: meal ? [meal] : [], added: today() };
+    fresh.push(rec); ids.push(rec.id);
+  }
+  return ids;
+}
+async function quickDishes(meal, text) {
+  const names = splitNames(text);
+  if (!names.length) { toast('Впиши название блюда'); return false; }
+  const d = S.foodDate, fresh = [];
+  const ids = ensureDishes(names, meal, fresh);
+  let ok = true;
+  if (fresh.length) ok = await writeRecipes(list => { fresh.forEach(r => list.push(r)); }, `Еда: блюда ${fresh.map(r => r.title).join(', ').slice(0, 60)}`);
+  if (ok) ok = await writeMeals(days => { const day = days[d] = days[d] || {}; const arr = day[meal] = Array.isArray(day[meal]) ? day[meal] : []; ids.forEach(id => arr.push(id)); }, `Еда ${d}: ${MEAL_NAME[meal]} — ${names.join(', ').slice(0, 60)}`);
+  if (ok) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${names.join(', ')}`); }
+  return ok;
 }
 function hydrateImages(root) {
   if (!root || !GH.cred) return;
@@ -2153,6 +2194,9 @@ function hydrateImages(root) {
     try { S.img[p] = S.img[p] || GH.blob(p); img.src = await S.img[p]; }
     catch (_) { delete S.img[p]; img.alt = 'фото не загрузилось'; }
   });
+}
+function dishCard(r, action, extra) {
+  return `<button type="button" class="dish card-like" data-action="${action}" data-id="${esc(r.id)}"${extra || ''}>${thumbHtml(r)}<span class="rb"><span class="t">${esc(r.title)}</span><span class="m">${esc(recipeMeta(r))}</span></span></button>`;
 }
 function renderFood() {
   const d = S.foodDate;
@@ -2167,40 +2211,103 @@ function renderFood() {
       const r = recipeById(id);
       if (!r) return '';
       total++;
-      if (r.kcal || r.protein) { withNum++; kcal += Number(r.kcal) || 0; prot += Number(r.protein) || 0; }
+      const n = dishNums(r);
+      if (n) { withNum++; kcal += n.kcal; prot += n.protein; }
       return `<div class="dish-row"><button type="button" class="dish" data-action="recipe" data-id="${esc(r.id)}">${thumbHtml(r)}<span class="rb"><span class="t">${esc(r.title)}</span><span class="m">${esc(recipeMeta(r))}</span></span></button><button type="button" class="icon-btn sm" data-action="meal-remove" data-meal="${k}" data-idx="${idx}" aria-label="Убрать из: ${l}">×</button></div>`;
     }).join('');
-    return `<div class="meal"><div class="meal-h"><b>${l}</b><span class="acts"><label class="btn sm file-btn" aria-label="Сфотографировать еду: ${l}">Фото<input type="file" accept="image/*" data-food-photo="${k}"></label><button type="button" class="btn sm" data-action="meal-pick" data-meal="${k}">+ Выбрать</button></span></div>${rows || '<p class="empty-day">Не выбрано</p>'}</div>`;
+    return `<div class="meal"><div class="meal-h"><b>${l}</b><span class="acts"><label class="btn sm file-btn" aria-label="Сфотографировать еду: ${l}">Фото<input type="file" accept="image/*" data-food-photo="${k}"></label><button type="button" class="btn sm" data-action="meal-pick" data-meal="${k}">+ Добавить</button></span></div>${rows || '<p class="empty-day">Ничего не записано</p>'}</div>`;
   }).join('') + '</div>'
-    + (withNum ? `<p class="note">По рецептам с оценкой (${withNum} из ${total}): ≈ ${Math.round(kcal)} ккал, белок ≈ ${Math.round(prot)} г. Это примерная оценка, не точный подсчёт.</p>` : '');
+    + (withNum ? `<p class="note">По блюдам с оценкой (${withNum} из ${total}): ≈ ${Math.round(kcal)} ккал, белок ≈ ${Math.round(prot)} г. Это примерная оценка, не точный подсчёт.</p>` : '');
   const all = S.recipes.slice().sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ru'));
-  list.innerHTML = all.length
-    ? '<div class="stack">' + all.map(r => `<button type="button" class="dish card-like" data-action="recipe" data-id="${esc(r.id)}">${thumbHtml(r)}<span class="rb"><span class="t">${esc(r.title)}</span><span class="m">${esc(recipeMeta(r))}</span></span></button>`).join('') + '</div>'
-    : '<p class="note">Рецептов пока нет. Нажми «+ Рецепт» и добавь скриншоты, видео, ссылку или текст — я разберу ингредиенты и шаги, когда позовёшь.</p>';
+  const combos = all.filter(isCombo), recipes = all.filter(r => !isCombo(r) && !isSimple(r)), simple = all.filter(isSimple);
+  list.innerHTML = (combos.length ? `<h3 class="sec">Составные</h3><div class="stack">${combos.map(r => dishCard(r, 'recipe')).join('')}</div>` : '')
+    + `<h3 class="sec">С рецептом</h3>` + (recipes.length ? `<div class="stack">${recipes.map(r => dishCard(r, 'recipe')).join('')}</div>` : '<p class="note">Нажми «+ Рецепт» и добавь скриншоты, видео, ссылку или текст — я разберу ингредиенты и шаги, когда позовёшь.</p>')
+    + (simple.length ? `<h3 class="sec">Без рецепта</h3><div class="stack">${simple.map(r => dishCard(r, 'recipe')).join('')}</div>` : '')
+    + '<p class="note">Составное блюдо собирается из частей: «Рис + курица», «Гречка + курица». Курица при этом одна — её рецепт общий для всех таких блюд.</p>';
   hydrateImages($('#tab-food'));
 }
 function openMealPick(meal) {
-  const fit = S.recipes.filter(r => Array.isArray(r.meals) && r.meals.includes(meal));
-  const rest = S.recipes.filter(r => !fit.includes(r));
-  const btn = r => `<button type="button" class="dish card-like" data-action="meal-add" data-meal="${meal}" data-id="${esc(r.id)}">${thumbHtml(r)}<span class="rb"><span class="t">${esc(r.title)}</span><span class="m">${esc(recipeMeta(r))}</span></span></button>`;
+  const byNew = (a, b) => (b.added || '') < (a.added || '') ? -1 : (b.added || '') > (a.added || '') ? 1 : (a.title || '').localeCompare(b.title || '', 'ru');
+  const fit = S.recipes.filter(r => Array.isArray(r.meals) && r.meals.includes(meal)).sort((a, b) => (isCombo(b) - isCombo(a)) || byNew(a, b));
+  const rest = S.recipes.filter(r => !fit.includes(r)).sort(byNew);
   S.cur = { type: 'meal', meal };
   openSheet(`<h2 class="sh-title">${MEAL_NAME[meal]} · ${esc(dayName(S.foodDate).toLowerCase())}, ${dm(S.foodDate)}</h2>
-    ${S.recipes.length ? '' : '<p class="sh-meta">Рецептов пока нет.</p>'}
-    ${fit.length ? `<h3 class="sec">Для: ${MEAL_GEN[meal]}</h3><div class="stack">${fit.map(btn).join('')}</div>` : ''}
-    ${rest.length ? `<h3 class="sec">${fit.length ? 'Остальные' : 'Все рецепты'}</h3><div class="stack">${rest.map(btn).join('')}</div>` : ''}
-    <div class="sh-acts"><button type="button" class="btn block" data-action="rc-new" data-meal="${meal}">+ Новый рецепт</button></div>`);
+    <label class="fld" for="mp-name">Просто название — без рецепта</label>
+    <div class="form-row"><input id="mp-name" placeholder="Например: борщ, котлета с пюре, компот" autocomplete="off"><button type="button" class="btn study" data-action="meal-quick" data-meal="${meal}">Добавить</button></div>
+    <p class="note">Несколько блюд — через запятую. Уже знакомые названия подтянутся сами. Подходит для столовой.</p>
+    <div class="sh-acts two"><button type="button" class="btn" data-action="combo-new" data-meal="${meal}">+ Составное</button><button type="button" class="btn" data-action="rc-new" data-meal="${meal}">+ Рецепт</button></div>
+    ${fit.length ? `<h3 class="sec">Для: ${MEAL_GEN[meal]}</h3><div class="stack">${fit.map(r => dishCard(r, 'meal-add', ` data-meal="${meal}"`)).join('')}</div>` : ''}
+    ${rest.length ? `<h3 class="sec">${fit.length ? 'Остальные' : 'Все блюда'}</h3><div class="stack">${rest.map(r => dishCard(r, 'meal-add', ` data-meal="${meal}"`)).join('')}</div>` : ''}`);
   hydrateImages($('#sheet-body'));
+}
+function openCombo(id, meal) {
+  const r = id ? recipeById(id) : null;
+  const sel = new Set(r ? (r.parts || []) : []);
+  const pool = S.recipes.filter(x => !isCombo(x)).sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ru'));
+  S.cur = { type: 'combo', id: r ? r.id : null, meal: meal || null, parts: sel, meals: new Set(r ? (r.meals || []) : (meal ? [meal] : ['lunch', 'dinner'])) };
+  openSheet(`<h2 class="sh-title">${r ? 'Изменить составное блюдо' : 'Составное блюдо'}</h2>
+    <p class="sh-meta">Собери блюдо из частей: гарнир, мясо, соус. Одна и та же часть может быть в разных блюдах — рецепт у неё один.</p>
+    <span class="fld">Из чего (нажми, чтобы выбрать)</span>
+    <div class="chips" id="cb-parts">${pool.map(x => `<button type="button" class="chip-btn" data-action="combo-part" data-id="${esc(x.id)}" aria-pressed="${sel.has(x.id)}">${esc(x.title)}</button>`).join('') || '<span class="note">Пока нет ни одной части — впиши их ниже.</span>'}</div>
+    <label class="fld" for="cb-new">Новые части — через запятую</label><input id="cb-new" placeholder="Например: гречка, курица" autocomplete="off">
+    <label class="fld" for="cb-title">Название (необязательно)</label><input id="cb-title" value="${esc(r ? r.title : '')}" placeholder="Соберётся само: «Гречка с курицей»">
+    <span class="fld">Когда подходит</span><div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="combo-meal" data-meal="${k}" aria-pressed="${S.cur.meals.has(k)}">${l}</button>`).join('')}</div>
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="combo-save">${r ? 'Сохранить' : meal ? 'Сохранить и добавить в «' + MEAL_NAME[meal] + '»' : 'Сохранить'}</button>${r ? '<button type="button" class="btn danger block" data-action="rc-del">Удалить составное блюдо</button>' : ''}</div>`);
+}
+function comboTitle(parts) {
+  const t = parts.map(p => p.title);
+  if (!t.length) return 'Составное блюдо';
+  if (t.length === 1) return t[0];
+  const low = t.slice(1).map(x => x.toLowerCase());
+  const inst = w => w.replace(/а$/, 'ой').replace(/я$/, 'ей').replace(/ка$/, 'кой');
+  return t.length === 2 ? `${t[0]} с ${inst(low[0])}` : `${t[0]} + ${low.join(' + ')}`;
+}
+async function comboSave(btn) {
+  const c = S.cur; if (!c || c.type !== 'combo') return;
+  const fresh = [];
+  const newIds = ensureDishes(splitNames($('#cb-new').value), null, fresh);
+  fresh.forEach(f => { f.meals = Array.from(c.meals); });
+  const partIds = Array.from(new Set(Array.from(c.parts).concat(newIds)));
+  if (partIds.length < 2) { toast('Выбери или впиши хотя бы две части'); return; }
+  const parts = partIds.map(id => recipeById(id) || fresh.find(f => f.id === id)).filter(Boolean);
+  const title = ($('#cb-title').value || '').trim() || comboTitle(parts);
+  const id = c.id || 'c' + rid().slice(0, 10);
+  busy(btn, true);
+  let ok = await writeRecipes(list => {
+    fresh.forEach(f => { if (!list.some(x => x.id === f.id)) list.push(f); });
+    const k = list.findIndex(x => x.id === id);
+    const rec = Object.assign(k >= 0 ? list[k] : { id, added: today() }, { title, kind: 'combo', parts: partIds, meals: Array.from(c.meals) });
+    if (k < 0) list.push(rec);
+  }, `Еда: составное блюдо «${title}»`);
+  if (ok && c.meal && !c.id) ok = await writeMeals(days => { const d = S.foodDate, day = days[d] = days[d] || {}; (day[c.meal] = Array.isArray(day[c.meal]) ? day[c.meal] : []).push(id); }, `Еда ${S.foodDate}: ${MEAL_NAME[c.meal]} — ${title}`);
+  busy(btn, false);
+  if (ok) { closeSheet(); toast(c.meal && !c.id ? `${MEAL_NAME[c.meal]}: ${title}` : 'Сохранено'); }
 }
 function openRecipe(id) {
   const r = recipeById(id); if (!r) return;
   S.cur = { type: 'recipe', r };
+  if (isCombo(r)) {
+    const ps = comboParts(r), n = dishNums(r);
+    openSheet(`<h2 class="sh-title">${esc(r.title)}</h2>
+      <p class="sh-meta">Составное блюдо${Array.isArray(r.meals) && r.meals.length ? ' · ' + esc(r.meals.map(k => MEAL_NAME[k] || k).join(', ')) : ''}</p>
+      ${n ? `<div class="macro"><span class="chip">≈ ${Math.round(n.kcal)} ккал</span><span class="chip">белок ${Math.round(n.protein)} г</span></div><p class="note">Сумма по частям${n.partial ? ', у некоторых частей оценки ещё нет' : ''}. Примерно.</p>` : ''}
+      <h3 class="sec">Части — нажми, чтобы открыть рецепт</h3><div class="stack">${ps.map(p => dishCard(p, 'recipe')).join('') || '<p class="note">Частей нет.</p>'}</div>
+      <h3 class="sec">Добавить на ${esc(dayName(S.foodDate).toLowerCase())}, ${dm(S.foodDate)}</h3>
+      <div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="meal-add" data-meal="${k}" data-id="${esc(r.id)}">${l}</button>`).join('')}</div>
+      <div class="sh-acts"><button type="button" class="btn block" data-action="combo-edit" data-id="${esc(r.id)}">Изменить состав</button></div>`);
+    hydrateImages($('#sheet-body'));
+    return;
+  }
   const photos = Array.isArray(r.photos) ? r.photos : [];
+  const usedIn = S.recipes.filter(x => isCombo(x) && (x.parts || []).includes(r.id));
   const macro = [r.portions ? r.portions + ' ' + plural(Number(r.portions) || 0, 'порция', 'порции', 'порций') : '', r.time || '', r.kcal ? '≈ ' + r.kcal + ' ккал' : '', r.protein ? 'белок ' + r.protein + ' г' : '', r.fat ? 'жиры ' + r.fat + ' г' : '', r.carbs ? 'углеводы ' + r.carbs + ' г' : ''].filter(Boolean);
   openSheet(`<h2 class="sh-title">${esc(r.title)}</h2>
     ${Array.isArray(r.meals) && r.meals.length ? `<p class="sh-meta">${esc(r.meals.map(k => MEAL_NAME[k] || k).join(', '))}</p>` : ''}
     ${photos.length ? `<div class="rc-photos">${photos.map(p => `<img data-gh="${esc(p)}" alt="">`).join('')}</div>` : ''}
     ${macro.length ? `<div class="macro">${macro.map(m => `<span class="chip">${esc(m)}</span>`).join('')}</div>${r.kcal || r.protein ? '<p class="note">КБЖУ — примерная оценка на порцию.</p>' : ''}` : ''}
     ${r.draft ? '<div class="callout">Ждёт разбора: ингредиенты и шаги заполню, когда позовёшь.</div>' : ''}
+    ${isSimple(r) && !r.draft ? `<div class="callout">Без рецепта — только название.</div><div class="sh-acts"><button type="button" class="btn block" data-action="rc-attach" data-id="${esc(r.id)}">Добавить рецепт: фото, видео, текст</button></div>` : ''}
+    ${usedIn.length ? `<p class="note">Входит в: ${esc(usedIn.map(x => x.title).join(', '))}.</p>` : ''}
     ${Array.isArray(r.ingredients) && r.ingredients.length ? `<h3 class="sec">Ингредиенты</h3><ul class="ing">${r.ingredients.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
     ${Array.isArray(r.steps) && r.steps.length ? `<h3 class="sec">Как готовить</h3><ol class="ing">${r.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
     ${r.note ? `<p class="note">${esc(r.note)}</p>` : ''}
@@ -2208,24 +2315,26 @@ function openRecipe(id) {
     ${r.link ? `<p class="note"><a href="${esc(r.link)}" target="_blank" rel="noopener">Открыть источник</a></p>` : ''}
     <h3 class="sec">Добавить на ${esc(dayName(S.foodDate).toLowerCase())}, ${dm(S.foodDate)}</h3>
     <div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="meal-add" data-meal="${k}" data-id="${esc(r.id)}">${l}</button>`).join('')}</div>
+    <div class="sh-acts"><button type="button" class="btn block" data-action="combo-with" data-id="${esc(r.id)}">Собрать блюдо с этим</button></div>
     <details class="more-box"><summary>Изменить или удалить</summary>
       <label class="fld" for="rc-title">Название</label><input id="rc-title" value="${esc(r.title)}">
       <span class="fld">Когда подходит</span><div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="rc-meal" data-meal="${k}" aria-pressed="${Array.isArray(r.meals) && r.meals.includes(k)}">${l}</button>`).join('')}</div>
-      <div class="sh-acts"><button type="button" class="btn primary block" data-action="rc-edit-save">Сохранить</button><button type="button" class="btn danger block" data-action="rc-del">Удалить рецепт</button></div>
+      <div class="sh-acts"><button type="button" class="btn primary block" data-action="rc-edit-save">Сохранить</button><button type="button" class="btn danger block" data-action="rc-del">Удалить</button></div>
     </details>`);
   hydrateImages($('#sheet-body'));
 }
-function openRecipeNew(meal) {
-  S.cur = { type: 'recipe-new', meals: new Set(meal ? [meal] : []) };
-  openSheet(`<h2 class="sh-title">Новый рецепт</h2>
+function openRecipeNew(meal, baseId) {
+  const base = baseId ? recipeById(baseId) : null;
+  S.cur = { type: 'recipe-new', baseId: base ? base.id : null, meals: new Set(base ? (base.meals || []) : (meal ? [meal] : [])) };
+  openSheet(`<h2 class="sh-title">${base ? 'Рецепт для «' + esc(base.title) + '»' : 'Новый рецепт'}</h2>
     <p class="sh-meta">Добавь что есть: скриншоты, видео, ссылку или текст. Я разберу ингредиенты и шаги, когда позовёшь.</p>
-    <label class="fld" for="rc-title">Название</label><input id="rc-title" placeholder="Например: омлет с курицей">
-    <span class="fld">Когда подходит</span><div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="rc-meal" data-meal="${k}" aria-pressed="${k === meal}">${l}</button>`).join('')}</div>
+    <label class="fld" for="rc-title">Название</label><input id="rc-title" value="${esc(base ? base.title : '')}" placeholder="Например: омлет с курицей">
+    <span class="fld">Когда подходит</span><div class="chips">${MEALS.map(([k, l]) => `<button type="button" class="chip-btn" data-action="rc-meal" data-meal="${k}" aria-pressed="${S.cur.meals.has(k)}">${l}</button>`).join('')}</div>
     <label class="fld" for="rc-files">Скриншоты или видео</label>
     <label class="btn block file-btn" id="rc-files-btn"><span id="rc-files-label">Выбрать фото или видео</span><input type="file" id="rc-files" accept="image/*,video/*" multiple aria-label="Скриншоты или видео рецепта"></label>
     <p class="note">С видео я прочитаю то, что видно на экране: подписи, ингредиенты, граммовки. Голос за кадром разобрать не смогу, поэтому лучше добавь и скриншот описания.</p>
     <label class="fld" for="rc-link">Ссылка (необязательно)</label><input id="rc-link" type="url" inputmode="url" placeholder="https://…">
-    <label class="fld" for="rc-text">Текст рецепта (если есть)</label><textarea id="rc-text" rows="3" placeholder="Можно вставить описание из поста"></textarea>
+    <label class="fld" for="rc-text">Текст рецепта (если есть)</label><textarea id="rc-text" rows="3" placeholder="Можно вставить описание из поста или написать, как готовишь"></textarea>
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="rc-save">Сохранить рецепт</button></div>`);
 }
 async function foodPhoto(meal, file) {
@@ -2246,33 +2355,22 @@ async function recipeSave(btn) {
   const title = $('#rc-title').value.trim(), link = $('#rc-link').value.trim(), text = $('#rc-text').value.trim();
   const files = Array.from(($('#rc-files') && $('#rc-files').files) || []);
   if (!title && !files.length && !link && !text) { toast('Добавь хотя бы фото, видео, ссылку или текст'); return; }
-  const big = files.find(f => /^video\//.test(f.type) && f.size > 25 * 1024 * 1024);
-  if (big) { toast('Видео больше 25 МБ не загрузится. Обрежь его или добавь скриншоты.'); return; }
-  const id = 'r' + rid().slice(0, 10);
-  const photos = [], media = [];
+  const id = c.baseId || 'r' + rid().slice(0, 10);
   busy(btn, true);
-  for (let k = 0; k < files.length; k++) {
-    const f = files[k];
-    setSync(`загружаю ${k + 1} из ${files.length}…`);
-    try {
-      if (/^video\//.test(f.type)) {
-        const ext = (f.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
-        const path = `inbox/recipes/${id}_${k + 1}.${ext}`;
-        await GH.putRaw(path, await fileToBase64(f), `Рецепт: видео ${k + 1}`);
-        media.push(path);
-      } else {
-        const path = `inbox/recipes/${id}_${k + 1}.jpg`;
-        await GH.putRaw(path, await resizeImage(f), `Рецепт: фото ${k + 1}`);
-        photos.push(path); media.push(path);
-      }
-    } catch (e) { setSync(errText(e), true); toast('Файл ' + (k + 1) + ' не загрузился. ' + errText(e)); }
-  }
-  const rec = { id, title: title || 'Новый рецепт', meals: Array.from(c.meals), draft: true, added: today() };
-  if (photos.length) rec.photos = photos;
-  if (media.length) rec.media = media;
-  if (link) rec.link = link;
-  if (text) rec.text = text;
-  const ok = await writeRecipes(list => { list.push(rec); }, `Рецепт: ${rec.title}`);
+  const up = files.length ? await uploadFiles(files, `inbox/recipes/${id}_${Date.now().toString(36).slice(-4)}`, 'Рецепт') : { media: [], photos: [] };
+  const ok = await writeRecipes(list => {
+    const k = list.findIndex(x => x.id === id);
+    const rec = k >= 0 ? list[k] : { id, added: today() };
+    rec.title = title || rec.title || 'Новый рецепт';
+    rec.meals = Array.from(c.meals);
+    if (files.length || link || text) rec.draft = true;
+    delete rec.kind; delete rec.simple;
+    if (up.photos.length) rec.photos = (rec.photos || []).concat(up.photos);
+    if (up.media.length) rec.media = (rec.media || []).concat(up.media);
+    if (link) rec.link = link;
+    if (text) rec.text = text;
+    if (k < 0) list.push(rec);
+  }, `Рецепт: ${title || 'новый'}`);
   busy(btn, false);
   if (ok) { closeSheet(); toast('Рецепт сохранён. Разберу, когда позовёшь — а выбрать его можно уже сейчас.'); }
 }
@@ -2629,6 +2727,7 @@ document.addEventListener('click', async ev => {
     case 'food-prev': S.foodDate = addDays(S.foodDate, -1); renderFood(); break;
     case 'food-next': S.foodDate = addDays(S.foodDate, 1); renderFood(); break;
     case 'meal-pick': openMealPick(b.dataset.meal); break;
+    case 'meal-quick': busy(b, true); await quickDishes(b.dataset.meal, $('#mp-name') && $('#mp-name').value); busy(b, false); break;
     case 'meal-add': {
       const meal = b.dataset.meal, r = recipeById(id); if (!r) return;
       busy(b, true);
@@ -2660,12 +2759,22 @@ document.addEventListener('click', async ev => {
       busy(b, false); break;
     }
     case 'rc-del': {
-      const c = S.cur; if (!c || c.type !== 'recipe') return;
+      const c = S.cur; if (!c || (c.type !== 'recipe' && c.type !== 'combo')) return;
+      const rid0 = c.type === 'combo' ? c.id : c.r.id, r0 = recipeById(rid0); if (!r0) return;
+      const usedIn = S.recipes.filter(x => isCombo(x) && (x.parts || []).includes(rid0));
+      if (usedIn.length) { toast(`Нельзя удалить: входит в «${usedIn[0].title}». Сначала убери из составного.`); return; }
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
       busy(b, true);
-      if (await writeRecipes(list => { const k = list.findIndex(r => r.id === c.r.id); if (k >= 0) list.splice(k, 1); }, `Рецепт удалён: ${c.r.title}`)) { closeSheet(); toast('Рецепт удалён'); }
+      if (await writeRecipes(list => { const k = list.findIndex(r => r.id === rid0); if (k >= 0) list.splice(k, 1); }, `Еда: удалено «${r0.title}»`)) { closeSheet(); toast('Удалено'); }
       busy(b, false); break;
     }
+    case 'rc-attach': openRecipeNew(null, id); break;
+    case 'combo-new': openCombo(null, b.dataset.meal); break;
+    case 'combo-edit': openCombo(id); break;
+    case 'combo-with': { openCombo(null, null); if (S.cur && S.cur.type === 'combo') { S.cur.parts.add(id); const chip = document.querySelector(`#cb-parts [data-id="${id}"]`); if (chip) chip.setAttribute('aria-pressed', 'true'); } break; }
+    case 'combo-part': { const c = S.cur; if (!c || c.type !== 'combo') return; const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); if (on) c.parts.add(id); else c.parts.delete(id); break; }
+    case 'combo-meal': { const c = S.cur; if (!c || c.type !== 'combo') return; const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); if (on) c.meals.add(b.dataset.meal); else c.meals.delete(b.dataset.meal); break; }
+    case 'combo-save': await comboSave(b); break;
     case 'acct': openAccount(id); break;
     case 'acct-new': openAccount(null); break;
     case 'acct-save': busy(b, true); await accountSave(); busy(b, false); break;
