@@ -507,6 +507,25 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 .brand{font-size:20px;white-space:nowrap}
 @media (max-width:430px){ .today{display:none} .top{gap:4px} .brand{margin-right:auto} }
 .tabs{background:var(--glass)}
+/* reviews */
+.rev-links{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:8px 2px 0;font-size:14px;color:var(--muted)}
+.rev-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;text-align:left;margin-top:12px;padding:12px 14px;border-radius:var(--r);border:1px solid rgba(224,133,95,.45);background:color-mix(in srgb,#E0855F 13%,var(--glass-2));box-shadow:var(--hl);color:var(--ink);cursor:pointer}
+.rev-card .t{display:block;font-weight:600}
+.rev-card .m{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.rev-card .s{font-size:13px;color:#C2572F;font-weight:600}
+.cf-dot{width:26px;height:26px;border-radius:9px;display:inline-grid;place-items:center;color:#fff;background:linear-gradient(135deg,#E0855F,#A8472A);flex:0 0 auto}
+.cf-dot svg{width:17px;height:17px}
+.rev-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 4px}
+.rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rev-c{padding:10px 12px;border:1px solid var(--line);border-radius:16px;background:var(--glass-3);min-width:0}
+.rev-c .k{font:500 10.5px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.rev-c .v{font:700 20px/1.2 var(--f-disp);margin-top:3px}
+.rev-c .m{font-size:12.5px;color:var(--muted);margin-top:3px}
+.rev-more{font-size:13.5px;margin-top:10px}
+.rev-more p{margin:6px 0}
+.rev-claude{margin-top:10px;padding:12px 14px;border-radius:18px;border:1px solid rgba(224,133,95,.4);background:color-mix(in srgb,#E0855F 9%,var(--glass-3))}
+.rev-h{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:6px}
+.rev-focus{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:14px}
 /* autosetup */
 .cp-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;margin:6px 0;padding:6px 8px;border:1px solid var(--line);border-radius:12px;background:var(--glass-3)}
 .cp-k{font-size:12.5px;color:var(--muted)}
@@ -695,6 +714,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20260928e"></script>
+<script src="app.js?v=20260928g"></script>
 </body>
 </html>

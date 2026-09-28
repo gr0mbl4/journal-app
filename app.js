@@ -155,7 +155,7 @@ const S = {
   config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {}, sportExtra: [], events: [], recipes: [], meals: { days: {} }, requests: [],
   ideas: [], sleep: { days: {} }, curriculum: { blocks: [] }, notes: null, notesErr: null, notesLoading: false, noteCache: {},
   openCur: new Set(), touchedCur: new Set(), showAllDone: false,
-  money: {}, workouts: {}, inbox: [], period: null, periodP: null, calMonth: monthKey(today()), foodDate: today(), img: {},
+  money: {}, workouts: {}, fresh: new Set(), reviews: [], rev: null, inbox: [], period: null, periodP: null, calMonth: monthKey(today()), foodDate: today(), img: {},
   shift: {}, cur: null, sportList: [], studyCache: null, lastToday: today(), slotsSig: '', pending: 0
 };
 
@@ -606,12 +606,13 @@ function applyData(d) {
   if (d.recipes) S.recipes = Array.isArray(d.recipes.recipes) ? d.recipes.recipes : [];
   if (d.meals) S.meals = d.meals && d.meals.days ? d.meals : { days: {} };
   if (d.requests) S.requests = Array.isArray(d.requests.requests) ? d.requests.requests : [];
+  if (d.reviews) S.reviews = Array.isArray(d.reviews.reviews) ? d.reviews.reviews : [];
   if (d.money) S.money = Object.assign({}, S.money, d.money);
   if (d.workouts) S.workouts = Object.assign({}, S.workouts, d.workouts);
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra }, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra }, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => GH.getJSON(prefix + k + '.json')));
@@ -625,15 +626,16 @@ async function loadAll(quiet) {
   if (!quiet) setSync('обновляю…');
   try {
     GH.info().then(j => { if (j && j.private === false) { toast('Внимание: репозиторий с данными стал открытым! Сделай его приватным.'); setSync('Репозиторий с данными открытый — сделай приватным', true); } }).catch(() => {});
-    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum] = await Promise.all([
+    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews] = await Promise.all([
       GH.getJSON('config.json'), GH.getJSON('lessons.json'), GH.getJSON('plan.json'), GH.getJSON('learned.json'), GH.getJSON('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
-      GH.getJSON('recipes.json'), GH.getJSON('meals.json'), GH.getJSON('requests.json'), GH.getJSON('ideas.json'), GH.getJSON('sleep.json'), GH.getJSON('curriculum.json')
+      GH.getJSON('recipes.json'), GH.getJSON('meals.json'), GH.getJSON('requests.json'), GH.getJSON('ideas.json'), GH.getJSON('sleep.json'), GH.getJSON('curriculum.json'), GH.getJSON('reviews.json')
     ]);
-    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
     const [money, workouts] = await Promise.all([fetchMonths('money/', mks, { items: [] }), fetchMonths('workouts/', wks, { logs: {} })]);
+    S.fresh = new Set(mks.map(k => 'money/' + k).concat(wks.map(k => 'workouts/' + k)));
     applyData({ money, workouts });
     S.ready = true; S.lastLoad = Date.now();
     cacheNow();
@@ -650,16 +652,17 @@ async function loadAll(quiet) {
     render();
   }
 }
+// месяц считается свежим, только если в этой загрузке его уже скачали — иначе показывали бы старый кэш
 async function ensureMoney(keys) {
-  const miss = keys.filter(k => !S.money[k]);
+  const miss = keys.filter(k => !S.fresh.has('money/' + k));
   if (!miss.length) return;
-  try { applyData({ money: await fetchMonths('money/', miss, { items: [] }) }); }
+  try { applyData({ money: await fetchMonths('money/', miss, { items: [] }) }); miss.forEach(k => S.fresh.add('money/' + k)); }
   catch (e) { setSync(errText(e), true); miss.forEach(k => { if (!S.money[k]) S.money[k] = { items: [] }; }); }
 }
 async function ensureWorkouts(keys) {
-  const miss = keys.filter(k => !S.workouts[k]);
+  const miss = keys.filter(k => !S.fresh.has('workouts/' + k));
   if (!miss.length) return;
-  try { applyData({ workouts: await fetchMonths('workouts/', miss, { logs: {} }) }); }
+  try { applyData({ workouts: await fetchMonths('workouts/', miss, { logs: {} }) }); miss.forEach(k => S.fresh.add('workouts/' + k)); }
   catch (e) { miss.forEach(k => { if (!S.workouts[k]) S.workouts[k] = { logs: {} }; }); }
 }
 
@@ -727,7 +730,7 @@ async function writeRequests(fn, msg) {
 }
 async function writeMonth(mk, fn, msg) {
   const next = await write('money/' + mk + '.json', d => { d.items = fn(Array.isArray(d.items) ? d.items : []); return d; }, msg, { items: [] });
-  if (next) { S.money[mk] = next; cacheNow(); renderMoney(); }
+  if (next) { S.money[mk] = next; S.fresh.add('money/' + mk); cacheNow(); renderMoney(); }
   return !!next;
 }
 async function writeLearned(name, cat) {
@@ -1112,6 +1115,113 @@ function sleepDurNote() {
   el.textContent = m ? 'Получается ' + hm(m) + '.' : 'Дата — день, когда проснулся.';
 }
 
+/* ---------- итоги: неделя (пн–вс) / месяц (бюджетный, с periodStart) / год ----------
+   Цифры журнал считает сам из своих данных; разбор словами пишет Claude в reviews.json. */
+const REV_T = { week: 'Неделя', month: 'Месяц', year: 'Год' };
+const REV_G = { week: 'недели', month: 'месяца', year: 'года' };
+function revRange(type, anchor) {
+  if (type === 'week') { const f = mondayOf(anchor); return { from: f, to: addDays(f, 6) }; }
+  if (type === 'month') { const f = periodOf(anchor); return { from: f, to: periodEnd(f) }; }
+  const y = anchor.slice(0, 4); return { from: y + '-01-01', to: y + '-12-31' };
+}
+function revShift(type, from, n) {
+  if (type === 'week') return addDays(from, 7 * n);
+  if (type === 'month') return periodShift(from, n);
+  return (Number(from.slice(0, 4)) + n) + '-01-01';
+}
+function revLabel(type, r) {
+  if (type === 'week') return `${pd(r.from).getDate()} ${MON_S[pd(r.from).getMonth()]} – ${pd(r.to).getDate()} ${MON_S[pd(r.to).getMonth()]}`;
+  if (type === 'month') return periodLabel(r.from);
+  return r.from.slice(0, 4) + ' год';
+}
+function monthsIn(from, to) { const out = []; for (let m = monthKey(from); m <= monthKey(to); m = monthShift(m, 1)) out.push(m); return out; }
+function bedMin(s) { const v = toMin(s && s.bed); return v == null ? null : (v < 12 * 60 ? v + 1440 : v); }
+function periodSummary(from, to) {
+  const t = today(), end = to < t ? to : addDays(t, -1);
+  const since = S.config && S.config.money && S.config.money.since || '0000';
+  const R = { from, to, started: from <= t, over: to < t };
+  // спорт
+  const sp = buildSport(from, to).filter(i => i.eff >= from && i.eff <= to);
+  const due = sp.filter(i => i.eff < t || i.state);
+  const st = x => due.filter(i => i.state === x).length;
+  R.sport = { due: due.length, done: st('done'), other: st('other'), skipped: st('skipped'), open: due.filter(i => !i.state).length, moved: sp.filter(i => i.eff !== i.orig).length, extra: sp.filter(i => i.extra).length,
+    others: due.filter(i => i.state === 'other' && i.note).map(i => `${dm(i.eff)}: ${i.note}`),
+    reasons: sp.filter(i => i.ov && i.ov.reason).map(i => `${dm(i.orig)} ${i.title}: ${i.ov.reason}`) };
+  let logs = 0;
+  for (const mk of monthsIn(from, to)) for (const lg of Object.values(((S.workouts[mk] || {}).logs) || {})) if (lg.date >= from && lg.date <= to) logs++;
+  R.sport.logs = logs;
+  const spStart = (S.config.sport || {}).start, stStart = (S.config.study || {}).start;
+  R.sport.before = !!(spStart && to < spStart); R.sport.start = spStart;
+  // учёба
+  const ss = (S.config.study || {}).start || from;
+  let win = 0, skips = 0; const sreasons = [];
+  for (let d = from > ss ? from : ss; d <= end; d = addDays(d, 1)) {
+    const c = studyCap(d);
+    if (c.blocked) { if (c.base > 0) { win++; skips++; const o = S.studyDays[d] || {}; if (o.reason) sreasons.push(`${dm(d)}: ${o.reason}`); } continue; }
+    if (c.cap <= 0) continue;
+    win++; if (!activity(d)) skips++;
+  }
+  R.study = { before: !!(stStart && to < stStart), start: stStart, win, skips, lessons: S.lessons.filter(l => l.done && l.done >= from && l.done <= to).sort((a, b) => a.done < b.done ? -1 : 1), parts: S.lessons.filter(l => (l.progressDates || []).some(d => d >= from && d <= to) && !(l.done >= from && l.done <= to)).length, reasons: sreasons };
+  // сон
+  const nights = Object.keys(S.sleep.days || {}).filter(d => d >= from && d <= to).map(d => S.sleep.days[d]);
+  const durs = nights.map(sleepMin).filter(Boolean), beds = nights.map(bedMin).filter(v => v != null);
+  R.sleep = { n: durs.length, avg: durs.length ? Math.round(durs.reduce((a, b) => a + b, 0) / durs.length) : null, bed: beds.length ? Math.round(beds.reduce((a, b) => a + b, 0) / beds.length) % 1440 : null, short: durs.filter(v => v < 7 * 60).length };
+  // деньги
+  let items = [];
+  for (const mk of monthsIn(from, to)) items = items.concat((((S.money[mk] || {}).items) || []).filter(x => x.date >= from && x.date <= to));
+  const sum = f => items.filter(f).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const cats = {}; items.filter(x => kindOf(x) === 'spend').forEach(x => { const c = x.cat || otherCat(); cats[c] = (cats[c] || 0) + (Number(x.amount) || 0); });
+  let tr = 0; items.filter(x => kindOf(x) === 'transfer' && x.cat !== 'Свои счета').forEach(x => { tr += (x.dir === 'in' ? 1 : -1) * (Number(x.amount) || 0); });
+  const spend = sum(x => kindOf(x) === 'spend'), income = sum(x => kindOf(x) === 'income'), cash = sum(x => kindOf(x) === 'cash');
+  const big = items.filter(x => kindOf(x) === 'spend').sort((a, b) => b.amount - a.amount)[0];
+  R.money = { tracked: to >= since, spend, income, cash, net: income - spend - cash + tr, cats: Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 5), big, n: items.length, unclear: items.filter(x => x.cat === 'Не разобрано').length };
+  return R;
+}
+function revStatsHtml(R) {
+  if (!R.started) return '<p class="note">Этот период ещё не начался.</p>';
+  const cur = esc(curSym()), sp = R.sport, st = R.study, sl = R.sleep, m = R.money;
+  const hmm = v => pad(Math.floor(v / 60) % 24) + ':' + pad(v % 60);
+  let h = '<div class="rev-grid">';
+  h += `<div class="rev-c"><div class="k">Спорт</div><div class="v">${sp.due ? `${sp.done + sp.other} из ${sp.due}` : '—'}</div><div class="m">${[sp.other ? `другое: ${sp.other}` : '', sp.skipped ? `пропуск: ${sp.skipped}` : '', sp.open ? `не отмечено: ${sp.open}` : '', sp.moved ? `переносов: ${sp.moved}` : '', sp.extra ? `сверх плана: ${sp.extra}` : ''].filter(Boolean).join(' · ') || (sp.due ? 'всё по плану' : sp.before ? 'план в журнале с ' + dm(sp.start) : 'тренировок не было')}</div></div>`;
+  h += `<div class="rev-c"><div class="k">Учёба</div><div class="v">${st.lessons.length} ${plural(st.lessons.length, 'урок', 'урока', 'уроков')}</div><div class="m">${st.win ? `окон: ${st.win} · пропусков: ${st.skips}` : st.before ? 'план окон с ' + dm(st.start) : 'окон не было'}${st.parts ? ` · частей: ${st.parts}` : ''}</div></div>`;
+  h += `<div class="rev-c"><div class="k">Сон</div><div class="v">${sl.avg ? hm(sl.avg) : '—'}</div><div class="m">${sl.n ? `${sl.n} ${plural(sl.n, 'ночь', 'ночи', 'ночей')} · ложился ~${hmm(sl.bed)}${sl.short ? ` · меньше 7 ч: ${sl.short}` : ''}` : 'сон не отмечен'}</div></div>`;
+  h += `<div class="rev-c"><div class="k">Деньги</div><div class="v">${m.tracked ? fmt(m.spend) + ' ' + cur : '—'}</div><div class="m">${m.tracked ? `потрачено · доход ${fmt(m.income)} · итог ${m.net >= 0 ? '+' : '−'}${fmt(Math.abs(m.net))}` : 'учёт с ' + dm(((S.config.money || {}).since) || R.from)}</div></div>`;
+  h += '</div>';
+  const more = [];
+  if (st.lessons.length) more.push(`<b>Пройдено:</b> ${st.lessons.map(l => `урок ${esc(l.n)}${l.title ? ' ' + esc(l.title) : ''}`).join(', ')}`);
+  if (sp.others.length) more.push(`<b>Вместо тренировки:</b> ${sp.others.map(esc).join('; ')}`);
+  if (sp.reasons.length || st.reasons.length) more.push(`<b>Причины переносов и пропусков:</b> ${sp.reasons.concat(st.reasons).map(esc).join('; ')}`);
+  if (m.tracked && m.cats.length) more.push(`<b>Траты:</b> ${m.cats.map(([c, v]) => `${esc(c)} ${fmt(v)}`).join(' · ')}${m.big ? ` · самая крупная — ${esc(m.big.name)} ${fmt(m.big.amount)} ${cur}` : ''}${m.unclear ? ` · не разобрано переводов: ${m.unclear}` : ''}`);
+  if (more.length) h += `<div class="rev-more">${more.map(x => `<p>${x}</p>`).join('')}</div>`;
+  return h;
+}
+function reviewFor(type, from) { return S.reviews.find(r => r.type === type && r.from === from) || null; }
+function latestReview() { return S.reviews.slice().sort((a, b) => (b.to || '') < (a.to || '') ? -1 : (b.to || '') > (a.to || '') ? 1 : (b.created || '') < (a.created || '') ? -1 : 1)[0] || null; }
+async function openReview(type, from) {
+  type = type || (S.rev && S.rev.type) || 'week';
+  const r = from ? { from, to: revRange(type, from).to } : revRange(type, today());
+  S.rev = { type, from: r.from };
+  S.cur = { type: 'rev' };
+  const cv = reviewFor(type, r.from);
+  const seg = `<div class="seg" role="group" aria-label="Период">${Object.keys(REV_T).map(k => `<button type="button" data-action="rev-type" data-type="${k}" aria-pressed="${k === type}">${REV_T[k]}</button>`).join('')}</div>`;
+  const nav = `<div class="cal-bar rev-nav"><button type="button" class="btn sm" data-action="rev-prev" aria-label="Раньше">‹</button><b>${esc(revLabel(type, r))}</b><button type="button" class="btn sm" data-action="rev-next" aria-label="Позже"${r.from > today() ? ' disabled' : ''}>›</button></div>`;
+  const draw = loading => openSheet(`<h2 class="sh-title">Итоги</h2>${seg}${nav}
+    ${cv ? `<div class="rev-claude"><div class="rev-h"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span>Разбор Claude</div><div class="md">${renderMd(cv.text || '')}</div>${cv.focus ? `<div class="rev-focus"><b>Фокус на ${esc(REV_G[type] === 'года' ? 'следующий год' : REV_G[type] === 'месяца' ? 'следующий месяц' : 'следующую неделю')}:</b> ${esc(cv.focus)}</div>` : ''}</div>` : (r.to < today() ? `<p class="note">Разбора от Claude за этот период нет. ${type === 'week' ? 'Недельный появляется по понедельникам утром' : type === 'month' ? 'Месячный — ' + pStartDay() + '-го числа утром' : 'Годовой — 1 января'}; можно и попросить в «Связь с Claude».</p>` : `<p class="note">Период ещё идёт — ниже цифры на сегодня. Разбор Claude появится, когда он закончится.</p>`)}
+    <h3 class="sec">Цифры</h3>${loading ? '<p class="loading"><span class="spin" aria-hidden="true"></span>Считаю…</p>' : revStatsHtml(periodSummary(r.from, r.to))}`, true);
+  draw(true);
+  if (cv) { const seen = new Set(LS.get('bj-seen-rev') || []); if (!seen.has(cv.id)) { seen.add(cv.id); LS.set('bj-seen-rev', Array.from(seen)); renderPlan(); } }
+  await Promise.all([ensureMoney(monthsIn(r.from, r.to)), ensureWorkouts(monthsIn(r.from, r.to))]);
+  if (S.cur && S.cur.type === 'rev' && S.rev.from === r.from && S.rev.type === type) draw(false);
+}
+function reviewCardHtml() {
+  const r = latestReview();
+  const seen = new Set(LS.get('bj-seen-rev') || []);
+  if (r && !seen.has(r.id) && daysBetween(r.to, today()) <= 10) {
+    const first = String(r.text || '').replace(/[#*_>`]/g, '').split('\n').map(x => x.trim()).filter(Boolean)[0] || '';
+    return `<button type="button" class="rev-card" data-action="rev-open" data-type="${esc(r.type)}" data-from="${esc(r.from)}"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span><span class="rb"><span class="t">Разбор ${esc(REV_G[r.type] || '')} · ${esc(revLabel(r.type, r))}</span><span class="m">${esc(r.focus ? 'Фокус: ' + r.focus : first).slice(0, 140)}</span></span><span class="s">читать</span></button>`;
+  }
+  return '';
+}
 /* ---------- напоминание: отправить заметки Obsidian после урока ---------- */
 function notesRepoSep() { const src = notesSrc(); return src.repo && GH.cred && src.repo !== GH.cred.repo ? src : null; }
 async function checkNotesPushed() {
@@ -1135,12 +1245,12 @@ function renderPlan() {
   const bn = $('#plan-banner'), st = $('#plan-stats'), tl = $('#plan-tails'), dy = $('#plan-days');
   renderSleep();
   if (!isReady()) { bn.innerHTML = bannerHtml(); st.innerHTML = tl.innerHTML = dy.innerHTML = ''; return; }
-  bn.innerHTML = notesReminderHtml();
+  bn.innerHTML = notesReminderHtml() + reviewCardHtml();
   const study = buildStudy(); S.studyCache = study;
   const sport = buildSport(); S.sportList = sport;
   const t = today();
   const s = calcStats(sport);
-  st.innerHTML = `<div class="stats"><div class="stat"><div class="k">Спорт · 4 недели</div><div class="v">${s.due ? `${s.done} из ${s.due}` : '— <small>пока нечего считать</small>'}</div></div><div class="stat"><div class="k">Учёба · 4 недели</div><div class="v">${s.les} ${plural(s.les, 'урок', 'урока', 'уроков')} <small>· ${s.skips} ${plural(s.skips, 'пропуск', 'пропуска', 'пропусков')}</small></div></div></div>`;
+  st.innerHTML = `<div class="stats"><div class="stat"><div class="k">Спорт · 4 недели</div><div class="v">${s.due ? `${s.done} из ${s.due}` : '— <small>пока нечего считать</small>'}</div></div><div class="stat"><div class="k">Учёба · 4 недели</div><div class="v">${s.les} ${plural(s.les, 'урок', 'урока', 'уроков')} <small>· ${s.skips} ${plural(s.skips, 'пропуск', 'пропуска', 'пропусков')}</small></div></div></div><div class="rev-links"><span>Итоги:</span><button type="button" class="link-btn" data-action="rev-open" data-type="week">неделя</button><button type="button" class="link-btn" data-action="rev-open" data-type="month">месяц</button><button type="button" class="link-btn" data-action="rev-open" data-type="year">год</button></div>`;
   const spT = sport.filter(i => !i.state && i.eff < t && i.eff >= addDays(t, -14));
   const stT = studyTails(7);
   if (spT.length || stT.length) {
@@ -2492,6 +2602,10 @@ document.addEventListener('click', async ev => {
     }
     case 'acct-cards': openCards(); break;
     case 'auto-setup': openAutoSetup(); break;
+    case 'rev-open': openReview(b.dataset.type || 'week', b.dataset.from || null); break;
+    case 'rev-type': openReview(b.dataset.type, null); break;
+    case 'rev-prev': if (S.rev) openReview(S.rev.type, revShift(S.rev.type, S.rev.from, -1)); break;
+    case 'rev-next': if (S.rev) openReview(S.rev.type, revShift(S.rev.type, S.rev.from, 1)); break;
     case 'notes-check': busy(b, true); await checkNotesPushed(); busy(b, false); toast(S.notesPush && S.notesPush.pushed ? 'Заметки за сегодня на месте ✓' : 'Пока не вижу отправленных заметок за сегодня'); break;
     case 'notes-skip': LS.set('bj-notes-skip', today()); renderPlan(); break;
     case 'auto-test': autoTest(); break;
