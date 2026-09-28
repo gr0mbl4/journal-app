@@ -485,7 +485,7 @@ details.more-box[open] summary::after{content:"▴"}
         <p class="err" id="m-err" hidden></p>
         <div class="form-row">
           <button type="submit" class="btn money" id="m-submit">Добавить</button>
-          <label class="btn file-btn" id="m-photo-btn">Фото чеков<input type="file" id="m-photo" accept="image/*" multiple aria-label="Фото чеков"></label>
+          <label class="btn file-btn" id="m-photo-btn">Фото<input type="file" id="m-photo" accept="image/*" multiple aria-label="Фото: чеки, скриншоты"></label>
         </div>
         <p class="hint">Название и сумма, несколько — через запятую или с новой строки. Фото можно выбрать сразу несколько: я разберу их, когда ты меня позовёшь.</p>
       </form>
@@ -860,7 +860,7 @@ async function loadAll(quiet) {
   if (!quiet) setSync('обновляю…');
   try {
     const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum] = await Promise.all([
-      GH.getJSON('config.json'), GH.getJSON('lessons.json'), GH.getJSON('plan.json'), GH.getJSON('learned.json'), GH.getJSON('events.json'), GH.list('inbox/receipts'),
+      GH.getJSON('config.json'), GH.getJSON('lessons.json'), GH.getJSON('plan.json'), GH.getJSON('learned.json'), GH.getJSON('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
       GH.getJSON('recipes.json'), GH.getJSON('meals.json'), GH.getJSON('requests.json'), GH.getJSON('ideas.json'), GH.getJSON('sleep.json'), GH.getJSON('curriculum.json')
     ]);
     applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
@@ -1636,7 +1636,7 @@ function renderMoney() {
   }
   const sm = $('#money-summary'), ls = $('#money-list'), ib = $('#money-inbox');
   $('#money-accounts').innerHTML = S.ready && S.config ? accountsHtml() : '';
-  ib.innerHTML = S.inbox.length ? `<div class="inbox">Чеков ждут разбора: <b>${S.inbox.length}</b>. Разберу, когда позовёшь.</div>` : '';
+  ib.innerHTML = S.inbox.length ? `<div class="inbox">Фото ждут разбора: <b>${S.inbox.length}</b>. Разберу, когда позовёшь.</div>` : '';
   const loaded = periodMonths(S.period).every(mk => S.money[mk]);
   if (!loaded) { sm.innerHTML = S.ready ? '<p class="loading"><span class="spin" aria-hidden="true"></span>Загружаю…</p>' : bannerHtml(); ls.innerHTML = ''; return; }
   const items = periodItems(S.period);
@@ -2445,19 +2445,26 @@ async function uploadReceipts(files) {
   const stamp = pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
   const btn = $('#m-photo-btn');
   btn.classList.add('busy');
-  let ok = 0;
+  toast(list.length > 1 ? `Загружаю ${list.length} фото. Не закрывай приложение, пока не закончится.` : 'Загружаю фото…');
+  let ok = 0; const failed = [];
   for (let k = 0; k < list.length; k++) {
     setSync(list.length > 1 ? `загружаю фото ${k + 1} из ${list.length}…` : 'загружаю фото…');
     const name = `${date}_${stamp}_${k + 1}of${list.length}_${Math.random().toString(36).slice(2, 6)}.jpg`;
-    let b64;
-    try { b64 = await resizeImage(list[k]); } catch (_) { continue; }
-    try { await GH.putRaw('inbox/receipts/' + name, b64, `Чек: ${date} (${k + 1}/${list.length})`); S.inbox = S.inbox.concat([name]); ok++; }
-    catch (e) { setSync(errText(e), true); }
+    let b64 = null, lastErr = null;
+    try { b64 = await resizeImage(list[k]); }
+    catch (_) { try { b64 = await fileToBase64(list[k]); } catch (e) { lastErr = e; } }
+    if (b64) {
+      for (let attempt = 0; attempt < 2 && b64; attempt++) {
+        try { await GH.putRaw('inbox/photos/' + name, b64, `Фото: ${date} (${k + 1}/${list.length})`); S.inbox = S.inbox.concat([name]); ok++; lastErr = null; break; }
+        catch (e) { lastErr = e; if (e.code === 'auth' || e.code === 'forbidden') break; await new Promise(r => setTimeout(r, 1200)); }
+      }
+    }
+    if (lastErr || !b64) failed.push(k + 1);
   }
   btn.classList.remove('busy');
   cacheNow(); renderMoney();
-  if (ok === list.length) { setSync('сохранено в ' + hhmm(new Date())); toast(ok > 1 ? `Загружено фото: ${ok}. Разберу, когда позовёшь.` : 'Фото сохранено. Разберу, когда позовёшь.'); }
-  else toast(`Загружено ${ok} из ${list.length}. Остальные попробуй ещё раз.`);
+  if (!failed.length) { setSync('сохранено в ' + hhmm(new Date())); toast(ok > 1 ? `Загружено фото: ${ok}. Разберу, когда позовёшь.` : 'Фото сохранено. Разберу, когда позовёшь.'); }
+  else { setSync(`не загрузились фото № ${failed.join(', ')}`, true); toast(`Загружено ${ok} из ${list.length}. Не дошли № ${failed.join(', ')} — выбери их ещё раз.`); }
 }
 
 /* ---------- setup ---------- */
