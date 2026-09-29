@@ -165,7 +165,7 @@ const S = {
   config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {}, sportExtra: [], events: [], recipes: [], meals: { days: {} }, requests: [],
   ideas: [], sleep: { days: {} }, curriculum: { blocks: [] }, notes: null, notesErr: null, notesLoading: false, noteCache: {},
   openCur: new Set(), touchedCur: new Set(), showAllDone: false,
-  english: { cards: {}, sessions: [] }, benefits: { items: {} },
+  english: { cards: {}, sessions: [] }, benefits: { items: {} }, shop: LS.get('bj-shop') || { items: [] },
   money: {}, workouts: {}, fresh: new Set(), dirty: new Set(), tab: 'plan', open: new Set(), reviews: [], rev: null, portfolio: null, notesDays: LS.get('bj-notes-days'), duties: {}, absences: [], studyLog: [], body: { weight: {} }, quarters: {}, inbox: [], period: null, periodP: null, calMonth: monthKey(today()), foodDate: today(), img: {},
   shift: {}, cur: null, sportList: [], studyCache: null, lastToday: today(), slotsSig: '', pending: 0
 };
@@ -613,6 +613,7 @@ function applyData(d) {
   if (d.quarters) S.quarters = d.quarters;
   if (d.english) S.english = d.english;
   if (d.benefits) S.benefits = d.benefits;
+  if (d.shop && !S.shopBusy) { S.shop = d.shop; LS.set('bj-shop', S.shop); }
   if (d.ideas) S.ideas = Array.isArray(d.ideas.ideas) ? d.ideas.ideas : [];
   if (d.sleep) S.sleep = d.sleep && d.sleep.days ? d.sleep : { days: {} };
   if (d.curriculum) S.curriculum = d.curriculum && Array.isArray(d.curriculum.blocks) ? d.curriculum : { blocks: [] };
@@ -628,7 +629,7 @@ function applyData(d) {
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => readDoc(prefix + k + '.json')));
@@ -643,11 +644,11 @@ async function loadAll(quiet) {
   try {
     if (queueCount()) await flushQueue();
     GH.info().then(j => { if (j && j.private === false) { toast('Внимание: репозиторий с данными стал открытым! Сделай его приватным.'); setSync('Репозиторий с данными открытый — сделай приватным', true); } }).catch(() => {});
-    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits] = await Promise.all([
+    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop] = await Promise.all([
       readDoc('config.json'), readDoc('lessons.json'), readDoc('plan.json'), readDoc('learned.json'), readDoc('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
-      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json')
+      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json')
     ]);
-    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
@@ -813,6 +814,7 @@ async function writeRecipes(fn, msg) {
   if (next) { S.recipes = next.recipes; cacheNow(); render(); }
   return !!next;
 }
+function stampMeal(day, meal) { day.t = day.t && typeof day.t === 'object' ? day.t : {}; day.t[meal] = hhmm(new Date()); }
 async function writeMeals(fn, msg) {
   const next = await write('meals.json', d => { d.days = d.days || {}; fn(d.days); return d; }, msg, { days: {} });
   if (next) { S.meals = next; cacheNow(); render(); }
@@ -901,6 +903,12 @@ function studyTails(n) {
 }
 
 /* ---------- sport planning ---------- */
+// template: {dow, key, alt?: [ключ А, ключ Б]} — варианты по очереди, неделя старта программы = первый
+function altKey(tp, w, cfg) {
+  if (!Array.isArray(tp.alt) || tp.alt.length < 2) return tp.key;
+  const n = tp.alt.length, wi = Math.round(daysBetween(mondayOf(cfg.start), w) / 7);
+  return tp.alt[((wi % n) + n) % n];
+}
 function buildSport(fromD, toD) {
   const cfg = S.config.sport || {};
   const t = today();
@@ -911,12 +919,13 @@ function buildSport(fromD, toD) {
     for (const tp of cfg.template) {
       const orig = addDays(w, (Number(tp.dow) + 6) % 7);
       if (orig < cfg.start) continue;
-      const s = (cfg.sessions || {})[tp.key];
+      const key = altKey(tp, w, cfg);
+      const s = (cfg.sessions || {})[key];
       if (!s) continue;
-      const id = orig + '_' + tp.key;
+      const id = orig + '_' + key;
       const ov = S.sportMoves[id] || {};
-      const inst = { id, key: tp.key, orig, eff: ov.movedTo || orig, state: ov.state || null, note: ov.note || '', kind: s.kind, title: s.title || tp.key, sub: s.sub || '', ov };
-      if (ov.as && cfg.sessions[ov.as]) { inst.title = cfg.sessions[ov.as].title; inst.sub = 'вместо: ' + (s.title || tp.key); inst.replaced = true; }
+      const inst = { id, key, orig, eff: ov.movedTo || orig, state: ov.state || null, note: ov.note || '', kind: s.kind, title: s.title || key, sub: s.sub || '', ov };
+      if (ov.as && cfg.sessions[ov.as]) { inst.title = cfg.sessions[ov.as].title; inst.sub = 'вместо: ' + (s.title || key); inst.replaced = true; }
       else if (Array.isArray(ov.custom) && ov.custom.length) { inst.title = 'Своя тренировка'; inst.sub = ov.custom.join(' · '); inst.replaced = true; }
       list.push(inst);
     }
@@ -998,7 +1007,7 @@ function prevSets(key, name, before) {
     const logs = (S.workouts[mk] || {}).logs || {};
     for (const id of Object.keys(logs)) {
       const L = logs[id];
-      if (!L || L.key !== key || !(L.date < before)) continue;
+      if (!L || !(L.date < before)) continue;
       for (const b of L.blocks || []) for (const x of b.ex || []) {
         if (x.name === name && Array.isArray(x.sets) && x.sets.some(s => s && (s.w != null || s.r != null))) {
           if (!best || L.date > best.date) best = { date: L.date, sets: x.sets };
@@ -1009,73 +1018,219 @@ function prevSets(key, name, before) {
   return best;
 }
 const exSets = (x, b) => Number(x.sets || b.sets || 3);
-function workoutForm(i, ses) {
+const nowT = () => { const d = new Date(); return hhmm(d) + ':' + pad(d.getSeconds()); };
+// шаг веса по истории упражнения: самая маленькая разница между весами, от 1 до 5 кг (по умолчанию 2,5)
+function wStep(name) {
+  const ws = new Set();
+  for (const mk of Object.keys(S.workouts)) for (const L of Object.values((S.workouts[mk] || {}).logs || {})) for (const b of (L && L.blocks) || []) for (const x of b.ex || []) {
+    if (x.name !== name || !Array.isArray(x.sets)) continue;
+    x.sets.forEach(s => { if (s && s.w > 0) ws.add(Number(s.w)); (s && s.drops || []).forEach(d => { if (d && d.w > 0) ws.add(Number(d.w)); }); });
+  }
+  const v = Array.from(ws).sort((a, b) => a - b); let m = Infinity;
+  for (let k = 1; k < v.length; k++) m = Math.min(m, Math.round((v[k] - v[k - 1]) * 100) / 100);
+  return isFinite(m) && m > 0 ? Math.max(1, Math.min(5, m)) : 2.5;
+}
+function wkSrc(i) {
   const log = logFor(i), draft = LS.get('bj-draft-' + i.id);
-  const src = (draft && draft.blocks) || (log && log.blocks) || null;
+  return { log, draft, src: (draft && draft.blocks) || (log && log.blocks) || null };
+}
+const exKey = (bi, ei) => bi + '-' + ei;
+function exRows(c, x, b, bi, ei, v) {
+  return Math.max(exSets(x, b), (v && Array.isArray(v.sets) ? v.sets.length : 0), (c.rows || {})[exKey(bi, ei)] || 0);
+}
+function stepper(id, val, ph, mode, label, k, f) {
+  return `<span class="stp"><button type="button" class="sb" data-action="stp" data-k="${k}" data-f="${f}" data-d="-1" aria-label="${esc(label)}: меньше">−</button><input id="${id}" inputmode="${mode}" value="${esc(val)}" placeholder="${esc(ph)}" aria-label="${esc(label)}"><button type="button" class="sb" data-action="stp" data-k="${k}" data-f="${f}" data-d="1" aria-label="${esc(label)}: больше">+</button></span>`;
+}
+function workoutForm(i, ses) {
+  const c = S.cur && S.cur.type === 'sport' && S.cur.id === i.id ? S.cur : { rows: {}, times: {} };
+  c.rows = c.rows || {}; c.times = c.times || {};
+  const { log, draft, src } = wkSrc(i);
   const val = (bi, ei) => (src && src[bi] && src[bi].ex && src[bi].ex[ei]) || null;
+  // время подходов из сохранённого
+  if (src) src.forEach((b, bi) => (b.ex || []).forEach((x, ei) => (x.sets || []).forEach((s, r) => { const k = bi + '-' + ei + '-' + (r + 1); if (s && s.t && !c.times[k]) c.times[k] = s.t; })));
   let prevDate = null;
+  const anyOpen = ses.blocks.some((b, bi) => S.open.has('wk-' + i.id + '-' + bi));
+  let firstOpen = -1;
   const html = ses.blocks.map((b, bi) => {
     const ex = b.ex || [];
+    const wrAll = ex.map((x, ei) => ({ x, ei, n: 0 })).filter(o => o.x.log === 'wr' || o.x.log === 'r');
+    wrAll.forEach(o => { o.n = exRows(c, o.x, b, bi, o.ei, val(bi, o.ei)); });
+    // в суперсете первым идёт упражнение, где подходов больше
+    const order = ex.map((x, ei) => ({ x, ei, n: (wrAll.find(o => o.ei === ei) || {}).n || 0, ps: (x.log === 'wr' || x.log === 'r') ? exSets(x, b) : 0 })).sort((a, z) => z.ps - a.ps || a.ei - z.ei);
     const multi = ex.length > 1;
-    const head = b.type ? `<div class="blk-h">${esc(b.type)}${b.sets ? ` · ${esc(b.sets)} ${plural(b.sets, 'круг', 'круга', 'кругов')}` : ''}</div>` : '';
-    const names = ex.map((x, ei) => `<div class="exl"><span class="let">${multi ? LET[ei] : ''}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${exSets(x, b) !== Number(b.sets || 3) && (x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${exSets(x, b)} ${plural(exSets(x, b), 'подход', 'подхода', 'подходов')}</span>` : ''}</span>${ses.replaced === 'custom' ? '<span></span>' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</div>
+    const letter = new Map(order.map((o, k) => [o.ei, multi ? LET[k] : '']));
+    const names = order.map(({ x, ei }) => `<div class="exl"><span class="let">${letter.get(ei)}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${(x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${(wrAll.find(o => o.ei === ei) || {}).n} ${plural((wrAll.find(o => o.ei === ei) || {}).n, 'подход', 'подхода', 'подходов')}</span>` : ''}</span>${ses.replaced === 'custom' ? '<span></span>' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</div>
       <div class="swap-form" id="swf-${bi}-${ei}" hidden><input id="swi-${bi}-${ei}" placeholder="Чем заменить" value="${esc(x.swapped ? x.name : '')}"><div class="two"><button type="button" class="btn sm" data-action="ex-swap-once" data-b="${bi}" data-e="${ei}">Только в этот раз</button><button type="button" class="btn sm" data-action="ex-swap-perm" data-b="${bi}" data-e="${ei}">В программе навсегда</button></div>${x.swapped ? `<button type="button" class="btn sm" data-action="ex-unswap" data-b="${bi}" data-e="${ei}">Вернуть по программе</button>` : ''}</div>`).join('');
-    let body = '';
-    const wr = ex.map((x, ei) => ({ x, ei })).filter(o => o.x.log === 'wr' || o.x.log === 'r');
+    let body = '', filled = 0, total = 0;
+    const wr = order.filter(o => o.x.log === 'wr' || o.x.log === 'r');
     if (wr.length) {
-      const rounds = Math.max(...wr.map(o => exSets(o.x, b)));
+      const rounds = Math.max(...wr.map(o => o.n));
       for (let r = 1; r <= rounds; r++) {
-        const inR = wr.filter(o => r <= exSets(o.x, b));
-        if (!inR.length) continue;
+        const inR = wr.filter(o => r <= o.n);
         body += '<div class="round">' + inR.map(o => {
           const v = val(bi, o.ei), s = (v && v.sets && v.sets[r - 1]) || {};
           const p = prevSets(ses.key, o.x.name, i.eff);
           if (p && (!prevDate || p.date > prevDate)) prevDate = p.date;
           const ps = (p && p.sets[r - 1]) || {};
-          const lab = r + (multi ? LET[o.ei] : '');
-          const rIn = `<input id="lg-${bi}-${o.ei}-${r}-r" inputmode="numeric" value="${esc(s.r != null ? s.r : '')}" placeholder="${esc(ps.r != null ? ps.r : 'повт')}" aria-label="${esc(o.x.name)}, подход ${r}, повторы">`;
-          if (o.x.log === 'r') return `<div class="set r"><span class="sl">${lab}</span>${rIn}<span class="u">повт</span></div>`;
-          return `<div class="set"><span class="sl">${lab}</span><input id="lg-${bi}-${o.ei}-${r}-w" inputmode="decimal" value="${esc(s.w != null ? s.w : '')}" placeholder="${esc(ps.w != null ? ps.w : 'кг')}" aria-label="${esc(o.x.name)}, подход ${r}, вес"><span class="u">кг ×</span>${rIn}<span class="u">повт</span></div>`;
+          const k = bi + '-' + o.ei + '-' + r, lab = r + letter.get(o.ei), nm = o.x.name + ', подход ' + r;
+          total++; if (s.w != null || s.r != null) filled++;
+          const rIn = stepper(`lg-${k}-r`, s.r != null ? s.r : '', ps.r != null ? ps.r : 'повт', 'numeric', nm + ', повторы', k, 'r');
+          let row;
+          if (o.x.log === 'r') row = `<div class="set r" data-k="${k}"><span class="sl">${lab}</span>${rIn}<span class="u">повт</span></div>`;
+          else row = `<div class="set" data-k="${k}"><span class="sl">${lab}</span>${stepper(`lg-${k}-w`, s.w != null ? s.w : '', ps.w != null ? ps.w : 'кг', 'decimal', nm + ', вес', k, 'w')}<span class="u">×</span>${rIn}<button type="button" class="sb drop" data-action="drop-add" data-k="${k}" aria-label="Добавить дроп-сет">↓</button></div>`;
+          const drops = Array.isArray(s.drops) ? s.drops : [];
+          const pd = Array.isArray(ps.drops) ? ps.drops : [];
+          row += drops.map((dr, j) => { const kd = k + '-d' + j, pj = pd[j] || {}; return `<div class="set drop-row" data-k="${kd}"><span class="sl">↳</span>${stepper(`lg-${kd}-w`, dr && dr.w != null ? dr.w : '', pj.w != null ? pj.w : 'кг', 'decimal', nm + ', дроп, вес', kd, 'w')}<span class="u">×</span>${stepper(`lg-${kd}-r`, dr && dr.r != null ? dr.r : '', pj.r != null ? pj.r : 'повт', 'numeric', nm + ', дроп, повторы', kd, 'r')}<button type="button" class="sb" data-action="drop-del" data-k="${kd}" aria-label="Убрать дроп-сет">×</button></div>`; }).join('');
+          return row;
         }).join('') + '</div>';
       }
+      body += `<div class="set-add">${wr.map(o => `<button type="button" class="link-btn" data-action="set-add" data-bi="${bi}" data-ei="${o.ei}">+ подход${multi ? ' ' + letter.get(o.ei) : ''}</button>`).join('')}</div>`;
     }
     ex.forEach((x, ei) => {
       const v = val(bi, ei);
-      if (x.log === 'check') body += `<label class="chk"><input type="checkbox" id="lg-${bi}-${ei}-c"${v && v.done ? ' checked' : ''}> ${multi ? LET[ei] + ': ' : ''}сделано</label>`;
-      else if (x.log === 'note') body += `<input class="note-in" id="lg-${bi}-${ei}-n" value="${esc((v && v.note) || '')}" placeholder="${esc(x.ph || 'заметка')}" aria-label="${esc(x.name)}">`;
+      if (x.log === 'check') { total++; if (v && v.done) filled++; body += `<label class="chk"><input type="checkbox" id="lg-${bi}-${ei}-c"${v && v.done ? ' checked' : ''}> ${multi ? letter.get(ei) + ': ' : ''}сделано</label>`; }
+      else if (x.log === 'note') { total++; if (v && v.note) filled++; body += `<input class="note-in" id="lg-${bi}-${ei}-n" value="${esc((v && v.note) || '')}" placeholder="${esc(x.ph || 'заметка')}" aria-label="${esc(x.name)}">`; }
     });
-    return `<div class="blk">${head}${names}${body ? `<div class="sets">${body}</div>` : ''}</div>`;
+    if (!wr.length) return `<div class="blk" data-bi="${bi}">${b.type ? `<div class="blk-h">${esc(b.type)}</div>` : ''}${names}${body ? `<div class="sets">${body}</div>` : ''}</div>`;
+    if (firstOpen < 0 && filled < total) firstOpen = bi;
+    const key = 'wk-' + i.id + '-' + bi;
+    const open = anyOpen ? S.open.has(key) : firstOpen === bi;
+    if (!anyOpen && open) S.open.add(key);
+    const title = (b.type || 'Упражнение') + (b.type ? ' ' + (ses.blocks.slice(0, bi + 1).filter(z => z.type === b.type).length) : '');
+    const shortNames = order.filter(o => o.x.log === 'wr' || o.x.log === 'r').map(o => o.x.name.split(/[ ,(]/)[0]).join(' · ');
+    return `<details class="blk blk-f${filled >= total ? ' full' : ''}" data-bi="${bi}" data-k="${key}"${open ? ' open' : ''}><summary><span class="bf-t">${esc(title)}</span><span class="bf-n">${esc(shortNames)}</span><span class="bf-c" data-c="${bi}">${filled}/${total}</span></summary>${names}<div class="sets">${body}</div></details>`;
   }).join('');
   const info = [];
-  if (prevDate) info.push(`Серые цифры — прошлый раз, ${short(prevDate)}.`);
+  if (prevDate) info.push(`Серые цифры — прошлый раз, ${short(prevDate)}. «+» с пустого поля подставляет прошлое.`);
   if (draft) info.push('Есть несохранённые подходы — они подставлены.');
   else if (log) info.push('Подходы сохранены ' + (log.ts ? hhmm(new Date(log.ts)) + ', ' : '') + short(log.date) + '.');
-  return html + (info.length ? `<p class="note">${info.join(' ')}</p>` : '');
+  return `<div class="wk-prog" id="wk-prog"></div>` + html + (info.length ? `<p class="note">${info.join(' ')}</p>` : '');
+}
+function wkProgress() {
+  const box = document.getElementById('wk'); if (!box) return;
+  let done = 0, total = 0;
+  box.querySelectorAll('.blk').forEach(bl => {
+    let bd = 0, bt = 0;
+    bl.querySelectorAll('.set:not(.drop-row)').forEach(row => { bt++; if (Array.from(row.querySelectorAll('input')).some(x => x.value.trim())) bd++; });
+    bl.querySelectorAll('input[type=checkbox]').forEach(x => { bt++; if (x.checked) bd++; });
+    bl.querySelectorAll('.note-in').forEach(x => { bt++; if (x.value.trim()) bd++; });
+    const cEl = bl.querySelector('.bf-c'); if (cEl) cEl.textContent = bd + '/' + bt;
+    bl.classList.toggle('full', bt > 0 && bd >= bt);
+    done += bd; total += bt;
+  });
+  const p = document.getElementById('wk-prog'); if (!p) return;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  p.innerHTML = `<span class="wp-bar"><i style="width:${pct}%"></i></span><span class="wp-t">${done} из ${total}</span>`;
 }
 function collectLog(ses) {
   let any = false;
+  const c = S.cur && S.cur.type === 'sport' ? S.cur : { times: {} };
+  const num = id => { const el = document.getElementById(id); return el ? numOrNull(el.value) : null; };
   const blocks = ses.blocks.map((b, bi) => ({ type: b.type || '', ex: (b.ex || []).map((x, ei) => {
     const o = { name: x.name, log: x.log || 'check' };
     if (o.log === 'wr' || o.log === 'r') {
       const sets = [];
-      for (let r = 1; r <= exSets(x, b); r++) {
-        const we = document.getElementById(`lg-${bi}-${ei}-${r}-w`), re = document.getElementById(`lg-${bi}-${ei}-${r}-r`);
-        const w = we ? numOrNull(we.value) : null, rr = re ? numOrNull(re.value) : null;
-        if (w == null && rr == null) sets.push(null);
-        else { any = true; const s = {}; if (w != null) s.w = w; if (rr != null) s.r = rr; sets.push(s); }
+      for (let r = 1; document.getElementById(`lg-${bi}-${ei}-${r}-r`); r++) {
+        const k = `${bi}-${ei}-${r}`;
+        const w = num(`lg-${k}-w`), rr = num(`lg-${k}-r`);
+        const drops = [];
+        for (let j = 0; document.getElementById(`lg-${k}-d${j}-r`); j++) {
+          const dw = num(`lg-${k}-d${j}-w`), dr = num(`lg-${k}-d${j}-r`);
+          const d = {}; if (dw != null) d.w = dw; if (dr != null) d.r = dr; drops.push(d);
+        }
+        const keepDrops = drops.length && drops.some(d => d.w != null || d.r != null) ? drops : (drops.length ? drops : null);
+        if (w == null && rr == null && !keepDrops) sets.push(null);
+        else {
+          const s = {}; if (w != null) s.w = w; if (rr != null) s.r = rr;
+          if (keepDrops) s.drops = keepDrops;
+          if (w != null || rr != null) { any = true; s.t = (c.times || {})[k] || undefined; if (!s.t) delete s.t; }
+          sets.push(s);
+        }
       }
       while (sets.length && sets[sets.length - 1] == null) sets.pop();
       o.sets = sets;
     } else if (o.log === 'check') {
-      const c = document.getElementById(`lg-${bi}-${ei}-c`); o.done = !!(c && c.checked); if (o.done) any = true;
+      const el = document.getElementById(`lg-${bi}-${ei}-c`); o.done = !!(el && el.checked); if (o.done) any = true;
     } else if (o.log === 'note') {
-      const n = document.getElementById(`lg-${bi}-${ei}-n`); o.note = n ? n.value.trim() : ''; if (o.note) any = true;
+      const el = document.getElementById(`lg-${bi}-${ei}-n`); o.note = el ? el.value.trim() : ''; if (o.note) any = true;
     }
     return o;
   }) }));
   return { blocks, any };
 }
+function saveDraftNow() {
+  const c = S.cur; if (!c || c.type !== 'sport') return;
+  clearTimeout(draftT);
+  const lg = collectLog(c.ses);
+  // на сохранение драфта: пустые дропы оставляем, чтобы строка не пропала
+  LS.set('bj-draft-' + c.id, { blocks: lg.blocks });
+}
+function markSetTime(k) {
+  const c = S.cur; if (!c || c.type !== 'sport') return;
+  const m = /^(\d+-\d+-\d+)/.exec(k || ''); if (!m) return;
+  c.times = c.times || {};
+  if (!c.times[m[1]]) c.times[m[1]] = nowT();
+}
+function rerenderWk() {
+  const c = S.cur; if (!c || c.type !== 'sport') return;
+  const i = findInst(c.id); if (!i) return;
+  const box = document.getElementById('wk'); if (!box) return;
+  box.innerHTML = workoutForm(i, c.ses);
+  wkProgress();
+}
+function stepBase(k, f) {
+  const el = document.getElementById(`lg-${k}-${f}`); if (!el) return null;
+  const m = /^(\d+)-(\d+)-(\d+)(?:-d(\d+))?$/.exec(k); if (!m) return null;
+  const [, bi, ei, r, dj] = m;
+  if (dj != null) {
+    const main = numOrNull((document.getElementById(`lg-${bi}-${ei}-${r}-${f}`) || {}).value);
+    if (f === 'w' && main != null) { const st = wStepFor(bi, ei); return Math.max(0, Math.round((main - Math.max(st, Math.round(main * 0.2 / st) * st)) * 100) / 100); }
+    return numOrNull(el.placeholder);
+  }
+  const ph = numOrNull(el.placeholder);
+  const prevRow = Number(r) > 1 ? numOrNull((document.getElementById(`lg-${bi}-${ei}-${Number(r) - 1}-${f}`) || {}).value) : null;
+  if (f === 'w') return prevRow != null ? prevRow : ph;
+  return ph != null ? ph : prevRow;
+}
+function wStepFor(bi, ei) {
+  const c = S.cur; if (!c || !c.ses) return 2.5;
+  const x = ((c.ses.blocks[bi] || {}).ex || [])[ei]; if (!x) return 2.5;
+  c.steps = c.steps || {};
+  if (c.steps[x.name] == null) c.steps[x.name] = wStep(x.name);
+  return c.steps[x.name];
+}
+function stepSet(k, f, d) {
+  const el = document.getElementById(`lg-${k}-${f}`); if (!el) return;
+  let v = numOrNull(el.value);
+  if (v == null) {
+    const base = stepBase(k, f);
+    v = base != null ? base : (f === 'w' ? 0 : 0) + (d > 0 ? (f === 'w' ? wStepFor(...k.split('-').slice(0, 2)) : 1) : 0);
+  } else {
+    const [bi, ei] = k.split('-');
+    const st = f === 'r' ? 1 : wStepFor(bi, ei);
+    v = Math.max(0, Math.round((v + d * st) * 100) / 100);
+  }
+  el.value = String(v);
+  markSetTime(k);
+  clearTimeout(draftT); draftT = setTimeout(saveDraftNow, 300);
+  wkProgress();
+}
+
+function cleanBlocks(blocks) {
+  return blocks.map(b => Object.assign({}, b, { ex: b.ex.map(x => {
+    if (!Array.isArray(x.sets)) return x;
+    const sets = x.sets.map(st => {
+      if (!st) return null;
+      const o = Object.assign({}, st);
+      if (Array.isArray(o.drops)) { o.drops = o.drops.filter(d => d && (d.w != null || d.r != null)); if (!o.drops.length) delete o.drops; }
+      return o.w != null || o.r != null || o.drops ? o : null;
+    });
+    while (sets.length && sets[sets.length - 1] == null) sets.pop();
+    return Object.assign({}, x, { sets });
+  }) }));
+}
 async function saveLog(i, ses, blocks) {
+  blocks = cleanBlocks(blocks);
   const mk = monthKey(i.eff);
   const next = await write('workouts/' + mk + '.json', d => { d.logs = d.logs || {}; d.logs[i.id] = { date: i.eff, key: ses.key, title: ses.title, blocks, ts: Date.now() }; return d; }, `Тренировка ${i.eff}: ${ses.title}`, { logs: {} });
   if (next) { S.workouts[mk] = next; LS.del('bj-draft-' + i.id); cacheNow(); }
@@ -1357,7 +1512,7 @@ function openTimerStop() {
     <div class="sh-acts"><button type="button" class="btn study block" data-action="timer-save" data-done="1">Сохранить и отметить урок</button><button type="button" class="btn block" data-action="timer-save">Только сохранить время</button><button type="button" class="btn danger block" data-action="timer-cancel">Сбросить</button></div>`);
 }
 async function logStudy(min, n, date, src) {
-  return writePlan(p => { const l = p.studyLog = p.studyLog || []; l.push({ date: date || today(), n: n || null, min: Math.round(min), src: src || 'timer' }); }, `Учёба: ${Math.round(min)} мин по факту`);
+  return writePlan(p => { const l = p.studyLog = p.studyLog || []; l.push({ date: date || today(), n: n || null, min: Math.round(min), src: src || 'timer', at: hhmm(new Date()) }); }, `Учёба: ${Math.round(min)} мин по факту`);
 }
 function openActual(n, date, planned) {
   S.cur = { type: 'actual', n, date };
@@ -1533,7 +1688,7 @@ function shopList(days) {
   const t = today(), counts = {}, plain = {};
   for (let k = 0; k < days; k++) {
     const d = addDays(t, k), day = (S.meals.days || {})[d] || {};
-    for (const meal of Object.keys(day)) for (const id of day[meal] || []) {
+    for (const meal of Object.keys(day)) if (Array.isArray(day[meal])) for (const id of day[meal]) {
       const r = recipeById(id); if (!r) continue;
       if (meal === 'lunch' && isWorkday(d) && !absenceOn(d)) continue; // обед — в столовой
       const parts = isCombo(r) ? comboParts(r) : [r];
@@ -2145,7 +2300,7 @@ function renderPlan() {
     rest += dayHtml(d, k);
   }
   const end = addDays(t, HORIZON);
-  dy.innerHTML = `<div class="sec-row"><h2 class="sec">План</h2><button type="button" class="btn sm" data-action="ev-new">+ Событие</button></div>`
+  dy.innerHTML = `<div class="sec-row"><h2 class="sec">План</h2><span class="acts">${shopBtnHtml()}<button type="button" class="btn sm" data-action="ev-new">+ Событие</button></span></div>`
     + dayHtml(t, 0) + dayHtml(addDays(t, 1), 1)
     + `<details class="fold days-more" data-k="plan-more"${openAttr('plan-more')}><summary><span>Дальше</span><span class="sec-note">до ${dm(end)} · ${HORIZON - 1} ${plural(HORIZON - 1, 'день', 'дня', 'дней')}</span></summary>${rest}</details>`;
 }
@@ -2518,7 +2673,7 @@ function renderClaudeBtn() {
   const sm = b.querySelector('small'); if (sm) sm.textContent = n ? (n === 1 ? 'есть ответ' : 'есть ответы') : 'запросы и идеи';
 }
 const byNewest = (a, b) => (b.ts || 0) - (a.ts || 0) || ((b.date || '') < (a.date || '') ? -1 : (b.date || '') > (a.date || '') ? 1 : 0);
-const IDEA_AREA = { sport: 'спорт', study: 'учёба' };
+const IDEA_AREA = { sport: 'спорт', study: 'учёба', food: 'еда', general: 'общее' };
 function ideasListHtml(area, limit) {
   const list = S.ideas.filter(x => x.area === area).sort(byNewest);
   if (!list.length) return limit ? `<p class="note">Пока пусто.</p>` : '<p class="note">Пока пусто.</p>';
@@ -2528,34 +2683,6 @@ function ideasListHtml(area, limit) {
     return `<div class="req-item"><div>${esc(x.title || x.text || x.link || 'Без описания')}</div>${x.title && x.text ? `<div class="m">${esc(x.text)}</div>` : ''}${x.answer ? `<div class="ans">${esc(x.answer)}</div>` : ''}<div class="req-meta"><span>${esc(meta)}</span>${limit ? '' : `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>`}</div></div>`;
   }).join('');
   return `<div class="stack">${rows}</div>` + (limit && list.length > limit ? `<button type="button" class="link-btn" data-action="ideas" data-area="${area}">Все идеи (${list.length})</button>` : '');
-}
-function openRequests(tab, keepScroll) {
-  tab = tab || (S.cur && S.cur.type === 'req' ? S.cur.tab : 'req') || 'req';
-  const editId = S.cur && S.cur.type === 'req' ? S.cur.editId : null;
-  S.cur = { type: 'req', tab, editId };
-  const seg = `<div class="seg4" role="group" aria-label="Раздел">${[['req', 'Запросы'], ['sport', 'Идеи: спорт'], ['study', 'Идеи: учёба']].map(([k, l]) => `<button type="button" data-action="req-tab" data-tab="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>`;
-  let body;
-  if (tab === 'req') {
-    const open = S.requests.filter(r => r.status !== 'done' && !demoBad(r.text + ' ' + (r.answer || ''))).sort(byNewest);
-    const done = S.requests.filter(r => r.status === 'done' && !demoBad(r.text + ' ' + (r.answer || ''))).sort((a, b) => (b.doneAt || '') < (a.doneAt || '') ? -1 : (b.doneAt || '') > (a.doneAt || '') ? 1 : byNewest(a, b)).slice(0, 15);
-    body = `
-    <label class="fld" for="rq-text">Новый запрос</label><textarea id="rq-text" rows="3" placeholder="Например: добавь в программу подтягивания"></textarea>
-    <div class="sh-acts"><button type="button" class="btn primary block" data-action="rq-add">Записать</button></div>
-    ${open.length ? `<h3 class="sec">Ждут: ${open.length}</h3><div class="stack">${open.map(r => r.id === editId
-      ? `<div class="req-item"><textarea id="rq-edit" rows="4">${esc(r.text)}</textarea><div class="req-meta"><button type="button" class="btn sm" data-action="rq-edit-cancel">Отмена</button><button type="button" class="btn sm study" data-action="rq-edit-save" data-id="${esc(r.id)}">Сохранить</button></div></div>`
-      : `<div class="req-item"><div>${esc(r.text)}</div>${r.answer ? `<div class="ans">Claude: ${esc(r.answer)}</div>` : ''}<div class="req-meta"><span>${r.date ? short(r.date) : ''}${r.status === 'waiting' ? ' · ждёт тебя' : ''}</span><button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(r.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(r.id)}">Удалить</button></div></div>`).join('')}</div>` : '<p class="note">Новых запросов нет.</p>'}
-    ${done.length ? `<h3 class="sec">Сделано</h3><div class="stack">${done.map(r => `<div class="req-item"><div>${esc(r.text)}</div>${r.answer ? `<div class="ans">${esc(r.answer)}</div>` : ''}<div class="req-meta"><span>${r.doneAt ? 'сделано ' + short(r.doneAt) : 'сделано'}</span></div></div>`).join('')}</div>` : ''}`;
-  } else {
-    body = `
-    <label class="fld" for="id-text">Что это и зачем (коротко)</label><textarea id="id-text" rows="2" placeholder="${tab === 'sport' ? 'Например: жим Свенда вместо обратной бабочки?' : 'Например: видео про сети в Docker'}"></textarea>
-    <label class="fld" for="id-link">Ссылка</label><input id="id-link" type="url" inputmode="url" placeholder="https://…">
-    <label class="btn block file-btn" style="margin-top:10px"><span id="id-files-label">Добавить фото или видео</span><input type="file" id="id-files" accept="image/*,video/*" multiple aria-label="Фото или видео"></label>
-    <p class="note">Видео режется на кадры. Звук не слышу — важное допиши текстом.</p>
-    <div class="sh-acts"><button type="button" class="btn primary block" data-action="idea-save" data-area="${tab}">Сохранить идею</button></div>
-    <h3 class="sec">Все идеи · ${IDEA_AREA[tab]}</h3>${ideasListHtml(tab, 0)}`;
-  }
-  openSheet(`<h2 class="sh-title sh-claude"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span>Связь с Claude</h2>${seg}${body}`, keepScroll);
-  markAnswersSeen();
 }
 function seekTo(v, t) {
   return new Promise(res => {
@@ -2906,7 +3033,7 @@ async function openSport(id, keepScroll) {
   await ensureWorkouts([monthKey(i.eff), monthShift(monthKey(i.eff), -1)]);
   const ses = sessionFor(i);
   const auto = i.state ? null : planMove(i);
-  S.cur = { type: 'sport', id, auto, ses };
+  S.cur = { type: 'sport', id, auto, ses, rows: {}, times: {} };
   const t = today();
   const sessions = (S.config.sport || {}).sessions || {};
   let status = '';
@@ -2952,6 +3079,7 @@ async function openSport(id, keepScroll) {
     <div id="wk">${workoutForm(i, ses)}</div>
     ${ses.note ? `<p class="note">${esc(ses.note)}</p>` : ''}
     ${main}${moveBox}${replaceBox}`, keepScroll);
+  wkProgress();
 }
 async function commitMove(i, res, reason) {
   if (!res) return;
@@ -3096,7 +3224,7 @@ async function quickDishes(meal, text) {
   const ids = ensureDishes(names, meal, fresh);
   let ok = true;
   if (fresh.length) ok = await writeRecipes(list => { fresh.forEach(r => list.push(r)); }, `Еда: блюда ${fresh.map(r => r.title).join(', ').slice(0, 60)}`);
-  if (ok) ok = await writeMeals(days => { const day = days[d] = days[d] || {}; const arr = day[meal] = Array.isArray(day[meal]) ? day[meal] : []; ids.forEach(id => arr.push(id)); }, `Еда ${d}: ${MEAL_NAME[meal]} — ${names.join(', ').slice(0, 60)}`);
+  if (ok) ok = await writeMeals(days => { const day = days[d] = days[d] || {}; const arr = day[meal] = Array.isArray(day[meal]) ? day[meal] : []; ids.forEach(id => arr.push(id)); stampMeal(day, meal); }, `Еда ${d}: ${MEAL_NAME[meal]} — ${names.join(', ').slice(0, 60)}`);
   if (ok) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${names.join(', ')}`); }
   return ok;
 }
@@ -3193,7 +3321,7 @@ async function comboSave(btn) {
     const rec = Object.assign(k >= 0 ? list[k] : { id, added: today() }, { title, kind: 'combo', parts: partIds, meals: Array.from(c.meals) });
     if (k < 0) list.push(rec);
   }, `Еда: составное блюдо «${title}»`);
-  if (ok && c.meal && !c.id) ok = await writeMeals(days => { const d = S.foodDate, day = days[d] = days[d] || {}; (day[c.meal] = Array.isArray(day[c.meal]) ? day[c.meal] : []).push(id); }, `Еда ${S.foodDate}: ${MEAL_NAME[c.meal]} — ${title}`);
+  if (ok && c.meal && !c.id) ok = await writeMeals(days => { const d = S.foodDate, day = days[d] = days[d] || {}; (day[c.meal] = Array.isArray(day[c.meal]) ? day[c.meal] : []).push(id); stampMeal(day, c.meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[c.meal]} — ${title}`);
   busy(btn, false);
   if (ok) { closeSheet(); toast(c.meal && !c.id ? `${MEAL_NAME[c.meal]}: ${title}` : 'Сохранено'); }
 }
@@ -3258,7 +3386,7 @@ async function foodPhoto(meal, file) {
   if (!up.photos.length) return;
   const rec = { id, title: 'Фото: ' + MEAL_GEN[meal] + ' ' + dm(d), meals: [meal], draft: true, from: 'photo', photos: up.photos, media: up.media, added: today(), eaten: d };
   let ok = await writeRecipes(list => { list.push(rec); }, `Фото еды: ${MEAL_NAME[meal]} ${d}`);
-  if (ok) ok = await writeMeals(days => { const day = days[d] = days[d] || {}; (day[meal] = Array.isArray(day[meal]) ? day[meal] : []).push(id); }, `Еда ${d}: ${MEAL_NAME[meal]} — фото`);
+  if (ok) ok = await writeMeals(days => { const day = days[d] = days[d] || {}; (day[meal] = Array.isArray(day[meal]) ? day[meal] : []).push(id); stampMeal(day, meal); }, `Еда ${d}: ${MEAL_NAME[meal]} — фото`);
   if (ok) toast('Фото сохранено. Разберу, что это, и добавлю в рецепты.');
 }
 function fileToBase64(file) {
@@ -3461,6 +3589,38 @@ document.addEventListener('click', async ev => {
   if (b.disabled) return;
   switch (a) {
     case 'tab': setTab(b.dataset.tab); break;
+    case 'stp': stepSet(b.dataset.k, b.dataset.f, Number(b.dataset.d)); break;
+    case 'set-add': {
+      const c = S.cur; if (!c || c.type !== 'sport') return;
+      const bi = Number(b.dataset.bi), ei = Number(b.dataset.ei), bl = c.ses.blocks[bi], x = bl.ex[ei];
+      saveDraftNow();
+      const d = LS.get('bj-draft-' + c.id), v = d && d.blocks[bi] && d.blocks[bi].ex[ei];
+      c.rows[exKey(bi, ei)] = exRows(c, x, bl, bi, ei, v) + 1;
+      rerenderWk(); break;
+    }
+    case 'drop-add': case 'drop-del': {
+      const c = S.cur; if (!c || c.type !== 'sport') return;
+      const m = /^(\d+)-(\d+)-(\d+)(?:-d(\d+))?$/.exec(b.dataset.k || ''); if (!m) return;
+      const bi = Number(m[1]), ei = Number(m[2]), r = Number(m[3]);
+      let base = null;
+      if (a === 'drop-add') { const mw = numOrNull((document.getElementById(`lg-${bi}-${ei}-${r}-w`) || {}).value), st = wStepFor(bi, ei); if (mw != null) base = Math.max(0, Math.round((mw - Math.max(st, Math.round(mw * 0.2 / st) * st)) * 100) / 100); }
+      saveDraftNow();
+      const d = LS.get('bj-draft-' + c.id); if (!d) return;
+      const x = d.blocks[bi].ex[ei]; x.sets = x.sets || [];
+      while (x.sets.length < r) x.sets.push(null);
+      const st = x.sets[r - 1] = x.sets[r - 1] || {};
+      st.drops = Array.isArray(st.drops) ? st.drops : [];
+      if (a === 'drop-add') st.drops.push(base != null ? { w: base } : {});
+      else { st.drops.splice(Number(m[4]), 1); if (!st.drops.length) delete st.drops; }
+      c.rows[exKey(bi, ei)] = Math.max(c.rows[exKey(bi, ei)] || 0, x.sets.length);
+      LS.set('bj-draft-' + c.id, d);
+      rerenderWk(); break;
+    }
+    case 'shop-tog': shopToggle(id); break;
+    case 'shop-clean': shopClean(); break;
+    case 'shop-menu': shopFromMenu(); break;
+    case 'msg-area': if (S.cur && S.cur.type === 'req') { S.cur.area = b.dataset.area; document.querySelectorAll('[data-action="msg-area"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.area === S.cur.area))); } break;
+    case 'msg-send': await sendMsg(b); break;
     case 'menu': openMenu(); break;
     case 'ready': openReadiness(); break;
     case 'streak': openStreak(); break;
@@ -3505,7 +3665,7 @@ document.addEventListener('click', async ev => {
       busy(b, false); break;
     }
     case 'done-toggle': S.showAllDone = !S.showAllDone; renderLessons(); break;
-    case 'ideas': openRequests(b.dataset.area || 'sport'); break;
+    case 'ideas': S.cur = null; openRequests('new', false, b.dataset.area || 'sport'); break;
     case 'req-tab': openRequests(b.dataset.tab); break;
     case 'idea-save': await ideaSave(b, b.dataset.area); break;
     case 'idea-del': {
@@ -3547,7 +3707,7 @@ document.addEventListener('click', async ev => {
     case 'q-save': busy(b, true); await quarterSave(); busy(b, false); break;
     case 'dates': openDates(); break;
     case 'dates-save': busy(b, true); await datesSave(); busy(b, false); break;
-    case 'shop': openShop(7); break;
+    case 'shop': openShopChat(); break;
     case 'shop-days': openShop(Number(b.dataset.days)); break;
     case 'shop-tick': { const got = new Set(LS.get('bj-shop-got') || []), k = b.dataset.key; if (got.has(k)) got.delete(k); else got.add(k); LS.set('bj-shop-got', Array.from(got)); openShop(); break; }
     case 'shop-add': { const v = ($('#shop-add').value || '').trim(); if (v) { LS.set('bj-shop-extra', (LS.get('bj-shop-extra') || []).concat([v])); openShop(); } break; }
@@ -3705,7 +3865,7 @@ document.addEventListener('click', async ev => {
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
       busy(b, true); if (await writeLessons(list => { const k = list.findIndex(y => y.id === l.id); if (k >= 0) list.splice(k, 1); }, `Учёба: урок ${l.n} удалён`)) { closeSheet(); toast(`Урок ${l.n} удалён`); } busy(b, false); break;
     }
-    case 'req': S.cur = null; openRequests('req'); break;
+    case 'req': S.cur = null; openRequests('new'); break;
     case 'rq-add': {
       const text = (($('#rq-text') && $('#rq-text').value) || '').trim();
       if (!text) { toast('Напиши, что сделать'); if ($('#rq-text')) $('#rq-text').focus(); return; }
@@ -3738,13 +3898,13 @@ document.addEventListener('click', async ev => {
     case 'meal-add': {
       const meal = b.dataset.meal, r = recipeById(id); if (!r) return;
       busy(b, true);
-      if (await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; (day[meal] = Array.isArray(day[meal]) ? day[meal] : []).push(id); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${r.title}`)) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${r.title}`); }
+      if (await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; (day[meal] = Array.isArray(day[meal]) ? day[meal] : []).push(id); stampMeal(day, meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${r.title}`)) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${r.title}`); }
       busy(b, false); break;
     }
     case 'meal-remove': {
       const meal = b.dataset.meal, idx = Number(b.dataset.idx);
       busy(b, true);
-      await writeMeals(days => { const day = days[S.foodDate]; if (day && Array.isArray(day[meal])) { day[meal].splice(idx, 1); if (!day[meal].length) delete day[meal]; if (!Object.keys(day).length) delete days[S.foodDate]; } }, `Еда ${S.foodDate}: убрано из «${MEAL_NAME[meal]}»`);
+      await writeMeals(days => { const day = days[S.foodDate]; if (day && Array.isArray(day[meal])) { day[meal].splice(idx, 1); if (!day[meal].length) { delete day[meal]; if (day.t) delete day.t[meal]; if (day.t && !Object.keys(day.t).length) delete day.t; } if (!Object.keys(day).length) delete days[S.foodDate]; } }, `Еда ${S.foodDate}: убрано из «${MEAL_NAME[meal]}»`);
       busy(b, false); break;
     }
     case 'recipe': openRecipe(id); break;
@@ -3804,6 +3964,9 @@ document.addEventListener('click', async ev => {
   }
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
+document.addEventListener('submit', ev => {
+  if (ev.target && ev.target.id === 'shop-form') { ev.preventDefault(); const inp = $('#shop-in'); if (inp && inp.value.trim()) { shopAdd(inp.value); inp.value = ''; } if (inp) inp.focus(); }
+});
 let draftT;
 $('#notes-q').addEventListener('input', ev => notesSearch(ev.target.value));
 $('#sheet').addEventListener('input', ev => {
@@ -3811,14 +3974,17 @@ $('#sheet').addEventListener('input', ev => {
   if (ev.target.id === 'ev-n') repNote();
   if (ev.target.id === 'sl-bed' || ev.target.id === 'sl-wake') sleepDurNote();
   if (c && c.type === 'sport' && ev.target.id && ev.target.id.startsWith('lg-')) {
+    const m = /^lg-(\d+-\d+-\d+)/.exec(ev.target.id);
+    if (m && ev.target.value.trim()) markSetTime(m[1]);
     clearTimeout(draftT);
-    draftT = setTimeout(() => { const lg = collectLog(c.ses); if (lg.any) LS.set('bj-draft-' + c.id, { blocks: lg.blocks }); }, 400);
+    draftT = setTimeout(saveDraftNow, 400);
+    wkProgress();
   }
 });
 document.addEventListener('change', async ev => {
   const el = ev.target;
   if (el.id && el.id.startsWith('lg-') && el.type === 'checkbox') {
-    const c = S.cur; if (c && c.type === 'sport') { const lg = collectLog(c.ses); LS.set('bj-draft-' + c.id, { blocks: lg.blocks }); }
+    const c = S.cur; if (c && c.type === 'sport') { saveDraftNow(); wkProgress(); }
     return;
   }
   if (el.matches && el.matches('[data-slot]')) {
@@ -3837,6 +4003,8 @@ document.addEventListener('change', async ev => {
     if (box) box.innerHTML = expenseCatBlock(el.value, x && kindOf(x) === el.value ? x.cat : catsFor(el.value)[0], x && x.dir);
   } else if (el.id === 'ev-unit' || el.id === 'ev-n' || el.id === 'ev-date') {
     repNote();
+  } else if (el.id === 'msg-files') {
+    const n = el.files ? el.files.length : 0, lab = $('#msg-files-label'); if (lab) lab.textContent = n ? '📎 ' + n : '📎';
   } else if (el.id === 'rc-files' || el.id === 'id-files') {
     const n = el.files ? el.files.length : 0, lab = $(el.id === 'rc-files' ? '#rc-files-label' : '#id-files-label');
     if (lab) lab.textContent = n ? `Выбрано файлов: ${n}` : (el.id === 'rc-files' ? 'Выбрать фото или видео' : 'Добавить фото или видео');
@@ -3915,6 +4083,8 @@ function ring(pct, size, cls) {
 const hmClock = m => Math.floor(m / 60) + ':' + pad(m % 60);
 
 /* ---------- индекс готовности: сон + нагрузка + наряды ---------- */
+// личная норма сна: config.sleepNorm = {from: "7:15", to: "8:15"}
+function sleepBand() { const n = (S.config && S.config.sleepNorm) || {}; const lo = toMin(n.from) || 435, hi = toMin(n.to) || 495; return { lo: Math.max(300, lo), hi: Math.max(lo, hi) }; }
 function readiness(d) {
   d = d || today();
   const days = S.sleep.days || {}, reasons = [];
@@ -3923,10 +4093,14 @@ function readiness(d) {
   const last = sleepMin(days[d]);
   const prev = [1, 2].map(k => sleepMin(days[addDays(d, -k)])).filter(Boolean);
   let sleepScore = 60;
+  const band = sleepBand();
   if (last) {
-    const avg = (last * 2 + prev.reduce((a, b) => a + b, 0)) / (2 + prev.length);
-    sleepScore = Math.max(0, Math.min(100, (avg - 300) / 150 * 100));
-    reasons.push(`сон ${hmClock(last)}${prev.length ? `, за ${prev.length + 1} ${plural(prev.length + 1, 'ночь', 'ночи', 'ночей')} в среднем ${hmClock(Math.round(avg))}` : ''} (норма 7:30)`);
+    const cap = x => Math.min(x, band.lo);
+    const avg = (cap(last) * 2 + prev.reduce((a, b) => a + cap(b), 0)) / (2 + prev.length);
+    sleepScore = Math.max(0, Math.min(100, (avg - 300) / (band.lo - 300) * 100));
+    reasons.push(`сон ${hmClock(last)}${prev.length ? `, до этого ${prev.map(hmClock).join(' и ')}` : ''} (твоя норма ${hmClock(band.lo)}–${hmClock(band.hi)})`);
+    if (last > band.hi + 15) { sleepScore -= Math.min(35, Math.round((last - band.hi) / 60 * 20)); reasons.push('спал дольше нормы — по твоим наблюдениям после такого весь день вялый'); }
+    if (/просып/i.test(days[d].note || '')) { sleepScore -= 10; reasons.push('сон с пробуждениями'); }
     const bm = bedMin(days[d]);
     if (bm != null && bm > 25 * 60) { sleepScore -= 10; reasons.push(`лёг в ${days[d].bed} — поздно`); }
   } else reasons.push('сон этой ночи не отмечен');
@@ -4228,9 +4402,139 @@ async function benSet(id, st) {
   if (next) { S.benefits = next; cacheNow(); openBenefits(); }
 }
 
+/* ---------- покупки: список как чат, сразу на телефоне, отправка в фоне ---------- */
+function shopItems() { return (S.shop && Array.isArray(S.shop.items)) ? S.shop.items : []; }
+function shopBtnHtml() {
+  const n = shopItems().filter(x => !x.done).length;
+  return `<button type="button" class="btn sm shop-chip" id="shop-chip" data-action="shop">${ico('cart')}<span>Покупки</span>${n ? `<b>${n}</b>` : ''}</button>`;
+}
+function shopMsg(x) {
+  const t = x.ts ? hhmm(new Date(x.ts)) : '';
+  return `<button type="button" class="msg${x.done ? ' done' : ''}" data-action="shop-tog" data-id="${esc(x.id)}"><span class="m-cb">${x.done ? '✓' : ''}</span><span class="m-t">${esc(x.text)}</span><span class="m-time">${t}</span></button>`;
+}
+function shopChatHtml() {
+  const l = shopItems();
+  return l.length ? l.map(shopMsg).join('') : '<p class="note chat-empty">Пиши, что купить. Можно через запятую: «молоко, яйца 10, курица».</p>';
+}
+function shopActsHtml() {
+  const l = shopItems();
+  return `${l.some(x => x.done) ? '<button type="button" class="link-btn" data-action="shop-clean">Убрать купленное</button>' : ''}<button type="button" class="link-btn" data-action="shop-menu">+ из меню на неделю</button>`;
+}
+function openShopChat() {
+  S.cur = { type: 'shopc' };
+  openSheet(`<h2 class="sh-title">Покупки</h2>
+    <div class="chat" id="shop-chat">${shopChatHtml()}</div>
+    <div class="chat-acts" id="shop-acts">${shopActsHtml()}</div>
+    <form class="chat-in" id="shop-form" autocomplete="off"><input id="shop-in" placeholder="Что купить" enterkeyhint="send" autocapitalize="sentences"><button type="submit" class="send" aria-label="Добавить">${ico('play')}</button></form>`);
+  const ch = document.getElementById('shop-chat'); if (ch) ch.scrollTop = ch.scrollHeight;
+  const inp = document.getElementById('shop-in'); if (inp) try { inp.focus({ preventScroll: true }); } catch (_) { inp.focus(); }
+}
+function renderShopUI() {
+  const chip = document.getElementById('shop-chip');
+  if (chip) chip.outerHTML = shopBtnHtml();
+  if (S.cur && S.cur.type === 'shopc') {
+    const ch = document.getElementById('shop-chat'), ac = document.getElementById('shop-acts');
+    if (ch) { const atEnd = ch.scrollHeight - ch.scrollTop - ch.clientHeight < 40; ch.innerHTML = shopChatHtml(); if (atEnd) ch.scrollTop = ch.scrollHeight; }
+    if (ac) ac.innerHTML = shopActsHtml();
+  }
+}
+function shopOp(apply, msg) {
+  S.shop = S.shop && Array.isArray(S.shop.items) ? S.shop : { items: [] };
+  apply(S.shop.items);
+  LS.set('bj-shop', S.shop);
+  renderShopUI();
+  S.shopBusy = (S.shopBusy || 0) + 1;
+  write('shop.json', d => { d.items = Array.isArray(d.items) ? d.items : []; apply(d.items); return d; }, msg, { items: [] })
+    .then(next => { S.shopBusy--; if (next && next.items && !S.shopBusy) { S.shop = next; LS.set('bj-shop', S.shop); renderShopUI(); } })
+    .catch(() => { S.shopBusy--; });
+}
+function shopAdd(text) {
+  const parts = String(text || '').split(/[,;\n]+/).map(s => cap1(s.trim())).filter(Boolean);
+  if (!parts.length) return;
+  const now = Date.now();
+  const items = parts.map((t, k) => ({ id: 's' + rid().slice(0, 9), text: t, ts: now + k }));
+  shopOp(list => { items.forEach(it => { if (!list.some(y => y.id === it.id)) list.push(Object.assign({}, it)); }); }, 'Покупки: + ' + parts.join(', ').slice(0, 60));
+}
+function shopToggle(id) {
+  const x = shopItems().find(y => y.id === id); if (!x) return;
+  const done = !x.done, at = Date.now();
+  shopOp(list => { const y = list.find(z => z.id === id); if (y) { if (done) { y.done = true; y.doneAt = at; } else { delete y.done; delete y.doneAt; } } }, `Покупки: ${done ? 'куплено' : 'снова нужно'} — ${x.text.slice(0, 40)}`);
+}
+function shopClean() {
+  const ids = new Set(shopItems().filter(x => x.done).map(x => x.id)); if (!ids.size) return;
+  shopOp(list => { for (let k = list.length - 1; k >= 0; k--) if (ids.has(list[k].id)) list.splice(k, 1); }, `Покупки: убрано купленное (${ids.size})`);
+}
+function shopFromMenu() {
+  const have = new Set(shopItems().filter(x => !x.done).map(x => norm(x.text)));
+  const add = shopList(7).map(x => x.label + (x.amount ? ' ' + x.amount : '')).filter(t => !have.has(norm(t)));
+  if (!add.length) { toast(shopList(7).length ? 'Всё из меню уже в списке' : 'В меню на неделю пока нет блюд с ингредиентами'); return; }
+  shopAdd(add.join('\n'));
+  toast(`Добавил из меню: ${add.length}`);
+}
+
+/* ---------- связь с Claude: одна форма для запросов и идей ---------- */
+const MSG_AREA = [['general', 'Общее'], ['sport', 'Спорт'], ['study', 'Учёба'], ['food', 'Еда']];
+function claudeFeed() {
+  const rq = S.requests.filter(r => !demoBad(r.text + ' ' + (r.answer || ''))).map(r => ({ kind: 'rq', id: r.id, text: r.text, area: 'general', date: r.date, ts: r.ts, open: r.status !== 'done', waiting: r.status === 'waiting', answer: r.answer, doneAt: r.doneAt }));
+  const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, text: x.title || x.text || x.link || 'Файлы', link: x.link, files: (x.media || []).length, frames: x.frames, area: x.area || 'general', date: x.date, ts: x.ts, open: x.status !== 'seen', answer: x.answer, doneAt: x.date }));
+  return rq.concat(id);
+}
+function feedItemHtml(x, editable) {
+  const areaL = (MSG_AREA.find(a => a[0] === x.area) || [0, ''])[1];
+  const meta = [x.date ? short(x.date) : '', x.frames ? 'видео · ' + x.frames + ' ' + plural(x.frames, 'кадр', 'кадра', 'кадров') : x.files ? x.files + ' ' + plural(x.files, 'файл', 'файла', 'файлов') : '', x.link ? 'ссылка' : '', x.waiting ? 'ждёт тебя' : ''].filter(Boolean).join(' · ');
+  const editBox = editable && S.cur && S.cur.editId === x.id && x.kind === 'rq';
+  if (editBox) return `<div class="req-item"><textarea id="rq-edit" rows="4">${esc(x.text)}</textarea><div class="req-meta"><button type="button" class="btn sm" data-action="rq-edit-cancel">Отмена</button><button type="button" class="btn sm study" data-action="rq-edit-save" data-id="${esc(x.id)}">Сохранить</button></div></div>`;
+  return `<div class="req-item"><div class="rq-top"><span class="chip ar-${esc(x.area)}">${esc(areaL)}</span><span class="rq-d">${esc(meta)}</span></div><div>${esc(x.text)}</div>${x.answer ? `<div class="ans">${esc(x.answer)}</div>` : ''}${editable ? `<div class="req-meta">${x.kind === 'rq' ? `<button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(x.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(x.id)}">Удалить</button>` : `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>`}</div>` : ''}</div>`;
+}
+function openRequests(tab, keepScroll, area) {
+  const prev = S.cur && S.cur.type === 'req' ? S.cur : {};
+  if (tab === 'sport' || tab === 'study' || tab === 'food') { area = tab; tab = 'new'; }
+  tab = tab === 'done' ? 'done' : (tab === 'new' || tab === 'req' ? 'new' : (prev.tab || 'new'));
+  area = area || prev.area || 'general';
+  S.cur = { type: 'req', tab, area, editId: prev.editId || null };
+  const feed = claudeFeed();
+  const open = feed.filter(x => x.open).sort(byNewest);
+  const done = feed.filter(x => !x.open).sort((a, b) => (b.doneAt || b.date || '') < (a.doneAt || a.date || '') ? -1 : (b.doneAt || b.date || '') > (a.doneAt || a.date || '') ? 1 : byNewest(a, b)).slice(0, 30);
+  const seg = `<div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="Раздел">${[['new', `Написать${open.length ? ' · ' + open.length : ''}`], ['done', 'Ответы']].map(([k, l]) => `<button type="button" data-action="req-tab" data-tab="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>`;
+  let body;
+  if (tab === 'new') {
+    body = `<div class="chips ar-chips" role="group" aria-label="О чём">${MSG_AREA.map(([k, l]) => `<button type="button" class="chip-btn" data-action="msg-area" data-area="${k}" aria-pressed="${k === area}">${l}</button>`).join('')}</div>
+    <textarea id="msg-text" rows="3" placeholder="Задача, вопрос или идея">${esc(prev.draft || '')}</textarea>
+    <div class="msg-row"><input id="msg-link" type="url" inputmode="url" placeholder="Ссылка (необязательно)"><label class="btn file-btn msg-file" aria-label="Фото или видео"><span id="msg-files-label">📎</span><input type="file" id="msg-files" accept="image/*,video/*" multiple></label></div>
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="msg-send">Отправить</button></div>
+    <p class="note">Видео режется на кадры, звук не слышу — важное допиши текстом.</p>
+    ${open.length ? `<h3 class="sec">Ждут ответа · ${open.length}</h3><div class="stack">${open.map(x => feedItemHtml(x, true)).join('')}</div>` : ''}`;
+  } else body = done.length ? `<div class="stack" style="margin-top:12px">${done.map(x => feedItemHtml(x, false)).join('')}</div>` : '<p class="note">Ответов пока нет.</p>';
+  openSheet(`<h2 class="sh-title sh-claude"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span>Связь с Claude</h2>${seg}${body}`, keepScroll);
+  markAnswersSeen();
+}
+async function sendMsg(btn) {
+  const c = S.cur && S.cur.type === 'req' ? S.cur : { area: 'general' };
+  const text = (($('#msg-text') && $('#msg-text').value) || '').trim(), link = (($('#msg-link') && $('#msg-link').value) || '').trim();
+  const files = Array.from(($('#msg-files') && $('#msg-files').files) || []);
+  if (!text && !link && !files.length) { toast('Напиши текст, добавь ссылку или файл'); return; }
+  busy(btn, true);
+  if (!link && !files.length && c.area === 'general') {
+    const ok = await writeRequests(list => { list.push({ id: 'q' + rid().slice(0, 10), text, date: today(), ts: Date.now(), status: 'new' }); }, 'Запрос для Claude: ' + text.slice(0, 50));
+    busy(btn, false);
+    if (ok) { toast('Записал. Сделаю, когда откроешь меня.'); S.cur.draft = ''; openRequests('new'); }
+    return;
+  }
+  const id = 'i' + rid().slice(0, 10), area = c.area;
+  const up = files.length ? await uploadFiles(files, `inbox/ideas/${id}`, 'Идея') : { media: [], photos: [], frames: 0, failed: [] };
+  if (files.length && !up.media.length) { busy(btn, false); toast('Файлы не загрузились — ничего не отправлено. Проверь связь; длинное видео лучше обрезать.'); return; }
+  const rec = { id, area, date: today(), ts: Date.now(), status: 'new' };
+  if (text) rec.text = text; if (link) rec.link = link; if (up.media.length) rec.media = up.media;
+  if (up.frames) rec.frames = up.frames; if (up.failed.length) rec.failed = up.failed.length;
+  const ok = await writeIdeas(list => { list.push(rec); }, `Идея (${IDEA_AREA[area] || area}): ${(text || link || 'файлы').slice(0, 50)}`);
+  busy(btn, false);
+  const rep = uploadReport(up, files.length);
+  if (ok) { toast('Отправил' + (rep ? ' · ' + rep : '') + '. Посмотрю, когда позовёшь.'); S.cur.draft = ''; openRequests('new'); }
+}
+
 /* ---------- boot ---------- */
 function boot() {
-  setTab(LS.get('bj-tab') || 'plan');
+  setTab('plan');
   $('#m-date').value = today();
   const cred = LS.get('bj-cred');
   if (!cred || !cred.token) { showSetup(); render(); return; }
