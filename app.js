@@ -885,6 +885,14 @@ function slotLabel(d, c) {
 }
 function excused(d) { return !!(dutyOn(d) || absenceOn(d) || ((S.studyDays || {})[d] || {}).auto === 'duty'); }
 function activity(d) { return S.lessons.some(l => l.done === d || (Array.isArray(l.progressDates) && l.progressDates.includes(d))); }
+function studyUsedToday(cap) {
+  const t = today(); let used = 0;
+  for (const l of S.lessons) {
+    if (l.done === t) used += Number(l.need) || cap;
+    else if (Array.isArray(l.progressDates) && l.progressDates.includes(t)) used += cap;
+  }
+  return used;
+}
 function buildStudy(days, endDate) {
   days = days || S.studyDays;
   const st = S.config.study || {};
@@ -898,13 +906,15 @@ function buildStudy(days, endDate) {
   for (; d <= end; d = addDays(d, 1)) {
     const c = studyCap(d, days);
     if (c.blocked) { if (c.base > 0) (byDate[d] = byDate[d] || []).push({ blocked: true, date: d, cap: c.base }); continue; }
-    if (c.cap <= 0) continue;
+    // сегодняшнее окно уже занято уроком, который отмечен сегодня, — следующий урок не ставим поверх
+    const cap = d === t ? c.cap - studyUsedToday(c.cap) : c.cap;
+    if (cap <= 0) continue;
     if (!pending.length) { pending.push({ key: 'ph' + nextN, placeholder: true, n: nextN, title: '', need: null, rem: 0, parts: 0 }); nextN++; }
     const L = pending[0];
     L.parts++;
-    const e = { date: d, L, cap: c.cap, part: L.parts, extra: !!c.extra, last: false };
+    const e = { date: d, L, cap, part: L.parts, extra: !!c.extra, last: false };
     if (L.need == null) { e.last = true; pending.shift(); }
-    else { L.rem -= c.cap; if (L.rem <= 0) { e.last = true; pending.shift(); } }
+    else { L.rem -= cap; if (L.rem <= 0) { e.last = true; pending.shift(); } }
     entries.push(e);
     (byDate[d] = byDate[d] || []).push(e);
     if (!first[L.key]) first[L.key] = d;
@@ -1359,6 +1369,7 @@ function dayRows(d, study, sport) {
   const evs = eventsOn(d);
   evs.filter(e => !e.ev.time).forEach(e => rows.push(rowEvent(e)));
   evs.filter(e => e.ev.time).forEach(e => rows.push(rowEvent(e)));
+  if (d <= today()) S.lessons.filter(l => l.done === d).forEach(l => rows.push(`<button type="button" class="row is-done" data-action="lesson" data-id="${esc(l.id)}"><span class="tag study">Учёба</span><span class="rb"><span class="t">${esc(lessonTitle(l))}</span><span class="m">пройден${lessonActual(l.n) ? ' · ' + hmShort(lessonActual(l.n)) + ' по факту' : ''}</span></span><span class="s"><span class="chip good">✓</span></span></button>`));
   for (const e of (study.byDate[d] || [])) rows.push(e.blocked ? rowBlocked(e) : rowStudy(e));
   for (const i of sport) if (i.eff === d) rows.push(rowSport(i));
   for (const i of sport) if (i.orig === d && i.eff !== d) rows.push(rowGhost(i));
