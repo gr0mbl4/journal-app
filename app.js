@@ -93,6 +93,24 @@ const GH = {
     return URL.createObjectURL(await r.blob());
   },
   base() { return `/repos/${encodeURIComponent(this.cred.owner)}/${encodeURIComponent(this.cred.repo)}`; },
+  baseOf(repo) { return `/repos/${encodeURIComponent(this.cred.owner)}/${encodeURIComponent(repo)}`; },
+  async branchOf(repo) {
+    this.branches = this.branches || {};
+    if (this.branches[repo]) return this.branches[repo];
+    const r = await this.req('GET', this.baseOf(repo)); if (!r.ok) throw this.fail(r);
+    return (this.branches[repo] = (await r.json()).default_branch || 'main');
+  },
+  async rawIn(repo, path) {
+    let r;
+    try { r = await fetch('https://api.github.com' + this.baseOf(repo) + '/contents/' + path.split('/').map(encodeURIComponent).join('/'), { headers: { 'Authorization': 'Bearer ' + this.cred.token, 'Accept': 'application/vnd.github.raw', 'X-GitHub-Api-Version': '2022-11-28' } }); }
+    catch (_) { const e = new Error('offline'); e.code = 'offline'; throw e; }
+    if (!r.ok) throw this.fail(r);
+    return await r.blob();
+  },
+  async putIn(repo, path, b64, message) {
+    const r = await this.req('PUT', this.baseOf(repo) + '/contents/' + path.split('/').map(encodeURIComponent).join('/'), { message, content: b64 });
+    if (!r.ok) throw this.fail(r);
+  },
   async info() {
     const r = await this.req('GET', this.base());
     if (!r.ok) throw this.fail(r);
@@ -101,9 +119,10 @@ const GH = {
     return j;
   },
   // Несколько файлов одной фиксацией: blobs → tree → commit → ref (без force; при гонке — заново от свежей головы).
-  async commitFiles(files, message, progress) {
-    const base = this.base();
-    if (!this.branch) await this.info();
+  async commitFiles(files, message, progress, repo) {
+    const base = repo ? this.baseOf(repo) : this.base();
+    if (!repo && !this.branch) await this.info();
+    const branch = repo ? await this.branchOf(repo) : this.branch;
     const shas = [];
     for (let i = 0; i < files.length; i++) {
       if (progress) progress(i + 1, files.length);
@@ -112,7 +131,7 @@ const GH = {
       shas.push((await r.json()).sha);
     }
     for (let attempt = 0; attempt < 4; attempt++) {
-      let r = await this.req('GET', base + '/git/ref/heads/' + encodeURIComponent(this.branch));
+      let r = await this.req('GET', base + '/git/ref/heads/' + encodeURIComponent(branch));
       if (!r.ok) throw this.fail(r);
       const head = (await r.json()).object.sha;
       r = await this.req('GET', base + '/git/commits/' + head);
@@ -124,8 +143,8 @@ const GH = {
       r = await this.req('POST', base + '/git/commits', { message, tree, parents: [head] });
       if (!r.ok) throw this.fail(r);
       const commit = (await r.json()).sha;
-      r = await this.req('PATCH', base + '/git/refs/heads/' + encodeURIComponent(this.branch), { sha: commit, force: false });
-      if (r.ok) { files.forEach(f => { delete this.sha[f.path]; }); return commit; }
+      r = await this.req('PATCH', base + '/git/refs/heads/' + encodeURIComponent(branch), { sha: commit, force: false });
+      if (r.ok) { if (!repo) files.forEach(f => { delete this.sha[f.path]; }); return commit; }
       if (r.status !== 422 && r.status !== 409) throw this.fail(r);
     }
     const e = new Error('conflict'); e.code = 'conflict'; throw e;
@@ -165,7 +184,7 @@ const S = {
   config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {}, sportExtra: [], events: [], recipes: [], meals: { days: {} }, requests: [],
   ideas: [], sleep: { days: {} }, curriculum: { blocks: [] }, notes: null, notesErr: null, notesLoading: false, noteCache: {},
   openCur: new Set(), touchedCur: new Set(), showAllDone: false,
-  english: { cards: {}, sessions: [] }, benefits: { items: {} }, shop: LS.get('bj-shop') || { items: [] },
+  english: { cards: {}, sessions: [] }, benefits: { items: {} }, books: { books: [], progress: {}, listen: {} }, shop: LS.get('bj-shop') || { items: [] },
   money: {}, workouts: {}, fresh: new Set(), dirty: new Set(), tab: 'plan', open: new Set(), reviews: [], rev: null, portfolio: null, notesDays: LS.get('bj-notes-days'), duties: {}, absences: [], studyLog: [], body: { weight: {} }, quarters: {}, inbox: [], period: null, periodP: null, calMonth: monthKey(today()), foodDate: today(), img: {},
   shift: {}, cur: null, sportList: [], studyCache: null, lastToday: today(), slotsSig: '', pending: 0
 };
@@ -614,6 +633,7 @@ function applyData(d) {
   if (d.english) S.english = d.english;
   if (d.benefits) S.benefits = d.benefits;
   if (d.shop && !S.shopBusy) { S.shop = d.shop; LS.set('bj-shop', S.shop); }
+  if (d.books) S.books = d.books;
   if (d.ideas) S.ideas = Array.isArray(d.ideas.ideas) ? d.ideas.ideas : [];
   if (d.sleep) S.sleep = d.sleep && d.sleep.days ? d.sleep : { days: {} };
   if (d.curriculum) S.curriculum = d.curriculum && Array.isArray(d.curriculum.blocks) ? d.curriculum : { blocks: [] };
@@ -629,7 +649,7 @@ function applyData(d) {
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => readDoc(prefix + k + '.json')));
@@ -644,11 +664,11 @@ async function loadAll(quiet) {
   try {
     if (queueCount()) await flushQueue();
     GH.info().then(j => { if (j && j.private === false) { toast('Внимание: репозиторий с данными стал открытым! Сделай его приватным.'); setSync('Репозиторий с данными открытый — сделай приватным', true); } }).catch(() => {});
-    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop] = await Promise.all([
+    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop, booksDoc] = await Promise.all([
       readDoc('config.json'), readDoc('lessons.json'), readDoc('plan.json'), readDoc('learned.json'), readDoc('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
-      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json')
+      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json'), readDoc('books.json')
     ]);
-    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
@@ -2358,6 +2378,7 @@ function renderLessons() {
   bn.innerHTML = '';
   const pfc = $('#pf-card'); if (pfc) pfc.innerHTML = pfCardHtml();
   const enc = $('#en-card'); if (enc) enc.innerHTML = enCardHtml();
+  const bkc = $('#bk-card'); if (bkc) bkc.innerHTML = bookCardHtml();
   const study = S.studyCache || buildStudy();
   const pend = pendingSorted();
   const hero = $('#lesson-hero');
@@ -3617,9 +3638,22 @@ document.addEventListener('click', async ev => {
       rerenderWk(); break;
     }
     case 'shop-tog': shopToggle(id); break;
+    case 'books': openBooks(); break;
+    case 'bk-check': busy(b, true); await booksRepoCheck(); busy(b, false); if (S.booksRepo === 'ok') toast('Репозиторий для книг на месте'); openBooks(); break;
+    case 'bk-open': openBook(id); break;
+    case 'bk-resume': unlockAudio(); bkResume(id); break;
+    case 'bk-ch': { unlockAudio(); const k = Number(b.dataset.k), p = bkPos(id); bkPlay(id, k, k === p.ch ? p.pos : 0); openPlayer(); break; }
+    case 'bk-player': openPlayer(); break;
+    case 'bk-toggle': { const au = AU(); if (!S.play || !au) return; if (S.play.loading) return; if (au.paused) au.play().catch(() => {}); else au.pause(); break; }
+    case 'bk-back': { const au = AU(); if (au && S.play) au.currentTime = Math.max(0, au.currentTime - 15); break; }
+    case 'bk-fwd': { const au = AU(); if (au && S.play) au.currentTime = Math.min(au.duration || 1e9, au.currentTime + 30); break; }
+    case 'bk-prev': bkStep(-1); break;
+    case 'bk-next': bkStep(1); break;
+    case 'bk-speed': { const v = Number(b.dataset.v) || 1; LS.set('bj-bk-speed', v); const au = AU(); if (au) au.playbackRate = v; renderPlayer(); break; }
+    case 'bk-stop': { const au = AU(); if (au) au.pause(); bkSave(false); if (S.play && S.play.url) URL.revokeObjectURL(S.play.url); S.play = null; renderMini(); break; }
     case 'shop-clean': shopClean(); break;
     case 'shop-menu': shopFromMenu(); break;
-    case 'msg-area': if (S.cur && S.cur.type === 'req') { S.cur.area = b.dataset.area; document.querySelectorAll('[data-action="msg-area"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.area === S.cur.area))); } break;
+    case 'msg-area': if (S.cur && S.cur.type === 'req') { const was = S.cur.area; S.cur.area = b.dataset.area; if ((was === 'books') !== (S.cur.area === 'books')) { S.cur.draft = ($('#msg-text') || {}).value || ''; openRequests('new', true); } else document.querySelectorAll('[data-action="msg-area"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.area === S.cur.area))); } break;
     case 'msg-send': await sendMsg(b); break;
     case 'menu': openMenu(); break;
     case 'ready': openReadiness(); break;
@@ -4071,6 +4105,7 @@ const ICP = {
   cart: '<path d="M3 4h2l2.4 11h10.2L20 8H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>',
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   play: '<path d="M8 5.5v13l10-6.5z"/>',
+  headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2"/><rect x="16" y="14" width="5" height="7" rx="2"/>',
   warn: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17h.01"/>'
 };
 const ico = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICP[n] || ''}</svg>`;
@@ -4201,13 +4236,14 @@ function openMenu() {
   const items = [
     ['rev-open', 'bars', 'Итоги', 'неделя · месяц · год', 'c-blue', 'data-type="week"'],
     ['pf-open', 'star', 'Портфолио', S.ready && curBlocks().length ? 'ур. ' + pfStats().lvl : '', 'c-violet'],
+    ['books', 'headphones', 'Книги', (() => { const l = books(); return l.length ? l.length + ' ' + plural(l.length, 'книга', 'книги', 'книг') : 'аудио по главам'; })(), 'c-amber'],
     ['en-open', 'chat', 'English', e.due ? e.due + ' к повторению' : e.learned + ' из ' + e.total, 'c-indigo'],
     ['ready', 'bolt', 'Готовность', rd ? rd.score + ' · ' + rd.label.toLowerCase() : '', 'c-green'],
     ['q-edit', 'target', 'Цели квартала', '', 'c-orange'],
     ['ben-open', 'shield', 'Льготы', bs.done + ' из ' + bs.total + ' оформлено', 'c-teal'],
     ['weight', 'scale', 'Вес', (() => { const w = lastWeight(); return w ? String(w.kg).replace('.', ',') + ' кг' : ''; })(), 'c-pink'],
     ['dates', 'gift', 'Важные даты', '', 'c-rose'],
-    ['shop', 'cart', 'Покупки', 'из меню на неделю', 'c-amber'],
+    ['shop', 'cart', 'Покупки', (() => { const n = shopItems().filter(x => !x.done).length; return n ? n + ' в списке' : 'список'; })(), 'c-orange'],
     ['auto-setup', 'sms', 'Автозапись', 'SMS банка', 'c-gray'],
     ['demo-toggle', 'film', demo() ? 'Демо: вкл' : 'Демо-режим', demo() ? 'нажми, чтобы выключить' : 'скрыть долги', demo() ? 'c-red' : 'c-gray'],
     ['settings', 'gear', 'GitHub', S.lastLoad ? 'обновлено ' + hhmm(new Date(S.lastLoad)) : 'подключение', 'c-gray']
@@ -4473,10 +4509,10 @@ function shopFromMenu() {
 }
 
 /* ---------- связь с Claude: одна форма для запросов и идей ---------- */
-const MSG_AREA = [['general', 'Общее'], ['sport', 'Спорт'], ['study', 'Учёба'], ['food', 'Еда']];
+const MSG_AREA = [['general', 'Общее'], ['sport', 'Спорт'], ['study', 'Учёба'], ['food', 'Еда'], ['books', 'Книги']];
 function claudeFeed() {
   const rq = S.requests.filter(r => !demoBad(r.text + ' ' + (r.answer || ''))).map(r => ({ kind: 'rq', id: r.id, text: r.text, area: 'general', date: r.date, ts: r.ts, open: r.status !== 'done', waiting: r.status === 'waiting', answer: r.answer, doneAt: r.doneAt }));
-  const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, text: x.title || x.text || x.link || 'Файлы', link: x.link, files: (x.media || []).length, frames: x.frames, area: x.area || 'general', date: x.date, ts: x.ts, open: x.status !== 'seen', answer: x.answer, doneAt: x.date }));
+  const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, text: x.title || x.text || x.link || (x.names && x.names.length ? x.names.join(', ') : 'Файлы'), link: x.link, files: (x.media || []).length + (x.audio || []).length, frames: x.frames, area: x.area || 'general', date: x.date, ts: x.ts, open: x.status !== 'seen', answer: x.answer, doneAt: x.date }));
   return rq.concat(id);
 }
 function feedItemHtml(x, editable) {
@@ -4500,9 +4536,9 @@ function openRequests(tab, keepScroll, area) {
   if (tab === 'new') {
     body = `<div class="chips ar-chips" role="group" aria-label="О чём">${MSG_AREA.map(([k, l]) => `<button type="button" class="chip-btn" data-action="msg-area" data-area="${k}" aria-pressed="${k === area}">${l}</button>`).join('')}</div>
     <textarea id="msg-text" rows="3" placeholder="Задача, вопрос или идея">${esc(prev.draft || '')}</textarea>
-    <div class="msg-row"><input id="msg-link" type="url" inputmode="url" placeholder="Ссылка (необязательно)"><label class="btn file-btn msg-file" aria-label="Фото или видео"><span id="msg-files-label">📎</span><input type="file" id="msg-files" accept="image/*,video/*" multiple></label></div>
+    <div class="msg-row"><input id="msg-link" type="url" inputmode="url" placeholder="Ссылка (необязательно)"><label class="btn file-btn msg-file" aria-label="Фото или видео"><span id="msg-files-label">📎</span><input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label></div>
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="msg-send">Отправить</button></div>
-    <p class="note">Видео режется на кадры, звук не слышу — важное допиши текстом.</p>
+    <p class="note">${area === 'books' ? 'MP3 до 45 МБ каждый — главы по отдельности или одним файлом. Название и автора напиши, если их нет в именах файлов.' : 'Видео режется на кадры, звук не слышу — важное допиши текстом.'}</p>
     ${open.length ? `<h3 class="sec">Ждут ответа · ${open.length}</h3><div class="stack">${open.map(x => feedItemHtml(x, true)).join('')}</div>` : ''}`;
   } else body = done.length ? `<div class="stack" style="margin-top:12px">${done.map(x => feedItemHtml(x, false)).join('')}</div>` : '<p class="note">Ответов пока нет.</p>';
   openSheet(`<h2 class="sh-title sh-claude"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span>Связь с Claude</h2>${seg}${body}`, keepScroll);
@@ -4520,16 +4556,256 @@ async function sendMsg(btn) {
     if (ok) { toast('Записал. Сделаю, когда откроешь меня.'); S.cur.draft = ''; openRequests('new'); }
     return;
   }
-  const id = 'i' + rid().slice(0, 10), area = c.area;
-  const up = files.length ? await uploadFiles(files, `inbox/ideas/${id}`, 'Идея') : { media: [], photos: [], frames: 0, failed: [] };
-  if (files.length && !up.media.length) { busy(btn, false); toast('Файлы не загрузились — ничего не отправлено. Проверь связь; длинное видео лучше обрезать.'); return; }
+  const audio = files.filter(isAudio), other = files.filter(f => !isAudio(f));
+  if (audio.length) {
+    const big = audio.find(f => f.size > AUDIO_MAX);
+    if (big) { busy(btn, false); toast(`«${big.name}» больше 45 МБ. Скачай книгу по главам или раздели файл.`); return; }
+    if (S.booksRepo !== 'ok' && !(await booksRepoCheck())) { busy(btn, false); toast('Сначала нужен репозиторий для книг — открываю инструкцию'); openBooks(); return; }
+  }
+  const id = 'i' + rid().slice(0, 10), area = audio.length ? 'books' : c.area;
+  const up = other.length ? await uploadFiles(other, `inbox/ideas/${id}`, 'Идея') : { media: [], photos: [], frames: 0, failed: [] };
+  const au = audio.length ? await uploadAudio(audio, id) : { media: [], names: [], failed: [] };
+  if (files.length && !up.media.length && !au.media.length) { busy(btn, false); toast('Файлы не загрузились — ничего не отправлено. Проверь связь; длинное видео лучше обрезать.'); return; }
   const rec = { id, area, date: today(), ts: Date.now(), status: 'new' };
   if (text) rec.text = text; if (link) rec.link = link; if (up.media.length) rec.media = up.media;
-  if (up.frames) rec.frames = up.frames; if (up.failed.length) rec.failed = up.failed.length;
+  if (au.media.length) { rec.audio = au.media; rec.names = au.names; rec.repo = booksRepo(); }
+  if (up.frames) rec.frames = up.frames;
+  if (up.failed.length || au.failed.length) rec.failed = up.failed.length + au.failed.length;
   const ok = await writeIdeas(list => { list.push(rec); }, `Идея (${IDEA_AREA[area] || area}): ${(text || link || 'файлы').slice(0, 50)}`);
   busy(btn, false);
   const rep = uploadReport(up, files.length);
   if (ok) { toast('Отправил' + (rep ? ' · ' + rep : '') + '. Посмотрю, когда позовёшь.'); S.cur.draft = ''; openRequests('new'); }
+}
+
+/* ---------- книги: аудио по главам, плеер с памятью позиции ----------
+   Аудио лежит в отдельном приватном репозитории (config.books.repo, по умолчанию journal-books),
+   чтобы journal-data оставался лёгким. Список книг и прогресс — journal-data/books.json. */
+const AUDIO_RE = /\.(mp3|m4a|m4b|aac|ogg|opus|wav|flac)$/i;
+const isAudio = f => /^audio\//.test(f.type || '') || AUDIO_RE.test(f.name || '');
+const AUDIO_MAX = 45 * 1024 * 1024;
+function booksRepo() { return ((S.config || {}).books || {}).repo || 'journal-books'; }
+function books() { return ((S.books || {}).books || []).filter(b => Array.isArray(b.chapters) && b.chapters.length); }
+function bookById(id) { return books().find(b => b.id === id) || null; }
+function bkLocal() { return LS.get('bj-bk-pos') || {}; }
+function bkPos(id) {
+  const loc = bkLocal()[id], rem = (((S.books || {}).progress) || {})[id];
+  if (loc && (!rem || (loc.ts || 0) >= Date.parse(rem.at || 0))) return loc;
+  return rem ? { ch: rem.ch || 0, pos: rem.pos || 0, done: rem.done || [], ts: Date.parse(rem.at || 0) || 0 } : { ch: 0, pos: 0, done: [] };
+}
+const mmss = sec => { sec = Math.max(0, Math.floor(sec || 0)); const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60; return (h ? h + ':' + pad(m) : m) + ':' + pad(s); };
+function bookPct(b) {
+  const p = bkPos(b.id), tot = b.chapters.reduce((a, c) => a + (Number(c.dur) || 0), 0) || 1;
+  let heard = 0; b.chapters.forEach((c, k) => { if ((p.done || []).includes(k) || k < p.ch) heard += Number(c.dur) || 0; else if (k === p.ch) heard += Math.min(Number(c.dur) || 0, p.pos || 0); });
+  return Math.max(0, Math.min(100, heard / tot * 100));
+}
+const bookInit = t => String(t || '?').replace(/[«»"]/g, '').split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
+function bookCardHtml() {
+  const l = books(); if (!l.length) return '';
+  const cur = l.slice().sort((a, b) => (bkPos(b.id).ts || 0) - (bkPos(a.id).ts || 0))[0], p = bkPos(cur.id), ch = cur.chapters[p.ch] || cur.chapters[0];
+  return `<div class="bk-card"><button type="button" class="bk-main" data-action="bk-open" data-id="${esc(cur.id)}"><span class="bk-cov">${esc(bookInit(cur.title))}</span><span class="rb"><span class="t">${esc(cur.title)}</span><span class="m">${esc(ch.title || 'Глава ' + (p.ch + 1))}${p.pos ? ' · ' + mmss(p.pos) : ''}</span><span class="bar"><i style="width:${bookPct(cur).toFixed(1)}%"></i></span></span></button><button type="button" class="bk-play" data-action="bk-resume" data-id="${esc(cur.id)}" aria-label="Слушать">${ico('play')}</button></div>`;
+}
+async function booksRepoCheck() {
+  if (!GH.cred) return false;
+  try {
+    const r = await GH.req('GET', GH.baseOf(booksRepo()));
+    if (!r.ok) { S.booksRepo = 'none'; return false; }
+    const j = await r.json();
+    if (j.private === false) { S.booksRepo = 'public'; return false; }
+    const c = await GH.req('GET', GH.baseOf(booksRepo()) + '/commits?per_page=1');
+    if (c.status === 409) await GH.putIn(booksRepo(), 'README.md', b64enc('Аудиокниги для «Бортового журнала». Раскладывает Claude.\n'), 'Книги: начало');
+    S.booksRepo = 'ok'; return true;
+  } catch (_) { S.booksRepo = 'err'; return false; }
+}
+function booksSetupHtml() {
+  const st = S.booksRepo;
+  if (st === 'ok' || !st) return '';
+  const name = esc(booksRepo());
+  return `<div class="callout"><b>${st === 'public' ? 'Репозиторий для книг открытый — сделай его приватным.' : 'Нужен приватный репозиторий для книг'}</b>
+    <ol class="setup-steps"><li>GitHub → <b>New repository</b> → имя <span class="mono">${name}</span> → <b>Private</b> → галочка <b>Add a README</b> → Create.</li><li>Settings → Developer settings → Fine-grained tokens → ключ журнала → <b>Repository access</b> → добавь <span class="mono">${name}</span> → Save.</li><li>Вернись сюда и нажми «Проверить».</li></ol>
+    <button type="button" class="btn sm study" data-action="bk-check">Проверить</button></div>`;
+}
+async function openBooks() {
+  S.cur = { type: 'books' };
+  const l = books();
+  const render = () => {
+    const rows = l.map(b => { const p = bkPos(b.id), pct = bookPct(b); return `<button type="button" class="bk-row" data-action="bk-open" data-id="${esc(b.id)}"><span class="bk-cov">${esc(bookInit(b.title))}</span><span class="rb"><span class="t">${esc(b.title)}</span><span class="m">${esc([b.author, b.chapters.length + ' ' + plural(b.chapters.length, 'глава', 'главы', 'глав'), pct >= 99 ? 'прослушана' : pct > 0 ? 'глава ' + (p.ch + 1) : ''].filter(Boolean).join(' · '))}</span><span class="bar"><i style="width:${pct.toFixed(1)}%"></i></span></span></button>`; }).join('');
+    const min = Object.values(((S.books || {}).listen) || {}).reduce((a, v) => a + (Number(v) || 0), 0);
+    openSheet(`<h2 class="sh-title">Книги</h2>${min ? `<p class="sh-meta">Прослушано всего ${hmShort(min)}</p>` : ''}
+      ${booksSetupHtml()}
+      ${l.length ? `<div class="stack" style="margin-top:12px">${rows}</div>` : '<p class="note">Пока пусто.</p>'}
+      <details class="fold" data-k="bk-how"${l.length ? openAttr('bk-how') : ' open'}><summary><span>Как добавить книгу</span></summary><ol class="setup-steps"><li>Кнопка Claude → тема <b>Книги</b> → 📎 → выбери MP3 (главы по отдельности или одним файлом, до 45 МБ каждый).</li><li>В тексте — название и автор, если в именах файлов их нет.</li><li>Когда позовёшь меня, разложу по главам, и книга появится здесь.</li></ol></details>`, true);
+  };
+  render();
+  if (!S.booksRepo) { await booksRepoCheck(); if (S.cur && S.cur.type === 'books') render(); }
+}
+function openBook(id) {
+  const b = bookById(id); if (!b) return;
+  S.cur = { type: 'book', id };
+  const p = bkPos(id), done = new Set(p.done || []);
+  const ch = b.chapters[p.ch] || b.chapters[0];
+  openSheet(`<div class="bk-hero"><span class="bk-cov big">${esc(bookInit(b.title))}</span><div><h2 class="sh-title">${esc(b.title)}</h2>${b.author ? `<p class="sh-meta">${esc(b.author)}</p>` : ''}<span class="bar"><i style="width:${bookPct(b).toFixed(1)}%"></i></span></div></div>
+    <div class="sh-acts"><button type="button" class="btn study block" data-action="bk-resume" data-id="${esc(id)}">${ico('play')}${p.pos || p.ch ? `Продолжить: ${esc(ch.title || 'глава ' + (p.ch + 1))} · ${mmss(p.pos)}` : 'Слушать'}</button></div>
+    ${b.note ? `<p class="note">${esc(b.note)}</p>` : ''}
+    <div class="stack bk-chs" style="margin-top:12px">${b.chapters.map((c, k) => `<button type="button" class="bk-ch${k === p.ch ? ' cur' : ''}${done.has(k) ? ' done' : ''}" data-action="bk-ch" data-id="${esc(id)}" data-k="${k}"><span class="bk-n">${done.has(k) ? '✓' : k + 1}</span><span class="t">${esc(c.title || 'Глава ' + (k + 1))}</span><span class="s">${c.dur ? mmss(c.dur) : ''}</span></button>`).join('')}</div>`);
+}
+
+/* плеер */
+const AU = () => document.getElementById('bk-audio');
+function silentWav() {
+  // 0,05 с тишины — чтобы iPhone «разрешил» звук прямо в нажатии, пока глава качается
+  const n = 400, buf = new ArrayBuffer(44 + n), v = new DataView(buf), w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+function unlockAudio() {
+  const a = AU(); if (!a || S.audioUnlocked) return;
+  try { a.src = silentWav(); const p = a.play(); if (p && p.catch) p.catch(() => {}); S.audioUnlocked = true; } catch (_) {}
+}
+const AKEY = (repo, file) => 'https://journal.local/audio/' + encodeURIComponent(repo) + '/' + file.split('/').map(encodeURIComponent).join('/');
+async function audioBlob(repo, file) {
+  let cache = null;
+  try { cache = await caches.open('bj-audio'); const hit = await cache.match(AKEY(repo, file)); if (hit) return await hit.blob(); } catch (_) {}
+  const blob = await GH.rawIn(repo, file);
+  if (cache) {
+    try {
+      await cache.put(AKEY(repo, file), new Response(blob, { headers: { 'Content-Type': blob.type || 'audio/mpeg' } }));
+      const keys = await cache.keys();
+      for (const k of keys.slice(0, Math.max(0, keys.length - 8))) await cache.delete(k);
+    } catch (_) {}
+  }
+  return blob;
+}
+async function bkPlay(id, k, pos) {
+  const b = bookById(id); if (!b) return;
+  const c = b.chapters[k]; if (!c) return;
+  const a = AU(); if (!a) return;
+  unlockAudio();
+  S.play = { id, k, loading: true };
+  renderMini(); renderPlayer();
+  try {
+    const blob = await audioBlob(b.repo || booksRepo(), c.file);
+    if (!S.play || S.play.id !== id || S.play.k !== k) return;
+    if (S.play.url) URL.revokeObjectURL(S.play.url);
+    const url = URL.createObjectURL(blob);
+    S.play = { id, k, url, loading: false };
+    a.src = url;
+    a.playbackRate = Number(LS.get('bj-bk-speed')) || 1;
+    const start = pos || 0;
+    const go = () => { if (start) { try { a.currentTime = start; } catch (_) {} } a.play().catch(() => { toast('Нажми ▶, чтобы начать'); }); };
+    if (a.readyState >= 1) go(); else a.addEventListener('loadedmetadata', go, { once: true });
+    mediaMeta(b, c);
+    S.bkNextLoaded = false;
+  } catch (e) {
+    S.play = null; renderMini();
+    toast(e && e.code === 'offline' ? 'Нет сети, а глава ещё не скачана' : 'Глава не загрузилась. Проверь доступ к репозиторию книг.');
+  }
+  renderMini(); renderPlayer();
+}
+function mediaMeta(b, c) {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: c.title || b.title, artist: b.author || '', album: b.title });
+    const a = AU();
+    const on = (n, f) => { try { navigator.mediaSession.setActionHandler(n, f); } catch (_) {} };
+    on('play', () => a.play()); on('pause', () => a.pause());
+    on('seekbackward', () => { a.currentTime = Math.max(0, a.currentTime - 15); });
+    on('seekforward', () => { a.currentTime = Math.min(a.duration || 1e9, a.currentTime + 30); });
+    on('previoustrack', () => bkStep(-1)); on('nexttrack', () => bkStep(1));
+  } catch (_) {}
+}
+function bkStep(d) { const p = S.play; if (!p) return; const b = bookById(p.id); if (!b) return; const k = p.k + d; if (k < 0 || k >= b.chapters.length) return; bkSave(true); bkPlay(p.id, k, 0); }
+function bkResume(id) { const p = bkPos(id); bkPlay(id, p.ch || 0, p.pos || 0); openPlayer(); }
+// позиция: в телефоне — каждые 5 с, в журнал — на паузе, в конце главы и при сворачивании
+function bkTick(force) {
+  const p = S.play, a = AU(); if (!p || p.loading || !a || !a.src) return;
+  const now = Date.now();
+  if (!force && now - (S.bkLastLoc || 0) < 5000) return;
+  if (S.bkPlayedFrom) S.bkListen = (S.bkListen || 0) + (now - S.bkPlayedFrom) / 1000;
+  S.bkPlayedFrom = a.paused ? 0 : now;
+  S.bkLastLoc = now;
+  const all = bkLocal(), cur = all[p.id] || bkPos(p.id);
+  all[p.id] = { ch: p.k, pos: Math.floor(a.currentTime || 0), done: cur.done || [], ts: now };
+  LS.set('bj-bk-pos', all);
+  S.bkDirty = true;
+}
+function bkSave(chapterDone) {
+  const p = S.play; if (!p) return;
+  bkTick(true);
+  const all = bkLocal(), cur = all[p.id]; if (!cur) return;
+  if (chapterDone && !cur.done.includes(p.k)) { cur.done.push(p.k); cur.done.sort((x, y) => x - y); LS.set('bj-bk-pos', all); }
+  if (!S.bkDirty && !chapterDone) return;
+  S.bkDirty = false;
+  const min = Math.round((S.bkListen || 0) / 60 * 10) / 10; S.bkListen = 0;
+  const t = today(), id = p.id, rec = { ch: cur.ch, pos: cur.pos, done: cur.done.slice(), at: new Date(cur.ts).toISOString() };
+  write('books.json', d => {
+    d.books = Array.isArray(d.books) ? d.books : []; d.progress = d.progress || {}; d.listen = d.listen || {};
+    d.progress[id] = rec;
+    if (min > 0) d.listen[t] = Math.round(((Number(d.listen[t]) || 0) + min) * 10) / 10;
+    return d;
+  }, `Книги: ${(bookById(id) || {}).title || id} — глава ${rec.ch + 1}, ${mmss(rec.pos)}`, { books: [], progress: {}, listen: {} })
+    .then(next => { if (next && next.books) { S.books = next; cacheNow(); } });
+  const bkc = document.getElementById('bk-card'); if (bkc && S.tab === 'lessons') bkc.innerHTML = bookCardHtml();
+}
+function renderMini() {
+  const el = document.getElementById('bk-mini'); if (!el) return;
+  const p = S.play, b = p && bookById(p.id);
+  if (!p || !b) { el.hidden = true; document.body.classList.remove('has-mini'); return; }
+  const a = AU(), c = b.chapters[p.k] || {};
+  el.hidden = false; document.body.classList.add('has-mini');
+  el.innerHTML = `<button type="button" class="mini-pp" data-action="bk-toggle" aria-label="${a && !a.paused ? 'Пауза' : 'Играть'}">${p.loading ? '<span class="spin" aria-hidden="true"></span>' : a && !a.paused ? '❚❚' : ico('play')}</button><button type="button" class="mini-t" data-action="bk-player"><b>${esc(c.title || 'Глава ' + (p.k + 1))}</b><small>${esc(b.title)}</small></button><button type="button" class="mini-x" data-action="bk-stop" aria-label="Закрыть плеер">×</button>`;
+}
+const SPEEDS = [1, 1.25, 1.5, 1.75, 2];
+function playerHtml() {
+  const p = S.play, b = p && bookById(p.id); if (!b) return '<p class="note">Ничего не играет.</p>';
+  const a = AU(), c = b.chapters[p.k] || {}, dur = (a && isFinite(a.duration) && a.duration) || c.dur || 0, t = (a && a.currentTime) || 0, sp = Number(LS.get('bj-bk-speed')) || 1;
+  return `<div class="bk-hero"><span class="bk-cov big">${esc(bookInit(b.title))}</span><div><h2 class="sh-title">${esc(c.title || 'Глава ' + (p.k + 1))}</h2><p class="sh-meta">${esc(b.title)}${b.author ? ' · ' + esc(b.author) : ''} · ${p.k + 1} из ${b.chapters.length}</p></div></div>
+    <input type="range" id="bk-seek" class="bk-seek" min="0" max="${Math.max(1, Math.floor(dur))}" step="1" value="${Math.floor(t)}" aria-label="Позиция"${p.loading ? ' disabled' : ''}>
+    <div class="bk-times"><span id="bk-t">${mmss(t)}</span><span id="bk-left">−${mmss(Math.max(0, dur - t))}</span></div>
+    <div class="bk-ctl"><button type="button" class="bk-b" data-action="bk-prev" aria-label="Предыдущая глава"${p.k ? '' : ' disabled'}>⏮</button><button type="button" class="bk-b" data-action="bk-back" aria-label="Назад 15 секунд">−15</button><button type="button" class="bk-b main" data-action="bk-toggle" aria-label="Играть или пауза">${p.loading ? '<span class="spin" aria-hidden="true"></span>' : a && !a.paused ? '❚❚' : ico('play')}</button><button type="button" class="bk-b" data-action="bk-fwd" aria-label="Вперёд 30 секунд">+30</button><button type="button" class="bk-b" data-action="bk-next" aria-label="Следующая глава"${p.k + 1 < b.chapters.length ? '' : ' disabled'}>⏭</button></div>
+    <div class="chips bk-speed">${SPEEDS.map(v => `<button type="button" class="chip-btn" data-action="bk-speed" data-v="${v}" aria-pressed="${v === sp}">${String(v).replace('.', ',')}×</button>`).join('')}</div>
+    <button type="button" class="link-btn" data-action="bk-open" data-id="${esc(b.id)}">Все главы</button>`;
+}
+function openPlayer() { S.cur = { type: 'player' }; openSheet(playerHtml()); }
+function renderPlayer() { if (S.cur && S.cur.type === 'player' && !$('#sheet').hidden) openSheet(playerHtml(), true); }
+function playerTime() {
+  if (!(S.cur && S.cur.type === 'player')) return;
+  const a = AU(), sk = document.getElementById('bk-seek'); if (!a || !sk) return;
+  if (document.activeElement !== sk) { if (isFinite(a.duration)) sk.max = Math.floor(a.duration); sk.value = Math.floor(a.currentTime || 0); }
+  const t = document.getElementById('bk-t'), l = document.getElementById('bk-left');
+  if (t) t.textContent = mmss(a.currentTime); if (l && isFinite(a.duration)) l.textContent = '−' + mmss(a.duration - a.currentTime);
+}
+async function bkPreloadNext() {
+  const p = S.play, a = AU(); if (!p || S.bkNextLoaded || !a || !isFinite(a.duration) || a.currentTime < a.duration * 0.8) return;
+  S.bkNextLoaded = true;
+  const b = bookById(p.id), c = b && b.chapters[p.k + 1]; if (!c) return;
+  try { await audioBlob(b.repo || booksRepo(), c.file); } catch (_) { S.bkNextLoaded = false; }
+}
+(function audioWire() {
+  const a = AU(); if (!a) return;
+  let lastUi = 0;
+  a.addEventListener('timeupdate', () => { bkTick(false); bkPreloadNext(); const n = Date.now(); if (n - lastUi > 900) { lastUi = n; playerTime(); } });
+  a.addEventListener('play', () => { if (S.play && !S.play.loading) { S.bkPlayedFrom = Date.now(); renderMini(); renderPlayer(); } });
+  a.addEventListener('pause', () => { if (S.play && !S.play.loading) { bkSave(false); renderMini(); renderPlayer(); } });
+  a.addEventListener('ended', () => { const p = S.play; if (!p || p.loading) return; bkSave(true); const b = bookById(p.id); if (b && p.k + 1 < b.chapters.length) bkPlay(p.id, p.k + 1, 0); else { toast('Книга дослушана'); renderMini(); } });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && S.play) bkSave(false); });
+  document.addEventListener('input', ev => { if (ev.target && ev.target.id === 'bk-seek') { const t = document.getElementById('bk-t'); if (t) t.textContent = mmss(Number(ev.target.value)); } });
+  document.addEventListener('change', ev => { if (ev.target && ev.target.id === 'bk-seek') { try { a.currentTime = Number(ev.target.value); } catch (_) {} bkTick(true); } });
+})();
+async function uploadAudio(files, id) {
+  const repo = booksRepo(), out = { media: [], names: [], failed: [] };
+  for (let k = 0; k < files.length; k++) {
+    const f = files[k], ext = ((f.name || '').match(AUDIO_RE) || ['.mp3'])[0].toLowerCase();
+    const path = `inbox/${id}_${pad(k + 1)}${ext}`;
+    try {
+      setSync(`книга: файл ${k + 1} из ${files.length} — читаю…`);
+      const b64 = await fileToBase64(f);
+      await GH.commitFiles([{ path, b64 }], `Книги: ${f.name || path}`.slice(0, 120), () => setSync(`книга: отправляю файл ${k + 1} из ${files.length}…`), repo);
+      out.media.push(path); out.names.push(f.name || '');
+    } catch (e) { console.warn(e); out.failed.push(k + 1); if (e.code === 'offline') break; }
+  }
+  setSync(syncLabel());
+  return out;
 }
 
 /* ---------- boot ---------- */

@@ -916,6 +916,41 @@ details.blk-f[open]{padding-bottom:10px}
 .rq-d{font:12px var(--f-mono);color:var(--muted)}
 .req-item .req-meta{justify-content:flex-end}
 .req-item .req-meta .btn{margin-left:0}
+/* книги */
+.bk-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;margin-top:10px;padding:10px 10px 10px 12px;border-radius:var(--r);border:1px solid var(--glass-line);background:linear-gradient(135deg,color-mix(in srgb,#F59E0B 13%,var(--glass-2)),color-mix(in srgb,#F0661E 9%,var(--glass-2)));box-shadow:var(--hl)}
+.bk-main{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;background:none;border:0;padding:0;text-align:left;color:var(--ink);cursor:pointer;min-width:0}
+.bk-main .t{font-weight:700} .bk-main .m{font-size:12.5px;color:var(--muted)} .bk-main .bar{margin-top:6px}
+.bk-main .bar i,.bk-row .bar i,.bk-hero .bar i{background:linear-gradient(90deg,#FCD34D,#F0661E)}
+.bk-play{width:46px;height:46px;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#FCA34D,#F0561E);cursor:pointer;box-shadow:0 8px 18px -10px rgba(240,86,30,.8)}
+.bk-play svg,.bk-b.main svg,.mini-pp svg,.btn.study svg{width:18px;height:18px;fill:currentColor;stroke:none}
+.bk-cov{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;font:800 17px var(--f-disp);color:#fff;background:linear-gradient(135deg,#F59E0B,#C2410C);flex:0 0 auto;letter-spacing:.02em}
+.bk-cov.big{width:76px;height:76px;border-radius:18px;font-size:26px}
+.bk-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;width:100%;text-align:left;padding:10px 12px;border-radius:16px;border:1px solid var(--glass-line);background:var(--glass-3);color:var(--ink);cursor:pointer}
+.bk-row .t{font-weight:700} .bk-row .m{font-size:12.5px;color:var(--muted)} .bk-row .bar{margin-top:6px}
+.bk-hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;margin-bottom:6px}
+.bk-hero .sh-title{font-size:18px}
+.bk-hero .bar{margin-top:8px}
+.bk-ch{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;padding:10px 12px;border-radius:14px;border:1px solid var(--glass-line);background:var(--glass-3);color:var(--ink);cursor:pointer;font-size:14.5px}
+.bk-ch .bk-n{font:600 13px var(--f-mono);color:var(--muted);text-align:center}
+.bk-ch .s{font:12.5px var(--f-mono);color:var(--muted)}
+.bk-ch.cur{border-color:#F0661E;background:color-mix(in srgb,#F0661E 10%,var(--glass-3))}
+.bk-ch.done .bk-n{color:var(--good)} .bk-ch.done .t{color:var(--muted)}
+.bk-seek{width:100%;margin:14px 0 2px;min-height:0;padding:0;accent-color:#F0661E;background:none;border:0;box-shadow:none}
+.bk-times{display:flex;justify-content:space-between;font:12.5px var(--f-mono);color:var(--muted)}
+.bk-ctl{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;align-items:center;margin-top:14px}
+.bk-b{height:52px;border-radius:16px;border:1px solid var(--glass-line);background:var(--glass-2);color:var(--ink);font:700 15px var(--f-body);cursor:pointer;display:grid;place-items:center}
+.bk-b:disabled{opacity:.35}
+.bk-b.main{height:64px;border-radius:50%;width:64px;justify-self:center;border:0;color:#fff;background:linear-gradient(135deg,#FCA34D,#F0561E);font-size:18px;box-shadow:0 10px 24px -12px rgba(240,86,30,.8)}
+.bk-b.main svg{width:24px;height:24px}
+.bk-speed{justify-content:center;margin:16px 0 8px}
+.bk-mini{position:fixed;z-index:41;left:10px;right:max(84px, calc((100vw - 552px) / 2 + 84px));bottom:calc(88px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 8px 6px 6px;border-radius:22px;background:var(--sheet-solid);border:1px solid var(--glass-line);box-shadow:0 12px 30px -16px rgba(0,0,0,.5)}
+.mini-pp{width:42px;height:42px;border-radius:50%;border:0;color:#fff;background:linear-gradient(135deg,#FCA34D,#F0561E);display:grid;place-items:center;cursor:pointer;font-size:13px;font-weight:800}
+.mini-t{display:grid;text-align:left;background:none;border:0;padding:0;color:var(--ink);cursor:pointer;min-width:0}
+.mini-t b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .mini-t small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-x{width:32px;height:32px;border-radius:50%;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer}
+body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
+.setup-steps{margin:8px 0 10px;padding-left:20px;display:grid;gap:6px;font-size:14px}
+.chip.ar-books{color:#B45309;background:rgba(245,158,11,.16)}
 .chip.ar-sport{color:var(--sport);background:var(--sport-soft)} .chip.ar-study{color:var(--study);background:var(--study-soft)} .chip.ar-food{color:#B45309;background:rgba(245,158,11,.16)}
 </style>
 </head>
@@ -964,6 +999,7 @@ details.blk-f[open]{padding-bottom:10px}
       <div id="lessons-banner"></div>
       <div id="lesson-hero"></div>
       <div class="duo"><div id="pf-card"></div><div id="en-card"></div></div>
+      <div id="bk-card"></div>
       <h2 class="sec">Дальше в очереди</h2>
       <div id="lessons-next" class="stack"></div>
       <details class="fold" data-k="l-setup"><summary><span>Добавить урок · окна для учёбы</span></summary>
@@ -1085,9 +1121,11 @@ details.blk-f[open]{padding-bottom:10px}
     <div id="sheet-body"></div>
   </div>
 </div>
+<div id="bk-mini" class="bk-mini" hidden></div>
+<audio id="bk-audio" preload="auto" playsinline></audio>
 <div id="focus" class="focus" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20260929e"></script>
+<script src="app.js?v=20260929f"></script>
 </body>
 </html>
