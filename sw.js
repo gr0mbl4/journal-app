@@ -1,6 +1,6 @@
 // Офлайн-оболочка журнала: страница и скрипт берутся из кэша, если нет сети.
 // Данные (api.github.com) сюда не попадают — они в localStorage приложения.
-const CACHE = 'bj-shell-20260929g';
+const CACHE = 'bj-shell-20260930a';
 const STATIC = ['./manifest.webmanifest', './icon-192.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -22,25 +22,17 @@ self.addEventListener('activate', e => {
   })());
 });
 
-function timeout(ms) { return new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)); }
-
 self.addEventListener('fetch', e => {
   const r = e.request;
   if (r.method !== 'GET') return;
   const u = new URL(r.url);
   if (u.origin !== self.location.origin) return;
   if (r.mode === 'navigate') {
-    // Сначала сеть (свежая версия), при плохой связи — через 4 с кэш.
-    e.respondWith((async () => {
-      const c = await caches.open(CACHE);
-      try {
-        const res = await Promise.race([fetch(r, { cache: 'no-store' }), timeout(4000)]);
-        if (res.ok) c.put('./index.html', res.clone());
-        return res;
-      } catch (_) {
-        return (await c.match('./index.html')) || Response.error();
-      }
-    })());
+    // Сразу из кэша (журнал открывается мгновенно даже при плохой сети), свежая версия — в фоне, со следующего открытия.
+    const cp = caches.open(CACHE);
+    const net = fetch(r, { cache: 'no-store' }).then(async res => { if (res.ok) await (await cp).put('./index.html', res.clone()); return res; }).catch(() => null);
+    e.waitUntil(net.then(() => {}));
+    e.respondWith((async () => (await (await cp).match('./index.html')) || (await net) || Response.error())());
     return;
   }
   // Скрипт и иконки версионированы — кэш, потом сеть.

@@ -44,6 +44,25 @@ const LS = {
 };
 
 const demo = () => !!LS.get('bj-demo');
+// Полоса загрузки файлов: подготовка (кадры, сжатие) — до 40%, отправка — 40–98% по байтам, с оценкой времени.
+const PROG = {
+  start(title) { this.t0 = Date.now(); this.title = title; this.last = 0; clearTimeout(this.hT); this.set(0, ''); },
+  step(stage, frac, detail) { frac = Math.max(0, Math.min(1, frac || 0)); this.set(stage === 'prep' ? frac * 40 : stage === 'up' ? 40 + frac * 58 : 99, detail); },
+  set(pct, detail) {
+    const el = document.getElementById('up-prog'); if (!el) return;
+    pct = Math.max(this.last || 0, Math.min(100, pct)); this.last = pct;
+    const sec = (Date.now() - (this.t0 || Date.now())) / 1000;
+    let eta = '';
+    if (pct > 3 && pct < 99 && sec > 2) { const left = Math.round(sec * (100 - pct) / pct); eta = left < 60 ? `≈ ${Math.max(1, left)} с` : `≈ ${Math.ceil(left / 60)} мин`; }
+    el.hidden = false;
+    el.innerHTML = `<div class="upp-row"><b>${esc(this.title || 'Отправляю')}</b><span>${Math.round(pct)}%${eta ? ' · ' + eta : ''}</span></div><div class="upp-bar"><i style="width:${pct.toFixed(1)}%"></i></div>${detail ? `<div class="upp-d">${esc(detail)}</div>` : ''}`;
+  },
+  done(ok, note) {
+    this.set(100, note || (ok ? 'готово' : 'не всё отправилось'));
+    clearTimeout(this.hT);
+    this.hT = setTimeout(() => { const el = document.getElementById('up-prog'); if (el) el.hidden = true; this.last = 0; }, ok ? 1200 : 4000);
+  }
+};
 const demoBad = t => demo() && /кредит|долг|займ|ипотек/i.test(String(t || ''));
 /* ---------- GitHub storage ---------- */
 const GH = {
@@ -61,11 +80,12 @@ const GH = {
     const m = this.docs[path];
     const r = await this.req('GET', this.url(path), null, m && m.etag && m.text != null ? { 'If-None-Match': m.etag } : null);
     if (r.status === 304 && m && m.text != null) { this.sha[path] = m.sha; return JSON.parse(m.text); }
-    if (r.status === 404) { delete this.sha[path]; this.docs[path] = { etag: '', sha: null, text: null }; saveDocs(); return null; }
+    if (r.status === 404) { delete this.sha[path]; if (!m || m.text != null) this.changed = (this.changed || 0) + 1; this.docs[path] = { etag: '', sha: null, text: null }; saveDocs(); return null; }
     if (!r.ok) throw this.fail(r);
     const j = await r.json();
     this.sha[path] = j.sha;
     const text = b64dec(j.content || '');
+    if (!m || m.text !== text) this.changed = (this.changed || 0) + 1;
     this.docs[path] = { etag: r.headers.get('ETag') || '', sha: j.sha, text };
     saveDocs();
     return JSON.parse(text);
@@ -119,14 +139,34 @@ const GH = {
     return j;
   },
   // Несколько файлов одной фиксацией: blobs → tree → commit → ref (без force; при гонке — заново от свежей головы).
+  // отправка с прогрессом по байтам (fetch этого не умеет)
+  xhr(method, path, body, onUp) {
+    return new Promise((res, rej) => {
+      const x = new XMLHttpRequest();
+      x.open(method, 'https://api.github.com' + path);
+      x.setRequestHeader('Authorization', 'Bearer ' + this.cred.token);
+      x.setRequestHeader('Accept', 'application/vnd.github+json');
+      x.setRequestHeader('X-GitHub-Api-Version', '2022-11-28');
+      x.setRequestHeader('Content-Type', 'application/json');
+      if (onUp && x.upload) x.upload.onprogress = e => { if (e.lengthComputable) onUp(e.loaded, e.total); };
+      x.onload = () => res({ ok: x.status >= 200 && x.status < 300, status: x.status, json: async () => JSON.parse(x.responseText || '{}') });
+      x.onerror = () => { const e = new Error('offline'); e.code = 'offline'; rej(e); };
+      x.send(JSON.stringify(body));
+    });
+  },
   async commitFiles(files, message, progress, repo) {
     const base = repo ? this.baseOf(repo) : this.base();
     if (!repo && !this.branch) await this.info();
     const branch = repo ? await this.branchOf(repo) : this.branch;
-    const shas = [];
+    const shas = [], tot = files.reduce((a, f) => a + f.b64.length, 0) || 1;
+    let doneB = 0;
     for (let i = 0; i < files.length; i++) {
-      if (progress) progress(i + 1, files.length);
-      const r = await this.req('POST', base + '/git/blobs', { content: files[i].b64, encoding: 'base64' });
+      if (progress) progress(i + 1, files.length, doneB, tot);
+      const len = files[i].b64.length;
+      const r = progress
+        ? await this.xhr('POST', base + '/git/blobs', { content: files[i].b64, encoding: 'base64' }, (l, t) => progress(i + 1, files.length, doneB + len * Math.min(1, l / Math.max(1, t)), tot))
+        : await this.req('POST', base + '/git/blobs', { content: files[i].b64, encoding: 'base64' });
+      doneB += len;
       if (!r.ok) throw this.fail(r);
       shas.push((await r.json()).sha);
     }
@@ -661,20 +701,25 @@ async function loadAll(quiet) {
   if (S.loading || !GH.cred) return;
   S.loading = true; $('#btn-refresh').classList.add('busy');
   if (!quiet) setSync('обновляю…');
+  S.skipRender = false;
   try {
     if (queueCount()) await flushQueue();
+    GH.changed = 0;
     GH.info().then(j => { if (j && j.private === false) { toast('Внимание: репозиторий с данными стал открытым! Сделай его приватным.'); setSync('Репозиторий с данными открытый — сделай приватным', true); } }).catch(() => {});
     const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop, booksDoc] = await Promise.all([
       readDoc('config.json'), readDoc('lessons.json'), readDoc('plan.json'), readDoc('learned.json'), readDoc('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
       readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json'), readDoc('books.json')
     ]);
-    applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    const inboxNames = inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name);
+    const quietSame = S.ready && !GH.changed && !queueCount() && inboxNames.join('|') === (S.inbox || []).join('|');
+    if (!quietSame) applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
     const [money, workouts] = await Promise.all([fetchMonths('money/', mks, { items: [] }), fetchMonths('workouts/', wks, { logs: {} })]);
     S.fresh = new Set(mks.map(k => 'money/' + k).concat(wks.map(k => 'workouts/' + k)));
-    applyData({ money, workouts });
+    if (!quietSame || GH.changed) applyData({ money, workouts });
+    S.skipRender = quietSame && !GH.changed;
     S.ready = true; S.lastLoad = Date.now();
     cacheNow();
     setSync(queueNote() || syncLabel());
@@ -689,7 +734,8 @@ async function loadAll(quiet) {
     setSync(e.code === 'offline' && queueCount() ? queueNote() : errText(e), e.code !== 'offline');
   } finally {
     S.loading = false; $('#btn-refresh').classList.remove('busy');
-    render();
+    if (!S.skipRender) render(); else { renderClaudeBtn(); renderDayChip(); }
+    S.skipRender = false;
   }
 }
 // месяц считается свежим, только если в этой загрузке его уже скачали — иначе показывали бы старый кэш
@@ -739,7 +785,16 @@ function merge3(base, local, remote) {
   return local;
 }
 function queueCount() { const q = OQ.get(); return Object.values(q).reduce((a, e) => a + (e.n || 1), 0); }
-function queueNote() { const n = queueCount(); return n ? `без сети · ${n} ${plural(n, 'изменение ждёт', 'изменения ждут', 'изменений ждут')} отправки` : ''; }
+function queueNote() { const n = queueCount(); return n ? `${S.offline ? 'без сети · ' : ''}${n} ${plural(n, 'изменение ждёт', 'изменения ждут', 'изменений ждут')} отправки` : ''; }
+function kickFlush(ms) { clearTimeout(S.flushT); S.flushT = setTimeout(runFlush, ms == null ? 250 : ms); }
+async function runFlush() {
+  if (S.flushing) { S.flushAgain = true; return; }
+  const ok = await flushQueue();
+  if (ok && (S.flushAgain || queueCount())) { S.flushAgain = false; return kickFlush(50); }
+  S.flushAgain = false;
+  if (!queueCount()) setSync('сохранено в ' + hhmm(new Date()));
+  else setSync(queueNote(), !S.offline);
+}
 function writeLocal(path, fn, msg, empty) {
   const q = OQ.get(), m = GH.docs[path];
   if (!q[path] && !m) return null;
@@ -759,11 +814,23 @@ async function flushQueue() {
     const e = q[p];
     try {
       const base = JSON.parse(e.base), local = JSON.parse(e.local);
-      await GH.mutate(p, remote => merge3(base, local, remote), (e.msg || 'Запись') + (e.n > 1 ? ` (+${e.n - 1}, без сети)` : ' (без сети)'), e.empty);
+      await GH.mutate(p, remote => merge3(base, local, remote), (e.msg || 'Запись') + (e.n > 1 ? ` (+${e.n - 1})` : '') + (e.off ? ' (без сети)' : ''), e.empty);
+      if (S.offline) { S.offline = false; }
       const q2 = OQ.get();
       if (q2[p] && q2[p].local === e.local) delete q2[p]; else if (q2[p]) { q2[p].base = e.local; q2[p].n = Math.max(1, (q2[p].n || 1) - (e.n || 1)); }
       OQ.set(q2);
-    } catch (err) { ok = false; console.warn(err); if (err.code === 'offline' || err.code === 'auth') break; }
+    } catch (err) {
+      ok = false;
+      if (err.code === 'offline') {
+        if (!S.offline) toast('Нет сети — сохранил на телефоне, отправлю при связи');
+        S.offline = true;
+        const q3 = OQ.get(); Object.values(q3).forEach(x => { x.off = true; }); OQ.set(q3);
+        break;
+      }
+      console.warn(err);
+      if (err.code === 'auth') { showSetup('Ключ не подошёл или истёк. Вставь новый.'); break; }
+      if (!S.flushErrShown) { S.flushErrShown = true; toast('Не отправилось: ' + errText(err) + ' Повторю позже.'); setTimeout(() => { S.flushErrShown = false; }, 60000); }
+    }
   }
   S.flushing = false;
   return ok;
@@ -776,9 +843,13 @@ async function readDoc(path) {
 }
 
 /* ---------- writes ---------- */
+// Запись сразу применяется к копии файла на телефоне (экран обновляется без ожидания),
+// а на GitHub уходит в фоне — с тем же слиянием, что и офлайн-очередь.
 async function write(path, fn, msg, empty) {
-  if (OQ.get()[path] && navigator.onLine !== false) await flushQueue();
-  if (OQ.get()[path]) { const nx = writeLocal(path, fn, msg, empty); if (nx) { setSync(queueNote()); return nx; } }
+  if (GH.docs[path] || OQ.get()[path]) {
+    const nx = writeLocal(path, fn, msg, empty);
+    if (nx) { setSync(S.offline ? queueNote() : 'сохраняю…'); kickFlush(); return nx; }
+  }
   S.pending++; setSync('сохраняю…');
   try {
     const next = await GH.mutate(path, fn, msg, empty);
@@ -1259,10 +1330,23 @@ function cleanBlocks(blocks) {
     return Object.assign({}, x, { sets });
   }) }));
 }
+function wkPhotosHtml(i) {
+  const L = logFor(i), ph = (L && Array.isArray(L.photos)) ? L.photos : [];
+  return `<div class="wk-photos">${ph.map(p => `<img data-gh="${esc(p)}" alt="Фото к тренировке">`).join('')}<label class="btn sm file-btn wk-ph-btn">${ico('cam')}${ph.length ? 'Ещё фото' : 'Фото (результат с дорожки и т. п.)'}<input type="file" id="wk-photo" accept="image/*" multiple aria-label="Фото к тренировке"></label></div>`;
+}
+async function wkPhotoUpload(files) {
+  const c = S.cur; if (!c || c.type !== 'sport' || !files.length) return;
+  const i = findInst(c.id); if (!i) return;
+  const up = await uploadFiles(files, `workouts/img/${i.id}_${Date.now().toString(36).slice(-5)}`, 'Фото тренировки');
+  if (!up.photos.length) { toast('Фото не загрузилось. Проверь связь и попробуй ещё раз.'); return; }
+  const mk = monthKey(i.eff), ses = c.ses;
+  const next = await write('workouts/' + mk + '.json', d => { d.logs = d.logs || {}; const L = d.logs[i.id] = d.logs[i.id] || { date: i.eff, key: ses.key, title: ses.title, blocks: [], ts: Date.now() }; L.photos = (Array.isArray(L.photos) ? L.photos : []).concat(up.photos); return d; }, `Тренировка ${i.eff}: фото (${up.photos.length})`, { logs: {} });
+  if (next) { S.workouts[mk] = next; cacheNow(); toast('Фото добавлено к тренировке'); openSport(c.id, true); }
+}
 async function saveLog(i, ses, blocks) {
   blocks = cleanBlocks(blocks);
   const mk = monthKey(i.eff);
-  const next = await write('workouts/' + mk + '.json', d => { d.logs = d.logs || {}; d.logs[i.id] = { date: i.eff, key: ses.key, title: ses.title, blocks, ts: Date.now() }; return d; }, `Тренировка ${i.eff}: ${ses.title}`, { logs: {} });
+  const next = await write('workouts/' + mk + '.json', d => { d.logs = d.logs || {}; const prev = d.logs[i.id] || {}; d.logs[i.id] = { date: i.eff, key: ses.key, title: ses.title, blocks, ts: Date.now() }; if (Array.isArray(prev.photos) && prev.photos.length) d.logs[i.id].photos = prev.photos; return d; }, `Тренировка ${i.eff}: ${ses.title}`, { logs: {} });
   if (next) { S.workouts[mk] = next; LS.del('bj-draft-' + i.id); cacheNow(); }
   return !!next;
 }
@@ -1809,13 +1893,23 @@ function moneyPlan() { return moneyCfg().plan || null; }
 function regulars() { return moneyCfg().regular || []; }
 function goals() { return (moneyCfg().goals || []).filter(g => !(demo() && (g.type === 'debt' || demoBad(g.name)))); }
 function acctById(id) { return accounts().find(a => a.id === id) || null; }
+let regCache = { cfg: null, list: [] };
+const regItem = new WeakMap();
+function regMatchers() {
+  const rg = regulars();
+  if (regCache.cfg !== rg) regCache = { cfg: rg, list: rg.filter(r => !r.cash).map(r => ({ r, words: (r.match && r.match.length ? r.match : [r.name]).filter(Boolean).map(norm) })) };
+  return regCache.list;
+}
 function regularOf(x) {
   const k = kindOf(x); if (k !== 'spend' && k !== 'transfer') return null;
+  const ms = regMatchers(), hit = regItem.get(x);
+  if (hit && hit.cfg === regCache.cfg) return hit.res;
   const n = norm((x.name || '') + ' ' + (x.raw || ''));
-  const c = regulars().filter(r => !r.cash && (r.match && r.match.length ? r.match : [r.name]).some(w => w && n.includes(norm(w))));
-  if (c.length < 2) return c[0] || null;
-  const amt = Number(x.amount) || 0;
-  return c.slice().sort((a, b) => Math.abs((Number(a.amount) || 0) - amt) - Math.abs((Number(b.amount) || 0) - amt))[0];
+  const c = ms.filter(m => m.words.some(w => n.includes(w))).map(m => m.r);
+  let res = c[0] || null;
+  if (c.length > 1) { const amt = Number(x.amount) || 0; res = c.slice().sort((a, b) => Math.abs((Number(a.amount) || 0) - amt) - Math.abs((Number(b.amount) || 0) - amt))[0]; }
+  regItem.set(x, { cfg: regCache.cfg, res });
+  return res;
 }
 function isLiving(x) { const p = moneyPlan() || {}; if (kindOf(x) === 'cash') return true; return kindOf(x) === 'spend' && !(p.fixedCats || []).includes(x.cat) && !regularOf(x); }
 const sumAmt = list => list.reduce((a, x) => a + (Number(x.amount) || 0), 0);
@@ -2138,9 +2232,13 @@ function openPortfolio(tab) {
 function announceAchievements() {
   if (!S.ready || !S.curriculum || !curBlocks().length) return;
   const c = pfStats(), ach = achievements(c), fresh = newAchievements(ach);
-  const lv = LS.get('bj-lvl');
+  void fresh;
+  // сообщаем об ачивке один раз: запоминаем, о каких уже сказали
+  const lv = LS.get('bj-lvl'), told = LS.get('bj-ach-told'), toldSet = new Set(told || []);
+  const news = ach.filter(a => a.ok && !toldSet.has(a.id));
   if (lv != null && c.lvl > lv) toast(`🎖 Новое звание: ${c.rank}! Уровень ${c.lvl}`);
-  else if (fresh.length && LS.get('bj-ach')) toast(fresh.length === 1 ? `🏆 Ачивка: ${fresh[0].t}` : `🏆 Новые ачивки: ${fresh.length} — загляни в портфолио`);
+  else if (told && news.length) toast(news.length === 1 ? `🏆 Ачивка: ${news[0].t}` : `🏆 Новые ачивки: ${news.length} — загляни в портфолио`);
+  LS.set('bj-ach-told', ach.filter(a => a.ok).map(a => a.id));
   LS.set('bj-lvl', c.lvl);
 }
 async function loadNotesDays() {
@@ -2152,7 +2250,8 @@ async function loadNotesDays() {
     const j = await r.json();
     S.notesDays = Array.from(new Set((j || []).filter(x => !/noreply@anthropic\.com/i.test(((x.commit || {}).author || {}).email || '')).map(x => ds(new Date(((x.commit || {}).author || {}).date || ((x.commit || {}).committer || {}).date)))));
     LS.set('bj-notes-days', S.notesDays);
-    renderLessons(); announceAchievements();
+    if (S.tab === 'lessons') renderLessons(); else S.dirty.add('lessons');
+    announceAchievements();
   } catch (_) {}
 }
 /* ---------- итоги: неделя (пн–вс) / месяц (бюджетный, с periodStart) / год ----------
@@ -2729,7 +2828,7 @@ function blankFrame(ctx, w, h) {
   try { const d = ctx.getImageData(0, 0, w, h).data; let s = 0, n = 0; for (let i = 0; i < d.length; i += 4 * 499) { s += d[i] + d[i + 1] + d[i + 2]; n++; } return n > 0 && s / n < 8; } catch (_) { return false; }
 }
 // Кадры из видео прямо на телефоне: Claude всё равно смотрит видео по кадрам, а оригинал бывает на сотни мегабайт и с геометкой.
-function videoFrames(file, max) {
+function videoFrames(file, max, onFrame) {
   return new Promise(resolve => {
     const url = URL.createObjectURL(file), v = document.createElement('video'), out = [];
     let done = false, kill = 0;
@@ -2747,9 +2846,10 @@ function videoFrames(file, max) {
         const n = Math.max(1, Math.min(max, Math.ceil(d / 2)));
         const sc = Math.min(1, 1080 / Math.max(W, H));
         const c = document.createElement('canvas'); c.width = Math.round(W * sc); c.height = Math.round(H * sc);
-        const ctx = c.getContext('2d');
+        const ctx = c.getContext('2d', { willReadFrequently: true });
         for (let i = 0; i < n && !done; i++) {
           setSync(`кадры из видео: ${i + 1} из ${n}…`);
+          if (onFrame) onFrame(i, n);
           await seekTo(v, Math.min(d - 0.05, d / n * (i + 0.5)));
           ctx.drawImage(v, 0, 0, c.width, c.height);
           if (blankFrame(ctx, c.width, c.height)) continue;
@@ -2767,13 +2867,15 @@ const isVideo = f => /^video\//.test(f.type || '') || /\.(mov|mp4|m4v|3gp)$/i.te
 // Все файлы уходят одной фиксацией (Git Data API). failed — номера файлов, которые не получилось подготовить или отправить.
 async function uploadFiles(files, prefix, label) {
   const out = { media: [], photos: [], frames: 0, failed: [] };
-  const batch = [];
+  const batch = [], N = files.length, vids = files.filter(isVideo).length;
+  PROG.start(vids ? (N > 1 ? `Отправляю ${N} ${plural(N, 'файл', 'файла', 'файлов')}` : 'Отправляю видео') : (N > 1 ? `Отправляю ${N} фото` : 'Отправляю фото'));
   for (let k = 0; k < files.length; k++) {
     const f = files[k];
     setSync(`готовлю файл ${k + 1} из ${files.length}…`);
+    PROG.step('prep', k / N, isVideo(f) ? `видео ${N > 1 ? (k + 1) + ' из ' + N + ' ' : ''}— нарезаю кадры` : `фото ${k + 1} из ${N} — сжимаю`);
     try {
       if (isVideo(f)) {
-        const fr = await videoFrames(f, 24);
+        const fr = await videoFrames(f, 24, (i, n) => PROG.step('prep', (k + (i + 1) / n) / N, `видео ${N > 1 ? (k + 1) + ' из ' + N + ' ' : ''}— кадр ${i + 1} из ${n}`));
         if (!fr.length) { out.failed.push(k + 1); continue; }
         fr.forEach((x, i) => batch.push({ path: `${prefix}_${k + 1}_f${pad(i + 1)}.jpg`, b64: x.b64, photo: true }));
         out.frames += fr.length;
@@ -2782,9 +2884,9 @@ async function uploadFiles(files, prefix, label) {
       }
     } catch (_) { out.failed.push(k + 1); }
   }
-  if (!batch.length) return out;
+  if (!batch.length) { PROG.done(false, 'файлы не прочитались'); return out; }
   try {
-    await GH.commitFiles(batch, `${label}: ${batch.length} ${plural(batch.length, 'файл', 'файла', 'файлов')}`, (i, n) => setSync(`отправляю ${i} из ${n}…`));
+    await GH.commitFiles(batch, `${label}: ${batch.length} ${plural(batch.length, 'файл', 'файла', 'файлов')}`, (i, n, bd, bt) => { setSync(`отправляю ${i} из ${n}…`); PROG.step('up', bd / bt, `отправляю ${i} из ${n}`); });
     batch.forEach(b => { out.media.push(b.path); if (b.photo) out.photos.push(b.path); });
   } catch (e) {
     console.warn(e);
@@ -2794,6 +2896,7 @@ async function uploadFiles(files, prefix, label) {
       catch (e2) { setSync(errText(e2), true); if (b.k && !out.failed.includes(b.k)) out.failed.push(b.k); }
     }
   }
+  PROG.done(!out.failed.length && out.media.length === batch.length);
   setSync(syncLabel());
   return out;
 }
@@ -3109,9 +3212,11 @@ async function openSport(id, keepScroll) {
     <p class="sh-meta">${esc(cap1(longDate(i.eff)))}${i.eff !== i.orig ? ` · перенесено с ${short(i.orig)}` : ''}${ses.replaced === 'as' ? ` · вместо: ${esc((sessions[i.key] || {}).title || i.key)}` : ''}${ses.replaced === 'custom' ? ` · вместо: ${esc((sessions[i.key] || {}).title || i.key)}` : ''}</p>
     ${status}
     <div id="wk">${workoutForm(i, ses)}</div>
+    ${wkPhotosHtml(i)}
     ${ses.note ? `<p class="note">${esc(ses.note)}</p>` : ''}
     ${main}${moveBox}${replaceBox}`, keepScroll);
   wkProgress();
+  hydrateImages($('#sheet-body'));
 }
 async function commitMove(i, res, reason) {
   if (!res) return;
@@ -3231,7 +3336,7 @@ function recipeMeta(r) {
 }
 const QTY_W = '(?:одн[оаи]|один|две|два|три|четыре|пять|пара|пару|немного|\\d+\\s*(?:шт\\.?|штук[иа]?)?)';
 function splitNames(text) {
-  const parts = String(text || '').split(/[,;\n+]|\s+и\s+|\s+с\s+собой/i).map(s => s.trim()).filter(Boolean);
+  const parts = String(text || '').split(/[,;\n+]|\.(?:\s+|$)|\s+и\s+|\s+с\s+собой/i).map(s => s.trim()).filter(Boolean);
   const out = [];
   for (const p of parts) p.split(new RegExp('\\s+(?=' + QTY_W + '\\s+[а-яёa-z])', 'i')).forEach(x => {
     const t = x.replace(new RegExp('^' + QTY_W + '\\s+', 'i'), '').trim().replace(/\s{2,}/g, ' ');
@@ -3304,14 +3409,16 @@ function openMealPick(meal) {
   const byNew = (a, b) => (b.added || '') < (a.added || '') ? -1 : (b.added || '') > (a.added || '') ? 1 : (a.title || '').localeCompare(b.title || '', 'ru');
   const fit = S.recipes.filter(r => Array.isArray(r.meals) && r.meals.includes(meal)).sort((a, b) => (isCombo(b) - isCombo(a)) || byNew(a, b));
   const rest = S.recipes.filter(r => !fit.includes(r)).sort(byNew);
-  S.cur = { type: 'meal', meal };
+  S.cur = { type: 'meal', meal, sel: [] };
   openSheet(`<h2 class="sh-title">${MEAL_NAME[meal]} · ${esc(dayName(S.foodDate).toLowerCase())}, ${dm(S.foodDate)}</h2>
     <label class="fld" for="mp-name">Просто название — без рецепта</label>
     <div class="form-row"><input id="mp-name" placeholder="Например: борщ, котлета с пюре, компот" autocomplete="off"><button type="button" class="btn study" data-action="meal-quick" data-meal="${meal}">Добавить</button></div>
     
     <div class="sh-acts two"><button type="button" class="btn" data-action="combo-new" data-meal="${meal}">+ Составное</button><button type="button" class="btn" data-action="rc-new" data-meal="${meal}">+ Рецепт</button></div>
-    ${fit.length ? `<h3 class="sec">Для: ${MEAL_GEN[meal]}</h3><div class="stack">${fit.map(r => dishCard(r, 'meal-add', ` data-meal="${meal}"`)).join('')}</div>` : ''}
-    ${rest.length ? `<h3 class="sec">${fit.length ? 'Остальные' : 'Все блюда'}</h3><div class="stack">${rest.map(r => dishCard(r, 'meal-add', ` data-meal="${meal}"`)).join('')}</div>` : ''}`);
+    <p class="note">Отметь всё, что ел, и нажми «Добавить».</p>
+    ${fit.length ? `<h3 class="sec">Для: ${MEAL_GEN[meal]}</h3><div class="stack">${fit.map(r => dishCard(r, 'meal-sel', ` data-meal="${meal}"`)).join('')}</div>` : ''}
+    ${rest.length ? `<h3 class="sec">${fit.length ? 'Остальные' : 'Все блюда'}</h3><div class="stack">${rest.map(r => dishCard(r, 'meal-sel', ` data-meal="${meal}"`)).join('')}</div>` : ''}
+    <div class="mp-bar" id="mp-bar" hidden><button type="button" class="btn study block" data-action="meal-add-sel" data-meal="${meal}">Добавить</button></div>`);
   hydrateImages($('#sheet-body'));
 }
 function openCombo(id, meal) {
@@ -3521,10 +3628,11 @@ async function uploadReceipts(files) {
   const stamp = pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
   const btn = $('#m-photo-btn');
   btn.classList.add('busy');
-  toast(list.length > 1 ? `Загружаю ${list.length} фото. Не закрывай приложение, пока не закончится.` : 'Загружаю фото…');
+  PROG.start(list.length > 1 ? `Отправляю ${list.length} фото` : 'Отправляю фото');
   let ok = 0; const failed = [];
   for (let k = 0; k < list.length; k++) {
     setSync(list.length > 1 ? `загружаю фото ${k + 1} из ${list.length}…` : 'загружаю фото…');
+    PROG.step('up', k / list.length, list.length > 1 ? `фото ${k + 1} из ${list.length}` : '');
     const name = `${date}_${stamp}_${k + 1}of${list.length}_${Math.random().toString(36).slice(2, 6)}.jpg`;
     let b64 = null, lastErr = null;
     try { b64 = await resizeImage(list[k]); }
@@ -3538,6 +3646,7 @@ async function uploadReceipts(files) {
     if (lastErr || !b64) failed.push(k + 1);
   }
   btn.classList.remove('busy');
+  PROG.done(!failed.length);
   cacheNow(); renderMoney();
   if (!failed.length) { setSync('сохранено в ' + hhmm(new Date())); toast(ok > 1 ? `Загружено фото: ${ok}. Разберу, когда позовёшь.` : 'Фото сохранено. Разберу, когда позовёшь.'); }
   else { setSync(`не загрузились фото № ${failed.join(', ')}`, true); toast(`Загружено ${ok} из ${list.length}. Не дошли № ${failed.join(', ')} — выбери их ещё раз.`); }
@@ -3619,6 +3728,7 @@ document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-action]'); if (!b) return;
   const a = b.dataset.action, d = b.dataset.date, id = b.dataset.id;
   if (b.disabled) return;
+  if (a === 'day' && S.swipedAt && Date.now() - S.swipedAt < 400) return;
   switch (a) {
     case 'tab': setTab(b.dataset.tab); break;
     case 'stp': stepSet(b.dataset.k, b.dataset.f, Number(b.dataset.d)); break;
@@ -3820,8 +3930,8 @@ document.addEventListener('click', async ev => {
     case 'day': openDay(d); break;
     case 'day-extra': busy(b, true); if (await writePlan(p => { p.studyDays[d] = { extra: Number(b.dataset.min) }; }, `Учёба: доп. окно ${d}`)) { S.shift = {}; closeSheet(); toast('Окно добавлено, уроки подтянулись'); } busy(b, false); break;
     case 'day-unextra': busy(b, true); if (await writePlan(p => { delete p.studyDays[d]; }, `Учёба: доп. окно ${d} убрано`)) { closeSheet(); toast('Окно убрано'); } busy(b, false); break;
-    case 'cal-prev': S.calMonth = monthShift(S.calMonth, -1); renderCal(); break;
-    case 'cal-next': S.calMonth = monthShift(S.calMonth, 1); renderCal(); break;
+    case 'cal-prev': calShift(-1); break;
+    case 'cal-next': calShift(1); break;
     case 'ev-new': openEvent(null, d); break;
     case 'event': openEvent(id); break;
     case 'ev-save': busy(b, true); await eventSave(); busy(b, false); break;
@@ -3940,6 +4050,20 @@ document.addEventListener('click', async ev => {
     case 'food-next': S.foodDate = addDays(S.foodDate, 1); renderFood(); break;
     case 'meal-pick': openMealPick(b.dataset.meal); break;
     case 'meal-quick': busy(b, true); await quickDishes(b.dataset.meal, $('#mp-name') && $('#mp-name').value); busy(b, false); break;
+    case 'meal-sel': {
+      const c = S.cur; if (!c || c.type !== 'meal') return;
+      const k = c.sel.indexOf(id); if (k >= 0) c.sel.splice(k, 1); else c.sel.push(id);
+      document.querySelectorAll(`.dish[data-action="meal-sel"][data-id="${CSS.escape(id)}"]`).forEach(x => x.classList.toggle('sel', k < 0));
+      const bar = $('#mp-bar'); if (bar) { bar.hidden = !c.sel.length; const bt = bar.querySelector('button'); if (bt) bt.textContent = `Добавить ${c.sel.length > 1 ? c.sel.length + ' ' + plural(c.sel.length, 'блюдо', 'блюда', 'блюд') : c.sel.length ? '«' + ((recipeById(c.sel[0]) || {}).title || '') + '»' : ''}`; }
+      break;
+    }
+    case 'meal-add-sel': {
+      const c = S.cur; if (!c || c.type !== 'meal' || !c.sel.length) return;
+      const meal = b.dataset.meal, ids = c.sel.slice(), names = ids.map(x => (recipeById(x) || {}).title).filter(Boolean);
+      busy(b, true);
+      if (await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; const arr = day[meal] = Array.isArray(day[meal]) ? day[meal] : []; ids.forEach(x => arr.push(x)); stampMeal(day, meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${names.join(', ').slice(0, 60)}`)) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${names.join(', ')}`.slice(0, 90)); }
+      busy(b, false); break;
+    }
     case 'meal-add': {
       const meal = b.dataset.meal, r = recipeById(id); if (!r) return;
       busy(b, true);
@@ -4008,6 +4132,20 @@ document.addEventListener('click', async ev => {
     }
   }
 });
+function calShift(d) {
+  S.calMonth = monthShift(S.calMonth, d); renderCal();
+  const g = document.querySelector('#cal-body .cal-grid');
+  if (g && g.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) g.animate([{ transform: `translateX(${d * 28}px)`, opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 180, easing: 'ease-out' });
+}
+(function calSwipe() {
+  const el = document.getElementById('tab-cal'); if (!el) return;
+  let x0 = 0, y0 = 0, t0 = 0;
+  el.addEventListener('touchstart', e => { const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now(); }, { passive: true });
+  el.addEventListener('touchend', e => {
+    const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - t0 < 800) { S.swipedAt = Date.now(); calShift(dx < 0 ? 1 : -1); }
+  }, { passive: true });
+})();
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
 document.addEventListener('submit', ev => {
   if (ev.target && ev.target.id === 'shop-form') { ev.preventDefault(); const inp = $('#shop-in'); if (inp && inp.value.trim()) { shopAdd(inp.value); inp.value = ''; } if (inp) inp.focus(); }
@@ -4048,6 +4186,9 @@ document.addEventListener('change', async ev => {
     if (box) box.innerHTML = expenseCatBlock(el.value, x && kindOf(x) === el.value ? x.cat : catsFor(el.value)[0], x && x.dir);
   } else if (el.id === 'ev-unit' || el.id === 'ev-n' || el.id === 'ev-date') {
     repNote();
+  } else if (el.id === 'wk-photo') {
+    const files = Array.from(el.files || []); el.value = '';
+    if (files.length) wkPhotoUpload(files);
   } else if (el.id === 'msg-files') {
     const n = el.files ? el.files.length : 0, lab = $('#msg-files-label'); if (lab) lab.textContent = n ? '📎 ' + n : '📎';
   } else if (el.id === 'rc-files' || el.id === 'id-files') {
@@ -4117,6 +4258,7 @@ const ICP = {
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   play: '<path d="M8 5.5v13l10-6.5z"/>',
   headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2"/><rect x="16" y="14" width="5" height="7" rx="2"/>',
+  cam: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   warn: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17h.01"/>'
 };
 const ico = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICP[n] || ''}</svg>`;
@@ -4804,17 +4946,22 @@ async function bkPreloadNext() {
   document.addEventListener('change', ev => { if (ev.target && ev.target.id === 'bk-seek') { try { a.currentTime = Number(ev.target.value); } catch (_) {} bkTick(true); } });
 })();
 async function uploadAudio(files, id) {
-  const repo = booksRepo(), out = { media: [], names: [], failed: [] };
+  const repo = booksRepo(), out = { media: [], names: [], failed: [] }, N = files.length;
+  const totB = files.reduce((a, f) => a + (f.size || 0), 0) || 1; let doneB = 0;
+  PROG.start(N > 1 ? `Отправляю книгу: ${N} ${plural(N, 'файл', 'файла', 'файлов')}` : 'Отправляю аудио');
   for (let k = 0; k < files.length; k++) {
     const f = files[k], ext = ((f.name || '').match(AUDIO_RE) || ['.mp3'])[0].toLowerCase();
     const path = `inbox/${id}_${pad(k + 1)}${ext}`;
     try {
       setSync(`книга: файл ${k + 1} из ${files.length} — читаю…`);
+      PROG.step('prep', 0.3 + 0.7 * doneB / totB, `файл ${k + 1} из ${N} — читаю`);
       const b64 = await fileToBase64(f);
-      await GH.commitFiles([{ path, b64 }], `Книги: ${f.name || path}`.slice(0, 120), () => setSync(`книга: отправляю файл ${k + 1} из ${files.length}…`), repo);
+      await GH.commitFiles([{ path, b64 }], `Книги: ${f.name || path}`.slice(0, 120), (i, n, bd, bt) => { setSync(`книга: отправляю файл ${k + 1} из ${files.length}…`); PROG.step('up', (doneB + (f.size || 0) * bd / bt) / totB, `файл ${k + 1} из ${N} · ${Math.round((f.size || 0) * bd / bt / 1048576)} из ${Math.round((f.size || 0) / 1048576)} МБ`); }, repo);
+      doneB += f.size || 0;
       out.media.push(path); out.names.push(f.name || '');
-    } catch (e) { console.warn(e); out.failed.push(k + 1); if (e.code === 'offline') break; }
+    } catch (e) { console.warn(e); out.failed.push(k + 1); doneB += f.size || 0; if (e.code === 'offline') break; }
   }
+  PROG.done(!out.failed.length);
   setSync(syncLabel());
   return out;
 }
@@ -4841,7 +4988,7 @@ document.addEventListener('visibilitychange', () => {
   renderTimerChip();
   if (GH.cred && Date.now() - S.lastLoad > 120000) loadAll(true);
 });
-window.addEventListener('online', () => { if (GH.cred) loadAll(true); });
+window.addEventListener('online', () => { if (GH.cred) { S.offline = false; if (queueCount()) runFlush(); loadAll(true); } });
 window.addEventListener('offline', () => setSync(queueNote() || 'нет сети · показаны сохранённые данные'));
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 setInterval(() => {
