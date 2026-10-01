@@ -6,6 +6,9 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl = u => { try { const x = new URL(String(u || '').trim()); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (_) { return ''; } };
 const pad = n => String(n).padStart(2, '0');
+const sleepMs = ms => new Promise(r => setTimeout(r, ms));
+// приложение свёрнуто — ждём, пока его снова откроют (но не дольше 10 минут)
+const waitVisible = () => document.hidden ? new Promise(r => { const t = setTimeout(done, 600000); function done() { clearTimeout(t); document.removeEventListener('visibilitychange', on); r(); } function on() { if (!document.hidden) done(); } document.addEventListener('visibilitychange', on); }) : Promise.resolve();
 const ds = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const pd = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], 12); };
 const addDays = (s, n) => { const d = pd(s); d.setDate(d.getDate() + n); return ds(d); };
@@ -35,7 +38,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const hhmm = d => pad(d.getHours()) + ':' + pad(d.getMinutes());
 const numOrNull = v => { v = String(v == null ? '' : v).replace(',', '.').trim(); if (!v) return null; const n = Number(v); return isFinite(n) ? n : null; };
 const HORIZON = 20;
-const LET = 'АБВГДЕ';
+const LET = 'АБВГДЕЖЗИК';
 const DOTS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>';
 const LS = {
   get(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (_) { return null; } },
@@ -54,7 +57,8 @@ const PROG = {
     const sec = (Date.now() - (this.t0 || Date.now())) / 1000;
     let eta = '';
     if (pct > 3 && pct < 99 && sec > 2) { const left = Math.round(sec * (100 - pct) / pct); eta = left < 60 ? `≈ ${Math.max(1, left)} с` : `≈ ${Math.ceil(left / 60)} мин`; }
-    el.hidden = false;
+    if (typeof outTick === 'function') outTick(pct, detail, eta);
+    el.hidden = false; el.classList.toggle('mini', !!this.mini);
     el.innerHTML = `<div class="upp-row"><b>${esc(this.title || 'Отправляю')}</b><span>${Math.round(pct)}%${eta ? ' · ' + eta : ''}</span></div><div class="upp-bar"><i style="width:${pct.toFixed(1)}%"></i></div>${detail ? `<div class="upp-d">${esc(detail)}</div>` : ''}`;
   },
   done(ok, note) {
@@ -163,11 +167,19 @@ const GH = {
     for (let i = 0; i < files.length; i++) {
       if (progress) progress(i + 1, files.length, doneB, tot);
       const len = files[i].b64.length;
-      const r = progress
-        ? await this.xhr('POST', base + '/git/blobs', { content: files[i].b64, encoding: 'base64' }, (l, t) => progress(i + 1, files.length, doneB + len * Math.min(1, l / Math.max(1, t)), tot))
-        : await this.req('POST', base + '/git/blobs', { content: files[i].b64, encoding: 'base64' });
+      // связь на телефоне рвётся (лифт, свернул приложение) — файл пробуем ещё раз, а не начинаем всё заново
+      let r = null;
+      for (let att = 0; att < 4; att++) {
+        if (att) { await waitVisible(); await sleepMs(1500 * att); }
+        try {
+          r = progress
+            ? await this.xhr('POST', base + '/git/blobs', { content: files[i].b64, encoding: 'base64' }, (l, t) => progress(i + 1, files.length, doneB + len * Math.min(1, l / Math.max(1, t)), tot))
+            : await this.req('POST', base + '/git/blobs', { content: files[i].b64, encoding: 'base64' });
+          if (r.ok || (r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429)) break;
+        } catch (e) { r = null; if (att === 3) throw e; }
+      }
       doneB += len;
-      if (!r.ok) throw this.fail(r);
+      if (!r || !r.ok) throw r ? this.fail(r) : Object.assign(new Error('offline'), { code: 'offline' });
       shas.push((await r.json()).sha);
     }
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -1473,20 +1485,66 @@ function sleepAvg(days) {
   return n ? { avg: Math.round(sum / n), n } : null;
 }
 function renderSleep() { const box = $('#plan-sleep'); if (box) box.innerHTML = ''; }
+// Будни и выходные спит по-разному: подставляем его обычное время отдельно для каждого (медиана последних ночей того же типа).
+function sleepKind(d) { const w = pd(d).getDay(); return w === 0 || w === 6 || holiday(d) ? 'we' : 'wd'; }
+const SLEEP_DEF = { wd: { bed: '23:30', wake: '07:30' }, we: { bed: '00:30', wake: '09:00' } };
+function sleepTypical(kind, before) {
+  const days = S.sleep.days || {};
+  const ks = Object.keys(days).filter(d => (!before || d < before) && sleepKind(d) === kind).sort().slice(-21);
+  const med = a => { a = a.slice().sort((x, y) => x - y); const n = a.length; return n ? (n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2) : null; };
+  const r5 = v => ((Math.round(v / 5) * 5) % 1440 + 1440) % 1440;
+  const clock = v => pad(Math.floor(v / 60)) + ':' + pad(v % 60);
+  // время отбоя считаем от полудня, чтобы 23:50 и 00:10 не давали в среднем полдень
+  const beds = ks.map(d => toMin(days[d].bed)).filter(v => v != null).map(v => (v + 720) % 1440);
+  const wakes = ks.map(d => toMin(days[d].wake)).filter(v => v != null);
+  const def = SLEEP_DEF[kind];
+  if (ks.length < 3) return { bed: def.bed, wake: def.wake, n: ks.length, stat: false };
+  return { bed: clock(r5(med(beds) - 720)), wake: clock(r5(med(wakes))), n: ks.length, stat: true };
+}
+function slStepper(f, label, val) {
+  // крупные цифры всегда в 24-часовом виде; поверх — прозрачное системное поле: тап открывает колесо выбора времени
+  return `<div class="sl-row"><span class="sl-lab">${label}</span><button type="button" class="sl-b" data-sl="${f}" data-d="-5" aria-label="${label}: на 5 минут раньше">−</button><label class="sl-val"><span id="sl-${f}-v" aria-hidden="true">${esc(val || '—')}</span><input type="time" id="sl-${f}" step="300" value="${esc(val)}" aria-label="${label}"></label><button type="button" class="sl-b" data-sl="${f}" data-d="5" aria-label="${label}: на 5 минут позже">+</button></div>`;
+}
 function openSleep(d) {
   const s = (S.sleep.days || {})[d] || {};
+  const kind = sleepKind(d), ty = sleepTypical(kind, s.bed ? null : d);
   S.cur = { type: 'sleep', d };
+  const kindL = kind === 'we' ? 'в выходные' : 'в будни';
+  const hint = ty.stat ? `Обычно ${kindL}: ${ty.bed} → ${ty.wake} (из ${ty.n} ${plural(ty.n, 'ночи', 'ночей', 'ночей')})${s.bed ? '' : ' — уже подставил'}.` : `${kindL[0].toUpperCase() + kindL.slice(1)} пока подставляю ${ty.bed} → ${ty.wake}; с трёх отмеченных ночей начну брать твоё обычное время.`;
   openSheet(`<h2 class="sh-title">Сон · ночь на ${esc(longDate(d))}</h2>
-    <div class="two"><div><label class="fld" for="sl-bed">Лёг</label><input type="time" id="sl-bed" value="${esc(s.bed || '')}"></div><div><label class="fld" for="sl-wake">Встал</label><input type="time" id="sl-wake" value="${esc(s.wake || '')}"></div></div>
-    <label class="fld" for="sl-note">Заметка (необязательно)</label><input id="sl-note" value="${esc(s.note || '')}" placeholder="Например: просыпался, наряд">
+    <div class="sl-pick">${slStepper('bed', 'Лёг', s.bed || ty.bed)}${slStepper('wake', 'Встал', s.wake || ty.wake)}</div>
     <p class="note" id="sl-dur"></p>
+    <label class="fld" for="sl-note">Заметка (необязательно)</label><input id="sl-note" value="${esc(s.note || '')}" placeholder="Например: просыпался, наряд">
+    <p class="note">${esc(hint)} Кнопки — по 5 минут, если держать — быстрее.</p>
     <div class="sh-acts"><button type="button" class="btn study block" data-action="sleep-save">Сохранить</button>${s.bed ? '<button type="button" class="btn danger block" data-action="sleep-del">Удалить</button>' : ''}</div>`);
   sleepDurNote();
 }
+function slStep(f, d) {
+  const el = $('#sl-' + f); if (!el) return;
+  let v = toMin(el.value); if (v == null) v = toMin(SLEEP_DEF.wd[f]) || 0;
+  v = ((Math.round(v / 5) * 5 + d) % 1440 + 1440) % 1440;
+  el.value = pad(Math.floor(v / 60)) + ':' + pad(v % 60);
+  sleepDurNote();
+}
+// Нажал — шаг 5 минут; держишь — повторяет, через пару секунд шагает по 15.
+let slHold = 0, slHoldT0 = 0;
+document.addEventListener('pointerdown', ev => {
+  const b = ev.target.closest && ev.target.closest('[data-sl]'); if (!b) return;
+  ev.preventDefault();
+  const f = b.dataset.sl, d = Number(b.dataset.d);
+  slStep(f, d); clearTimeout(slHold); slHoldT0 = Date.now();
+  const rep = () => { const t = Date.now() - slHoldT0; if (t > 8000) return; slStep(f, t > 2200 ? d * 3 : d); slHold = setTimeout(rep, 140); };
+  slHold = setTimeout(rep, 450);
+});
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => clearTimeout(slHold)));
+document.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('[data-sl]'); if (b && ev.detail === 0) slStep(b.dataset.sl, Number(b.dataset.d)); });
 function sleepDurNote() {
+  ['bed', 'wake'].forEach(f => { const i = $('#sl-' + f), v = $('#sl-' + f + '-v'); if (i && v) v.textContent = i.value || '—'; });
   const el = $('#sl-dur'); if (!el) return;
   const m = sleepMin({ bed: $('#sl-bed').value, wake: $('#sl-wake').value });
-  el.textContent = m ? 'Получается ' + hm(m) + '.' : 'Дата — день, когда проснулся.';
+  if (!m) { el.textContent = 'Дата — день, когда проснулся.'; return; }
+  const band = sleepBand(), tag = m < band.lo ? ' — меньше твоей нормы' : m > band.hi + 15 ? ' — больше нормы, может быть вялость' : ' — в норме';
+  el.textContent = 'Получается ' + hm(m) + tag + '.';
 }
 
 /* ---------- праздники РФ (производственный календарь; 2027 — Постановление Правительства от 17.09.2026 № 1187) ---------- */
@@ -3822,6 +3880,8 @@ document.addEventListener('click', async ev => {
     case 'done-toggle': S.showAllDone = !S.showAllDone; renderLessons(); break;
     case 'ideas': S.cur = null; openRequests('new', false, b.dataset.area || 'sport'); break;
     case 'req-tab': openRequests(b.dataset.tab); break;
+    case 'out-retry': { const j = OUT.jobs.find(x => x.id === b.dataset.id); if (j) { j.st = 'wait'; j.err = ''; refreshFeed(); outRun(); } break; }
+    case 'out-drop': { OUT.jobs = OUT.jobs.filter(x => x.id !== b.dataset.id); refreshFeed(); break; }
     case 'idea-save': await ideaSave(b, b.dataset.area); break;
     case 'idea-del': {
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Точно?'; return; }
@@ -4665,15 +4725,15 @@ function shopFromMenu() {
 const MSG_AREA = [['general', 'Общее'], ['sport', 'Спорт'], ['study', 'Учёба'], ['food', 'Еда'], ['books', 'Книги']];
 function claudeFeed() {
   const rq = S.requests.filter(r => !demoBad(r.text + ' ' + (r.answer || ''))).map(r => ({ kind: 'rq', id: r.id, text: r.text, area: 'general', date: r.date, ts: r.ts, open: r.status !== 'done', waiting: r.status === 'waiting', answer: r.answer, doneAt: r.doneAt }));
-  const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, text: x.title || x.text || x.link || (x.names && x.names.length ? x.names.join(', ') : 'Файлы'), link: x.link, files: (x.media || []).length + (x.audio || []).length, frames: x.frames, area: x.area || 'general', date: x.date, ts: x.ts, open: x.status !== 'seen', answer: x.answer, doneAt: x.date }));
+  const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, text: x.title || x.text || x.link || (x.names && x.names.length ? x.names.join(', ') : 'Файлы'), link: x.link, files: (x.media || []).length + (x.audio || []).length, frames: x.frames, area: x.area || 'general', date: x.date, ts: x.ts, open: x.status !== 'seen', answer: x.answer, doneAt: x.date, fetching: linkPending(x), fetchErr: x.status !== 'seen' ? x.fetchErr : null }));
   return rq.concat(id);
 }
 function feedItemHtml(x, editable) {
   const areaL = (MSG_AREA.find(a => a[0] === x.area) || [0, ''])[1];
-  const meta = [x.date ? short(x.date) : '', x.frames ? 'видео · ' + x.frames + ' ' + plural(x.frames, 'кадр', 'кадра', 'кадров') : x.files ? x.files + ' ' + plural(x.files, 'файл', 'файла', 'файлов') : '', x.link ? 'ссылка' : '', x.waiting ? 'ждёт тебя' : ''].filter(Boolean).join(' · ');
+  const meta = [x.date ? short(x.date) : '', x.frames ? 'видео · ' + x.frames + ' ' + plural(x.frames, 'кадр', 'кадра', 'кадров') : x.files ? x.files + ' ' + plural(x.files, 'файл', 'файла', 'файлов') : '', x.link ? (x.fetching ? 'ссылка · скачиваю видео…' : 'ссылка') : '', x.waiting ? 'ждёт тебя' : ''].filter(Boolean).join(' · ');
   const editBox = editable && S.cur && S.cur.editId === x.id && x.kind === 'rq';
   if (editBox) return `<div class="req-item"><textarea id="rq-edit" rows="4">${esc(x.text)}</textarea><div class="req-meta"><button type="button" class="btn sm" data-action="rq-edit-cancel">Отмена</button><button type="button" class="btn sm study" data-action="rq-edit-save" data-id="${esc(x.id)}">Сохранить</button></div></div>`;
-  return `<div class="req-item"><div class="rq-top"><span class="chip ar-${esc(x.area)}">${esc(areaL)}</span><span class="rq-d">${esc(meta)}</span></div><div>${esc(x.text)}</div>${x.answer ? `<div class="ans">${esc(x.answer)}</div>` : ''}${editable ? `<div class="req-meta">${x.kind === 'rq' ? `<button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(x.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(x.id)}">Удалить</button>` : `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>`}</div>` : ''}</div>`;
+  return `<div class="req-item"><div class="rq-top"><span class="chip ar-${esc(x.area)}">${esc(areaL)}</span><span class="rq-d">${esc(meta)}</span></div><div>${esc(x.text)}</div>${x.fetchErr ? `<div class="rq-err">Видео по ссылке не скачалось: ${esc(x.fetchErr)}</div>` : ''}${x.answer ? `<div class="ans">${esc(x.answer)}</div>` : ''}${editable ? `<div class="req-meta">${x.kind === 'rq' ? `<button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(x.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(x.id)}">Удалить</button>` : `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>`}</div>` : ''}</div>`;
 }
 function openRequests(tab, keepScroll, area) {
   const prev = S.cur && S.cur.type === 'req' ? S.cur : {};
@@ -4691,43 +4751,139 @@ function openRequests(tab, keepScroll, area) {
     <textarea id="msg-text" rows="3" placeholder="Задача, вопрос или идея">${esc(prev.draft || '')}</textarea>
     <div class="msg-row"><input id="msg-link" type="url" inputmode="url" placeholder="Ссылка (необязательно)"><label class="btn file-btn msg-file" aria-label="Фото или видео"><span id="msg-files-label">📎</span><input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label></div>
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="msg-send">Отправить</button></div>
-    <p class="note">${area === 'books' ? 'MP3 до 45 МБ каждый — главы по отдельности или одним файлом. Название и автора напиши, если их нет в именах файлов.' : 'Видео режется на кадры, звук не слышу — важное допиши текстом.'}</p>
-    ${open.length ? `<h3 class="sec">Ждут ответа · ${open.length}</h3><div class="stack">${open.map(x => feedItemHtml(x, true)).join('')}</div>` : ''}`;
+    <p class="note">${area === 'books' ? 'MP3 до 45 МБ каждый — главы по отдельности или одним файлом. Название и автора напиши, если их нет в именах файлов.' : 'Ссылку на Instagram, TikTok или YouTube можно просто вставить — видео скачаю сам. Файлы отправляются в фоне: можно сразу писать следующее.'}</p>
+    <div id="out-box">${outBoxHtml()}</div><div id="rq-open">${openFeedHtml()}</div>`;
   } else body = done.length ? `<div class="stack" style="margin-top:12px">${done.map(x => feedItemHtml(x, false)).join('')}</div>` : '<p class="note">Ответов пока нет.</p>';
   openSheet(`<h2 class="sh-title sh-claude"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span>Связь с Claude</h2>${seg}${body}`, keepScroll);
   markAnswersSeen();
+  if (tab === 'new') linkPoll();
 }
 async function sendMsg(btn) {
   const c = S.cur && S.cur.type === 'req' ? S.cur : { area: 'general' };
   const text = (($('#msg-text') && $('#msg-text').value) || '').trim(), link = (($('#msg-link') && $('#msg-link').value) || '').trim();
   const files = Array.from(($('#msg-files') && $('#msg-files').files) || []);
   if (!text && !link && !files.length) { toast('Напиши текст, добавь ссылку или файл'); return; }
-  busy(btn, true);
   if (!link && !files.length && c.area === 'general') {
+    busy(btn, true);
     const ok = await writeRequests(list => { list.push({ id: 'q' + rid().slice(0, 10), text, date: today(), ts: Date.now(), status: 'new' }); }, 'Запрос для Claude: ' + text.slice(0, 50));
     busy(btn, false);
-    if (ok) { toast('Записал. Сделаю, когда откроешь меня.'); S.cur.draft = ''; openRequests('new'); }
+    if (ok) { toast('Записал. Сделаю, когда откроешь меня.'); msgClear(); }
     return;
   }
   const audio = files.filter(isAudio), other = files.filter(f => !isAudio(f));
   if (audio.length) {
     const big = audio.find(f => f.size > AUDIO_MAX);
-    if (big) { busy(btn, false); toast(`«${big.name}» больше 45 МБ. Скачай книгу по главам или раздели файл.`); return; }
-    if (S.booksRepo !== 'ok' && !(await booksRepoCheck())) { busy(btn, false); toast('Сначала нужен репозиторий для книг — открываю инструкцию'); openBooks(); return; }
+    if (big) { toast(`«${big.name}» больше 45 МБ. Скачай книгу по главам или раздели файл.`); return; }
+    if (S.booksRepo !== 'ok') { busy(btn, true); const okR = await booksRepoCheck(); busy(btn, false); if (!okR) { toast('Сначала нужен репозиторий для книг — открываю инструкцию'); openBooks(); return; } }
   }
-  const id = 'i' + rid().slice(0, 10), area = audio.length ? 'books' : c.area;
-  const up = other.length ? await uploadFiles(other, `inbox/ideas/${id}`, 'Идея') : { media: [], photos: [], frames: 0, failed: [] };
-  const au = audio.length ? await uploadAudio(audio, id) : { media: [], names: [], failed: [] };
-  if (files.length && !up.media.length && !au.media.length) { busy(btn, false); toast('Файлы не загрузились — ничего не отправлено. Проверь связь; длинное видео лучше обрезать.'); return; }
-  const rec = { id, area, date: today(), ts: Date.now(), status: 'new' };
-  if (text) rec.text = text; if (link) rec.link = link; if (up.media.length) rec.media = up.media;
-  if (au.media.length) { rec.audio = au.media; rec.names = au.names; rec.repo = booksRepo(); }
-  if (up.frames) rec.frames = up.frames;
-  if (up.failed.length || au.failed.length) rec.failed = up.failed.length + au.failed.length;
-  const ok = await writeIdeas(list => { list.push(rec); }, `Идея (${IDEA_AREA[area] || area}): ${(text || link || 'файлы').slice(0, 50)}`);
-  busy(btn, false);
-  const rep = uploadReport(up, files.length);
-  if (ok) { toast('Отправил' + (rep ? ' · ' + rep : '') + '. Посмотрю, когда позовёшь.'); S.cur.draft = ''; openRequests('new'); }
+  const job = { id: 'i' + rid().slice(0, 10), area: audio.length ? 'books' : c.area, text, link, files: other, audio, st: 'wait', pct: 0, ts: Date.now() };
+  if (!files.length) {
+    // только ссылка/текст — пишется сразу; ссылку на видео скачает GitHub (см. .github/workflows в journal-data)
+    busy(btn, true);
+    const ok = await writeIdeas(list => { list.push(outRec(job)); }, `Идея (${IDEA_AREA[job.area] || job.area}): ${(text || link).slice(0, 50)}`);
+    busy(btn, false);
+    if (ok) { toast(isVideoLink(link) ? 'Записал. Видео по ссылке скачаю сам — через пару минут будут кадры.' : 'Записал. Посмотрю, когда позовёшь.'); msgClear(); if (isVideoLink(link)) linkPoll(); }
+    return;
+  }
+  // файлы — в фоне: форма сразу свободна, можно писать следующее
+  OUT.jobs.push(job);
+  msgClear();
+  toast(files.some(isVideo) ? 'Видео отправляется в фоне — можно писать дальше' : 'Отправляю в фоне — можно писать дальше');
+  outRun();
+}
+// очистить форму, не перерисовывая окно (чтобы не сбить то, что набирается)
+function msgClear() {
+  if (S.cur && S.cur.type === 'req') S.cur.draft = '';
+  const t = $('#msg-text'), l = $('#msg-link'), f = $('#msg-files'), lab = $('#msg-files-label');
+  if (t) t.value = ''; if (l) l.value = ''; if (f) f.value = ''; if (lab) lab.textContent = '📎';
+  refreshFeed();
+}
+function outRec(j, up, au) {
+  const rec = { id: j.id, area: j.area, date: today(), ts: j.ts || Date.now(), status: 'new' };
+  if (j.text) rec.text = j.text; if (j.link) rec.link = j.link;
+  if (up && up.media.length) rec.media = up.media;
+  if (au && au.media.length) { rec.audio = au.media; rec.names = au.names; rec.repo = booksRepo(); }
+  if (up && up.frames) rec.frames = up.frames;
+  const failed = ((up && up.failed.length) || 0) + ((au && au.failed.length) || 0);
+  if (failed) rec.failed = failed;
+  return rec;
+}
+
+/* ---------- фоновые отправки ----------
+   Файлы идут по очереди, по одной отправке за раз; прогресс — в ленте чата и тонкой полоской сверху.
+   Пока журнал открыт (на любой вкладке), загрузка идёт; если свернуть — продолжит, когда вернёшься. */
+const OUT = { jobs: [], busy: false, cur: null };
+const outName = j => j.text || j.link || (j.files.length + j.audio.length > 1 ? (j.files.length + j.audio.length) + ' ' + plural(j.files.length + j.audio.length, 'файл', 'файла', 'файлов') : ((j.files[0] || j.audio[0] || {}).name || 'файл'));
+function outLabel(j) {
+  if (j.st === 'err') return 'не отправилось' + (j.err ? ' · ' + j.err : '');
+  if (j.st === 'wait') return 'в очереди';
+  return (j.detail ? j.detail + ' · ' : '') + Math.round(j.pct || 0) + '%' + (j.eta ? ' · ' + j.eta : '');
+}
+function outItemHtml(j) {
+  const areaL = (MSG_AREA.find(a => a[0] === j.area) || [0, ''])[1];
+  return `<div class="req-item out-item${j.st === 'err' ? ' err' : ''}" data-out="${esc(j.id)}"><div class="rq-top"><span class="chip ar-${esc(j.area)}">${esc(areaL)}</span><span class="rq-d" data-od>${esc(outLabel(j))}</span></div><div>${esc(outName(j))}</div>${j.st === 'err' ? `<div class="req-meta"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">Повторить</button></div>` : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}</div>`;
+}
+function outBoxHtml() {
+  const l = OUT.jobs;
+  return l.length ? `<h3 class="sec">Отправляется · ${l.length}</h3><div class="stack">${l.map(outItemHtml).join('')}</div>` : '';
+}
+// прогресс текущей отправки (зовётся из PROG.set)
+function outTick(pct, detail, eta) {
+  const j = OUT.cur; if (!j) return;
+  j.pct = pct; j.detail = detail || ''; j.eta = eta || '';
+  const el = document.querySelector(`[data-out="${j.id}"]`); if (!el) return;
+  const b = el.querySelector('[data-ob]'), d = el.querySelector('[data-od]');
+  if (b) b.style.width = pct.toFixed(1) + '%';
+  if (d) d.textContent = outLabel(j);
+}
+async function outRun() {
+  if (OUT.busy) return; OUT.busy = true;
+  try {
+    for (let j; (j = OUT.jobs.find(x => x.st === 'wait'));) {
+      j.st = 'up'; j.pct = 0; j.err = ''; OUT.cur = j; refreshFeed();
+      let ok = false;
+      try { ok = await outSend(j); } catch (e) { j.err = errText(e); }
+      OUT.cur = null;
+      if (ok) {
+        OUT.jobs = OUT.jobs.filter(x => x !== j);
+        toast('Отправил: ' + outName(j).slice(0, 40) + (j.rep ? ' · ' + j.rep : ''));
+      } else { j.st = 'err'; toast('Не отправилось: ' + outName(j).slice(0, 40) + ' — в чате кнопка «Повторить»'); }
+      refreshFeed();
+    }
+  } finally { OUT.busy = false; PROG.mini = false; }
+}
+async function outSend(j) {
+  PROG.mini = true;
+  const up = j.files.length ? await uploadFiles(j.files, `inbox/ideas/${j.id}`, 'Идея') : { media: [], photos: [], frames: 0, failed: [] };
+  const au = j.audio.length ? await uploadAudio(j.audio, j.id) : { media: [], names: [], failed: [] };
+  if (!up.media.length && !au.media.length) { j.err = up.failed.length ? 'файлы не прочитались или нет связи' : 'нет связи'; return false; }
+  const rec = outRec(j, up, au);
+  const ok = await writeIdeas(list => { const i = list.findIndex(x => x.id === j.id); if (i >= 0) list[i] = rec; else list.push(rec); }, `Идея (${IDEA_AREA[j.area] || j.area}): ${(j.text || j.link || 'файлы').slice(0, 50)}`);
+  j.rep = uploadReport(up, j.files.length);
+  return !!ok;
+}
+// обновить ленту в открытом чате, не трогая поле ввода и выбранные файлы
+function refreshFeed() {
+  const ob = $('#out-box'), rb = $('#rq-open');
+  if (ob) ob.innerHTML = outBoxHtml();
+  if (rb) rb.innerHTML = openFeedHtml();
+}
+function openFeedHtml() {
+  const open = claudeFeed().filter(x => x.open).sort(byNewest);
+  return open.length ? `<h3 class="sec">Ждут ответа · ${open.length}</h3><div class="stack">${open.map(x => feedItemHtml(x, true)).join('')}</div>` : '';
+}
+// ссылки на видео (Instagram, TikTok, YouTube, VK) скачивает GitHub — пока чат открыт, тихо проверяем, готово ли
+const isVideoLink = u => /^https?:\/\/([a-z0-9-]+\.)*(instagram\.com|instagr\.am|tiktok\.com|youtube\.com|youtu\.be|vk\.com|vkvideo\.ru|rutube\.ru|x\.com|twitter\.com|pinterest\.[a-z.]+|pin\.it)\//i.test(u || '');
+const linkPending = x => x.link && isVideoLink(x.link) && x.status !== 'seen' && !(x.media && x.media.length) && !x.fetchErr && Date.now() - (x.ts || 0) < 30 * 60000;
+let linkPollT = 0;
+function linkPoll() {
+  clearTimeout(linkPollT);
+  if (!S.ideas.some(linkPending)) return;
+  linkPollT = setTimeout(async () => {
+    if (!(S.cur && S.cur.type === 'req') || document.hidden) { linkPollT = 0; return; }
+    try { const d = await readDoc('ideas.json'); if (d && Array.isArray(d.ideas)) { S.ideas = d.ideas; cacheNow(); refreshFeed(); } } catch (_) {}
+    linkPoll();
+  }, 20000);
 }
 
 /* ---------- книги: аудио по главам, плеер с памятью позиции ----------

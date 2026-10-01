@@ -867,6 +867,15 @@ details.rcpt[open]>summary .mn::after{content:" ▴"}
 .set.r{grid-template-columns:26px minmax(0,1fr) auto}
 .set .u{font-size:12px;color:var(--muted);text-align:center}
 .set.drop-row .sl{color:var(--sport);text-align:center;font-weight:700}
+/* сон: время кнопками по 5 минут */
+.sl-pick{display:grid;gap:10px;margin:6px 0 2px}
+.sl-row{display:grid;grid-template-columns:62px 54px minmax(0,1fr) 54px;align-items:center;gap:8px}
+.sl-lab{font-size:15px;font-weight:600;color:var(--muted)}
+.sl-b{height:54px;border-radius:16px;border:1px solid var(--glass-line);background:var(--glass-3);color:var(--ink);font-size:26px;font-weight:600;line-height:1;display:grid;place-items:center;padding:0;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.sl-b:active{background:var(--glass-2);transform:scale(.96)}
+.sl-val{position:relative;height:54px;border-radius:16px;border:1px solid var(--glass-line);background:var(--glass-2);display:grid;place-items:center;font:600 28px var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:.03em;color:var(--ink);min-width:0;overflow:hidden}
+.sl-val input[type=time]{position:absolute;inset:0;width:100%;height:100%;min-height:0;opacity:0;border:0;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none;cursor:pointer}
+.sl-val:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,#4D8DFF 35%,transparent)}
 .stp{display:grid;grid-template-columns:30px minmax(0,1fr) 30px;align-items:center;border:1px solid var(--glass-line);border-radius:12px;background:var(--glass-3);overflow:hidden;min-width:0}
 .stp input{border:0;background:transparent;box-shadow:none;border-radius:0;min-height:38px;padding:6px 0;text-align:center;font-variant-numeric:tabular-nums;min-width:0;width:100%}
 .stp input:focus{box-shadow:none;background:var(--glass-2)}
@@ -923,6 +932,14 @@ details.blk-f[open]{padding-bottom:10px}
 .upp-bar{height:8px;border-radius:4px;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow:hidden}
 .upp-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4D8DFF,#2F6FE0);transition:width .25s ease-out}
 .upp-d{font-size:12.5px;color:var(--muted)}
+/* фоновая отправка: тонкая полоска сверху, подробности — в чате */
+.up-prog.mini{padding:6px 12px 7px;gap:4px;border-radius:14px;max-width:360px;pointer-events:none;opacity:.96}
+.up-prog.mini .upp-row{font-size:12.5px}
+.up-prog.mini .upp-bar{height:4px}
+.up-prog.mini .upp-d{display:none}
+.out-item .upp-bar{height:6px;margin-top:2px}
+.out-item.err{border-color:color-mix(in srgb,var(--bad,#E5484D) 45%,var(--glass-line))}
+.rq-err{font-size:13px;color:var(--bad,#E5484D)}
 /* блюда: выбор нескольких */
 .dish.sel{border-color:var(--study);background:color-mix(in srgb,var(--study) 12%,var(--glass-3))}
 .dish.sel .thumb{box-shadow:0 0 0 2px var(--study)}
@@ -1143,6 +1160,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20260930a"></script>
+<script src="app.js?v=20261001a"></script>
 </body>
 </html>
