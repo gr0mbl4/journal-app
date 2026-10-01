@@ -4760,7 +4760,9 @@ function openRequests(tab, keepScroll, area) {
 }
 async function sendMsg(btn) {
   const c = S.cur && S.cur.type === 'req' ? S.cur : { area: 'general' };
-  const text = (($('#msg-text') && $('#msg-text').value) || '').trim(), link = (($('#msg-link') && $('#msg-link').value) || '').trim();
+  let text = (($('#msg-text') && $('#msg-text').value) || '').trim(), link = (($('#msg-link') && $('#msg-link').value) || '').trim();
+  // ссылку на видео часто вставляют прямо в сообщение — достаём её оттуда, иначе GitHub её не увидит
+  if (!link) { const m = /https?:\/\/\S+/i.exec(text); if (m && isVideoLink(m[0])) { link = m[0].replace(/[),.!?»]+$/, ''); text = text.replace(m[0], ' ').replace(/\s+/g, ' ').trim(); } }
   const files = Array.from(($('#msg-files') && $('#msg-files').files) || []);
   if (!text && !link && !files.length) { toast('Напиши текст, добавь ссылку или файл'); return; }
   if (!link && !files.length && c.area === 'general') {
