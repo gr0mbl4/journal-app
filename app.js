@@ -601,6 +601,14 @@ function openAutoSetup() {
       <li>Пользоваться: в Instagram у рилса — самолётик → «Поделиться в…» / «Ещё» → <b>Claude</b>. Через 1–2 минуты кадры, подпись и речь будут в «Связи с Claude».</li>
     </ol>
     <p class="note">Ключ в Команде — только на Issues: к файлам журнала у неё доступа нет. Команду никому не пересылай.</p>
+    ${(() => { const c = (S.config || {}).claude || {}; if (!c.fireUrl) return ''; return `<h3 class="sec" id="claude-now-setup">6. «Разобрать сейчас» — позвать Claude без расписания</h3>
+    <ol class="ing">
+      <li>В Safari: ${copyRow('Ссылка', 'https://claude.ai/code/routines', 'claude.ai/code/routines')} → «${esc(c.routine || 'Журнал: входящие')}» → ⋯ → <b>Edit</b> → <b>Add another trigger</b> → <b>API</b> → Save → <b>Generate token</b>. Скопируй токен — он показывается один раз.</li>
+      <li>Команды → <b>+</b> → назови ${copyRow('Имя', c.shortcut || 'Claude разбор')}</li>
+      <li>Действие «Получить содержимое URL»: ${copyRow('URL', c.fireUrl)} Метод <b>POST</b>. Заголовки: ${copyRow('Authorization', 'Bearer ', 'Bearer ␣ + токен из п. 1')}${copyRow('anthropic-beta', 'experimental-cc-routine-2026-04-01')}${copyRow('anthropic-version', '2023-06-01')} Тело запроса — <b>JSON</b>, поле Текст: ${copyRow('text', 'Запуск с телефона')}</li>
+      <li>Готово. Кнопка «⚡ Разобрать сейчас» в «Связи с Claude» запускает эту Команду; через 2–5 минут ответы появятся в чате.</li>
+    </ol>
+    <p class="note">Токен умеет только запускать эту задачу — больше ничего. Если утечёт: там же Regenerate. Запуск по кнопке тратит лимит подписки так же, как обычный разговор.</p>`; })()}
     <h3 class="sec">Проверить, как журнал поймёт текст</h3>
     <textarea id="aq-text" rows="3" placeholder="Вставь сюда SMS банка"></textarea>
     <div class="sh-acts"><button type="button" class="btn block" data-action="auto-test">Проверить</button></div>
@@ -5065,7 +5073,7 @@ function openRequests(tab, keepScroll, area) {
     body = `<div class="chips ar-chips" role="group" aria-label="О чём">${MSG_AREA.map(([k, l]) => `<button type="button" class="chip-btn" data-action="msg-area" data-area="${k}" aria-pressed="${k === area}">${l}</button>`).join('')}</div>
     <textarea id="msg-text" rows="3" placeholder="Задача, вопрос или идея">${esc(prev.draft || '')}</textarea>
     <div class="msg-row"><input id="msg-link" type="url" inputmode="url" placeholder="Ссылка (необязательно)"><label class="btn file-btn msg-file" aria-label="Фото или видео"><span id="msg-files-label">📎</span><input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label></div>
-    <div class="sh-acts"><button type="button" class="btn primary block" data-action="msg-send">Отправить</button></div>
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="msg-send">Отправить</button>${claudeNowHtml()}</div>
     <p class="note">${area === 'books' ? 'MP3 до 45 МБ каждый — главы по отдельности или одним файлом. Название и автора напиши, если их нет в именах файлов.' : 'Ссылку на Instagram, TikTok или YouTube можно просто вставить — видео скачаю сам; из Instagram ещё проще — «Поделиться» → Claude (настройка: Меню → Автозапись, п. 5). Файлы отправляются в фоне: можно сразу писать следующее.'}</p>
     <div id="out-box">${outBoxHtml()}</div><div id="rq-open">${openFeedHtml()}</div>`;
   } else body = done.length ? `<div class="stack" style="margin-top:12px">${done.map(x => feedItemHtml(x, false)).join('')}</div>` : '<p class="note">Ответов пока нет.</p>';
@@ -5124,6 +5132,12 @@ function outRec(j, up, au) {
   const failed = ((up && up.failed.length) || 0) + ((au && au.failed.length) || 0);
   if (failed) rec.failed = failed;
   return rec;
+}
+
+// «Разобрать сейчас»: Команда iOS дёргает API-триггер задачи «Журнал: входящие» (токен живёт только в Команде)
+function claudeNowHtml() {
+  const c = (S.config || {}).claude || {}; if (!c.fireUrl) return '';
+  return `<a class="btn block claude-now" href="shortcuts://run-shortcut?name=${encodeURIComponent(c.shortcut || 'Claude разбор')}">⚡ Разобрать сейчас</a>`;
 }
 
 /* ---------- фоновые отправки ----------
