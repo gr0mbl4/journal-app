@@ -985,10 +985,16 @@ function pendingSorted() { return S.lessons.filter(l => !l.done).sort((a, b) => 
 function maxN() { return Math.max(10, ...S.lessons.map(l => Number(l.n) || 0)); }
 function nextOrder() { return Math.max(0, ...S.lessons.map(ord)) + 1; }
 function lessonTitle(L) { return 'Урок ' + L.n + (L.title ? ' · ' + L.title : ''); }
+// Окна учёбы меняются, а прошлое — нет: study.slotHistory = [{until: "ГГГГ-ММ-ДД", slots}] — какие окна были по эту дату включительно.
+function slotsOn(d) {
+  const st = S.config.study || {}, h = Array.isArray(st.slotHistory) ? st.slotHistory.slice().sort((a, b) => a.until < b.until ? -1 : 1) : [];
+  const old = h.find(x => d <= x.until);
+  return old ? old.slots : st.slots;
+}
 function studyCap(d, days) {
   days = days || S.studyDays;
   const st = S.config.study || {};
-  const base = Number((st.slots || {})[String(dow(d))] || 0);
+  const base = Number((slotsOn(d) || {})[String(dow(d))] || 0);
   const o = days[d];
   if (o && o.blocked) return { cap: 0, blocked: true, base };
   if (o && o.extra) return { cap: Number(o.extra), extra: true, base };
@@ -1727,9 +1733,23 @@ function openTimerStop() {
 async function logStudy(min, n, date, src) {
   return writePlan(p => { const l = p.studyLog = p.studyLog || []; l.push({ date: date || today(), n: n || null, min: Math.round(min), src: src || 'timer', at: hhmm(new Date()) }); }, `Учёба: ${Math.round(min)} мин по факту`);
 }
+// «Как зашёл урок» — интерес к теме, а не усталость (учёба вечером, уставать нормально). Claude смотрит это в разборах.
+const FEEL = [['up', '🔥', 'Зашёл'], ['ok', '🙂', 'Нормально'], ['down', '🥱', 'Не зашёл']];
+function feelRowHtml(n) {
+  const l = S.lessons.find(x => String(x.n) === String(n)), cur = l && l.feel;
+  return `<p class="fld">Как зашёл урок? <span class="m">(интерес к теме, не усталость)</span></p><div class="feel-row">${FEEL.map(([v, e, t]) => `<button type="button" class="btn feel${cur === v ? ' on' : ''}" data-action="lesson-feel" data-n="${esc(n)}" data-v="${v}">${e} ${t}</button>`).join('')}</div>`;
+}
+async function setFeel(n, v) {
+  const l = S.lessons.find(x => String(x.n) === String(n)); if (!l) return false;
+  return writeLessons(list => { const x = list.find(y => y.id === l.id); if (x) x.feel = v; }, `Учёба: урок ${l.n} — ${(FEEL.find(f => f[0] === v) || [0, 0, v])[2].toLowerCase()}`);
+}
+function openFeel(n) {
+  S.cur = { type: 'feel', n };
+  openSheet(`<h2 class="sh-title">Урок ${esc(n)} пройден</h2>${feelRowHtml(n)}<div class="sh-acts"><button type="button" class="btn block" data-action="close">Пропустить</button></div>`);
+}
 function openActual(n, date, planned) {
   S.cur = { type: 'actual', n, date };
-  openSheet(`<h2 class="sh-title">Сколько по факту?</h2><p class="sh-meta">Урок ${esc(n)} · план ${hmShort(planned || 60)}</p>
+  openSheet(`<h2 class="sh-title">Сколько по факту?</h2><p class="sh-meta">Урок ${esc(n)} · план ${hmShort(planned || 60)}</p>${feelRowHtml(n)}<p class="fld">Сколько ушло времени</p>
     <div class="chips-row">${[30, 45, 60, 75, 90, 120, 150].map(m => `<button type="button" class="btn" data-action="actual-set" data-min="${m}">${hmShort(m)}</button>`).join('')}</div>
     <div class="sh-acts"><button type="button" class="btn block" data-action="close">Пропустить</button></div>`);
 }
@@ -2503,16 +2523,16 @@ function renderPlan() {
   const bn = $('#plan-banner'), st = $('#plan-stats'), tl = $('#plan-tails'), dy = $('#plan-days');
   renderSleep();
   if (!isReady()) { bn.innerHTML = bannerHtml(); st.innerHTML = tl.innerHTML = dy.innerHTML = ''; return; }
-  bn.innerHTML = notesReminderHtml() + reviewCardHtml();
+  const banners = notesReminderHtml() + reviewCardHtml(); bn.innerHTML = '';
   const study = buildStudy(); S.studyCache = study;
   const sport = buildSport(); S.sportList = sport;
   const t = today();
-  st.innerHTML = tilesHtml(sport) + quarterHtml();
+  st.innerHTML = statsRowHtml(sport);
   const spT = sport.filter(i => !i.state && i.eff < t && i.eff >= addDays(t, -14));
   const stT = studyTails(7);
   if (spT.length || stT.length) {
     const items = stT.map(d => ({ d, type: 'st' })).concat(spT.map(i => ({ d: i.eff, type: 'sp', i }))).sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
-    tl.innerHTML = `<div class="sec-row"><h2 class="sec">Не отмечено</h2><span class="sec-note">${items.length}</span></div><div class="stack">${items.map(it => it.type === 'st'
+    tl.innerHTML = `<div class="sec-row tails-h"><h2 class="sec">Не отмечено</h2><span class="sec-note">${items.length}</span></div><div class="stack">${items.map(it => it.type === 'st'
       ? `<div class="tail"><span class="tag study">Учёба</span><span class="tl-t">Окно ${esc(slotLabel(it.d, studyCap(it.d)))}<small>${short(it.d)}</small></span><span class="tl-a"><button type="button" class="ib ok" data-action="st-tail-done" data-date="${it.d}" aria-label="Был урок">✓</button><button type="button" class="ib no" data-action="st-tail-skip" data-date="${it.d}" aria-label="Пропустил">✕</button></span></div>`
       : `<div class="tail"><span class="tag sport">Спорт</span><button type="button" class="tl-t" data-action="sport" data-id="${esc(it.i.id)}">${esc(it.i.title)}<small>${short(it.d)}</small></button><span class="tl-a"><button type="button" class="ib ok" data-action="sp-done" data-id="${esc(it.i.id)}" aria-label="Сделал">✓</button><button type="button" class="ib no" data-action="sp-skip" data-id="${esc(it.i.id)}" aria-label="Пропустил">✕</button></span></div>`).join('')}</div>`;
   } else tl.innerHTML = '';
@@ -2528,9 +2548,80 @@ function renderPlan() {
     rest += dayHtml(d, k);
   }
   const end = addDays(t, HORIZON);
-  dy.innerHTML = `<div class="sec-row"><h2 class="sec">План</h2><span class="acts">${shopBtnHtml()}<button type="button" class="btn sm" data-action="ev-new">+ Событие</button></span></div>`
-    + dayHtml(t, 0) + dayHtml(addDays(t, 1), 1)
-    + `<details class="fold days-more" data-k="plan-more"${openAttr('plan-more')}><summary><span>Дальше</span><span class="sec-note">до ${dm(end)} · ${HORIZON - 1} ${plural(HORIZON - 1, 'день', 'дня', 'дней')}</span></summary>${rest}</details>`;
+  // главное — дела на сегодня; всё остальное ниже и свёрнуто
+  st.innerHTML += todayCardHtml(t, study, sport, true);
+  dy.innerHTML = banners + todayCardHtml(addDays(t, 1), study, sport, false)
+    + `<div class="sec-row plan-acts"><span class="acts">${shopBtnHtml()}<button type="button" class="btn sm" data-action="ev-new">+ Событие</button></span></div>`
+    + `<details class="fold days-more" data-k="plan-more"${openAttr('plan-more')}><summary><span>Дальше</span><span class="sec-note">до ${dm(end)} · ${HORIZON - 1} ${plural(HORIZON - 1, 'день', 'дня', 'дней')}</span></summary>${rest}</details>`
+    + `<details class="fold" data-k="plan-q"${openAttr('plan-q')}><summary><span>Цели квартала</span></summary>${quarterHtml()}</details>`;
+}
+
+
+/* ---------- главный экран: короткие показатели в ряд + дела на день крупно ---------- */
+function statsRowHtml(sport) {
+  const t = today(), s = (S.sleep.days || {})[t], m = sleepMin(s);
+  const r = readiness(t), st = streakInfo() || { cur: 0 }, w = weekProgress(sport);
+  const it = [
+    ['sleep', 'moon', m ? hmClock(m) : '—', 'сон', `data-date="${sleepTarget()}"`, 'c-sleep'],
+    ['ready', 'bolt', String(r.score), 'готовность', '', 'lvl-' + r.level],
+    ['streak', 'flame', String(st.cur), 'дней подряд', '', st.cur ? 'c-streak' : 'off'],
+    ['rev-open', 'target', w.done + '/' + w.plan, 'дела недели', 'data-type="week"', 'c-week'],
+  ];
+  return `<div class="mini-stats">${it.map(([a, i, v, lab, ex, cls]) => `<button type="button" class="ms ${cls}" data-action="${a}" ${ex} aria-label="${esc(lab)}: ${esc(v)}">${ico(i)}<b>${esc(v)}</b></button>`).join('')}</div>`;
+}
+// дела дня: учёба, спорт, события-дела; крупно, по одному пункту, нажатие раскрывает подробности
+function todayItems(d, study, sport) {
+  const out = [];
+  S.lessons.filter(l => l.done === d).forEach(l => out.push({ k: 'study', key: 'ld-' + l.id, title: 'Урок ' + l.n, sub: l.title || '', done: true, open: `data-action="lesson" data-id="${esc(l.id)}"`, more: lessonMore(l) }));
+  (study.byDate[d] || []).filter(e => !e.blocked).forEach(e => out.push({ k: 'study', key: 'st-' + e.L.key + '-' + e.part, title: e.L.placeholder ? 'Учёба' : 'Урок ' + e.L.n, sub: [e.L.title, slotLabel(e.date, { cap: e.cap, extra: e.extra }), e.total > 1 ? 'часть ' + e.part + ' из ' + e.total : ''].filter(Boolean).join(' · '), done: false,
+    open: `data-action="study" data-date="${e.date}" data-key="${esc(e.L.key)}" data-part="${e.part}"`, openLabel: 'Открыть урок', more: e.L.doc ? lessonMore(e.L.doc) : '' }));
+  sport.filter(i => i.eff === d).forEach(i => out.push({ k: 'sport', key: 'sp-' + i.id, title: sportShort(i), sub: i.state === 'other' ? (i.note || 'сделал другое') : i.sub, done: i.state === 'done' || i.state === 'other', skipped: i.state === 'skipped',
+    open: `data-action="sport" data-id="${esc(i.id)}"`, openLabel: 'Открыть тренировку', chk: i.state ? '' : `data-action="sp-done" data-id="${esc(i.id)}"`, more: sportMore(i) }));
+  eventsOn(d).forEach(o => out.push({ k: 'ev', key: 'ev-' + o.ev.id, title: o.ev.title, sub: [o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
+    open: `data-action="event" data-id="${esc(o.ev.id)}" data-date="${d}"`, openLabel: 'Изменить', chk: `data-action="td-ev" data-id="${esc(o.ev.id)}" data-date="${d}"` }));
+  const rank = x => x.done || x.skipped ? 1 : 0;
+  return out.map((x, n) => Object.assign(x, { n })).sort((a, b) => rank(a) - rank(b) || a.n - b.n);
+}
+function sportShort(i) { return i.kind === 'cardio' ? 'Спорт · кардио' : 'Спорт · ' + String(i.title || '').replace(/^Силовая\s*·\s*/i, '').replace(/\s*\(.*\)$/, ''); }
+function lessonMore(l) {
+  const g = Array.isArray(l.goals) ? l.goals.slice(0, 3) : [];
+  return (l.outcome ? `<p>${esc(l.outcome)}</p>` : '') + (g.length ? `<ul>${g.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '');
+}
+function sportMore(i) {
+  try {
+    const ses = sessionFor(i);
+    const names = [];
+    (ses.blocks || []).forEach(b => (b.ex || []).forEach(x => { if (!/^бассейн$/i.test(x.name)) names.push(x.name); }));
+    return names.length ? `<ul>${names.slice(0, 8).map(n => `<li>${esc(n)}</li>`).join('')}${names.length > 8 ? `<li>и ещё ${names.length - 8}</li>` : ''}</ul>` : '';
+  } catch (_) { return ''; }
+}
+function todayCardHtml(d, study, sport, big) {
+  const items = todayItems(d, study, sport);
+  const done = items.filter(x => x.done).length;
+  const extra = scheduleRows(d).concat(regularRows(d), plannedRows(d), dateRows(d), graceRows(d));
+  const rest = restDay(d) && !items.some(x => x.k !== 'ev');
+  const key = 'td-' + d;
+  const head = `<div class="td-h"><span class="td-d">${big ? 'Сегодня' : 'Завтра'}<small>${esc(longDate(d))}${restDay(d) ? ' · чистый день' : ''}</small></span>${items.length ? `<span class="td-n">${done} из ${items.length}</span>` : ''}<button type="button" class="more" data-action="day" data-date="${d}" aria-label="День ${short(d)}">${DOTS}</button></div>`;
+  const bar = items.length && big ? `<div class="td-bar"><i style="width:${(done / items.length * 100).toFixed(0)}%"></i></div>` : '';
+  const list = items.map(x => {
+    const id = key + '-' + x.key, open = S.open.has(id);
+    const chk = x.done ? '<span class="td-c on">✓</span>' : x.skipped ? '<span class="td-c x">–</span>' : x.chk ? `<button type="button" class="td-c" ${x.chk} aria-label="Отметить: ${esc(x.title)}"></button>` : `<button type="button" class="td-c" ${x.open} aria-label="${esc(x.title)}"></button>`;
+    return `<div class="td-i k-${x.k}${x.done ? ' done' : ''}${x.skipped ? ' skipped' : ''}${open ? ' open' : ''}">${chk}<button type="button" class="td-m" data-action="td-x" data-k="${esc(id)}" aria-expanded="${open}"><span class="td-t">${esc(x.title)}</span>${x.sub ? `<span class="td-s">${esc(x.sub)}</span>` : ''}</button>
+      <div class="td-more"${open ? '' : ' hidden'}>${x.more || ''}<button type="button" class="btn sm${x.k === 'sport' ? ' sport' : x.k === 'study' ? ' study' : ''}" ${x.open}>${esc(x.openLabel || 'Открыть')}</button></div></div>`;
+  }).join('');
+  const empty = !items.length ? `<p class="td-empty">${rest ? 'Чистый день — без учёбы и спорта. Обнулиться.' : 'Дел нет.'}</p>` : '';
+  const add = big ? `<form class="td-add" data-date="${d}" autocomplete="off"><input class="td-add-in" placeholder="+ дело на сегодня" enterkeyhint="done" autocapitalize="sentences" aria-label="Новое дело на сегодня"></form>` : '';
+  return `<section class="td${big ? ' big' : ''}">${head}${bar}<div class="td-list">${list}</div>${empty}${add}${extra.length ? `<div class="stack td-extra">${extra.join('')}</div>` : ''}</section>`;
+}
+async function tdEventToggle(id, d) {
+  const e = S.events.find(x => x.id === id); if (!e) return;
+  const was = Array.isArray(e.done) && e.done.includes(d);
+  await writeEvents(list => { const x = list.find(y => y.id === id); if (!x) return; const set = new Set(x.done || []); if (set.has(d)) set.delete(d); else set.add(d); x.done = Array.from(set).sort(); if (!x.done.length) delete x.done; }, `Дела: «${e.title}» ${d} — ${was ? 'снята отметка' : 'сделано'}`);
+}
+async function tdAdd(d, title) {
+  title = String(title || '').trim(); if (!title) return;
+  const ok = await writeEvents(list => { list.push({ id: rid(), date: d, title }); }, `Дела на ${d}: ${title.slice(0, 50)}`);
+  if (ok) toast('Добавил: ' + title);
 }
 
 /* ---------- calendar ---------- */
@@ -3146,7 +3237,7 @@ async function studyOn(id, d) {
   const l = S.lessons.find(x => x.id === id); if (!l) return;
   let ok = await writeLessons(list => { const x = list.find(y => y.id === id); if (x) x.done = d; }, `Учёба: урок ${l.n} пройден ${d}`);
   if (ok && S.studyDays[d] && S.studyDays[d].blocked) ok = await writePlan(p => { delete p.studyDays[d]; }, `Учёба: окно ${d} восстановлено — урок был`);
-  if (ok) { closeSheet(); toast(`Урок ${l.n} отмечен на ${short(d)} · +${XP.lesson} XP` + (d === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (d === today()) checkNotesPushed(); if (!S.skipActual) openActual(l.n, d, l.need || 60); S.skipActual = false; }
+  if (ok) { closeSheet(); toast(`Урок ${l.n} отмечен на ${short(d)} · +${XP.lesson} XP` + (d === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (d === today()) checkNotesPushed(); if (!S.skipActual) openActual(l.n, d, l.need || 60); else openFeel(l.n); S.skipActual = false; }
 }
 function createUpToIn(list, n, extra) {
   const nums = list.map(l => Number(l.n) || 0);
@@ -3163,7 +3254,7 @@ async function studyDone(e, when) {
   if (L.placeholder) ok = await writeLessons(list => createUpToIn(list, L.n, { done: when }), `Учёба: урок ${L.n} пройден ${when}`);
   else if (L.need != null && !e.last) ok = await writeLessons(list => { const x = list.find(l => l.id === L.key); if (x) { x.progress = (Number(x.progress) || 0) + e.cap; x.progressDates = (x.progressDates || []).concat([when]); } }, `Учёба: часть урока ${L.n} ${when}`);
   else ok = await writeLessons(list => { const x = list.find(l => l.id === L.key); if (x) x.done = when; }, `Учёба: урок ${L.n} пройден ${when}`);
-  if (ok) { closeSheet(); toast((L.need != null && !e.last ? `Часть урока ${L.n} отмечена · +${XP.part} XP` : `Урок ${L.n} пройден · +${Number(L.need) >= 90 ? XP.lesson90 : XP.lesson} XP`) + (when === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (when === today()) checkNotesPushed(); if (!S.skipActual && (L.need == null || e.last)) openActual(L.n, when, L.need || e.cap); S.skipActual = false; }
+  if (ok) { closeSheet(); toast((L.need != null && !e.last ? `Часть урока ${L.n} отмечена · +${XP.part} XP` : `Урок ${L.n} пройден · +${Number(L.need) >= 90 ? XP.lesson90 : XP.lesson} XP`) + (when === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (when === today()) checkNotesPushed(); if (L.need == null || e.last) { if (!S.skipActual) openActual(L.n, when, L.need || e.cap); else openFeel(L.n); } S.skipActual = false; }
 }
 async function blockFlow(d, reason) {
   const before = buildStudy();
@@ -3979,6 +4070,14 @@ document.addEventListener('click', async ev => {
   if (a === 'day' && S.swipedAt && Date.now() - S.swipedAt < 400) return;
   switch (a) {
     case 'tab': setTab(b.dataset.tab); break;
+    case 'td-x': {
+      const k = b.dataset.k, box = b.closest('.td-i'), more = box && box.querySelector('.td-more');
+      if (!more) break;
+      const on = more.hidden; more.hidden = !on; box.classList.toggle('open', on); b.setAttribute('aria-expanded', String(on));
+      if (on) S.open.add(k); else S.open.delete(k);
+      break;
+    }
+    case 'td-ev': { busy(b, true); await tdEventToggle(id, d); busy(b, false); break; }
     case 'ex-cat': S.exCat = b.dataset.cat; document.querySelectorAll('[data-action="ex-cat"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.cat === S.exCat))); renderExGrid(); break;
     case 'ex-open': {
       const from = b.dataset.from || '';
@@ -4156,6 +4255,11 @@ document.addEventListener('click', async ev => {
       break;
     }
     case 'actual-set': { const c = S.cur; if (!c || c.type !== 'actual') break; busy(b, true); const ok = await logStudy(Number(b.dataset.min), c.n, c.date, 'manual'); busy(b, false); if (ok) { closeSheet(); toast('Записал: ' + hmShort(Number(b.dataset.min))); } break; }
+    case 'lesson-feel': {
+      busy(b, true); const ok = await setFeel(b.dataset.n, b.dataset.v); busy(b, false);
+      if (ok) { document.querySelectorAll('[data-action="lesson-feel"]').forEach(x => x.classList.toggle('on', x === b)); if (S.cur && S.cur.type === 'feel') { closeSheet(); toast('Записал'); } }
+      break;
+    }
     case 'weight': openWeight(d); break;
     case 'weight-save': busy(b, true); await weightSave(false); busy(b, false); break;
     case 'weight-del': busy(b, true); await weightSave(true); busy(b, false); break;
@@ -4408,6 +4512,10 @@ function calShift(d) {
 })();
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
 document.addEventListener('submit', ev => {
+  if (ev.target && ev.target.classList && ev.target.classList.contains('td-add')) {
+    ev.preventDefault(); const inp = ev.target.querySelector('input'); const v = inp ? inp.value : ''; if (inp) inp.value = '';
+    tdAdd(ev.target.dataset.date, v); return;
+  }
   if (ev.target && ev.target.id === 'shop-form') { ev.preventDefault(); const inp = $('#shop-in'); if (inp && inp.value.trim()) { shopAdd(inp.value); inp.value = ''; } if (inp) inp.focus(); }
 });
 let draftT;
@@ -4433,7 +4541,13 @@ document.addEventListener('change', async ev => {
   }
   if (el.matches && el.matches('[data-slot]')) {
     const k = el.dataset.slot, v = Number(el.value);
-    if (await writeConfig(c => { c.study = c.study || {}; c.study.slots = c.study.slots || {}; c.study.slots[k] = v; if (c.study.labels) delete c.study.labels[k]; }, `Учёба: окно ${DOW_S[Number(k)]} = ${v} мин`)) { S.shift = {}; toast(`${DOW_S[Number(k)]}: ${v ? dur(v) : 'без учёбы'}`); }
+    if (await writeConfig(c => {
+      c.study = c.study || {}; c.study.slots = c.study.slots || {};
+      // старые окна остаются в силе для прошлых дней
+      const y = addDays(today(), -1), h = Array.isArray(c.study.slotHistory) ? c.study.slotHistory : [];
+      if (!h.some(x => x.until >= y)) { h.push({ until: y, slots: Object.assign({}, c.study.slots) }); c.study.slotHistory = h; }
+      c.study.slots[k] = v; if (c.study.labels) delete c.study.labels[k];
+    }, `Учёба: окно ${DOW_S[Number(k)]} = ${v} мин`)) { S.shift = {}; toast(`${DOW_S[Number(k)]}: ${v ? dur(v) : 'без учёбы'}`); }
   } else if (el.id === 'm-cur') {
     if (await writeConfig(c => { c.currency = el.value; }, 'Валюта: ' + el.value)) toast('Валюта: ' + el.value);
   } else if (el.id === 'm-period') {
