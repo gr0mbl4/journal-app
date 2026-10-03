@@ -1741,15 +1741,17 @@ function openTimerStop() {
 async function logStudy(min, n, date, src) {
   return writePlan(p => { const l = p.studyLog = p.studyLog || []; l.push({ date: date || today(), n: n || null, min: Math.round(min), src: src || 'timer', at: hhmm(new Date()) }); }, `Учёба: ${Math.round(min)} мин по факту`);
 }
-// «Как зашёл урок» — интерес к теме, а не усталость (учёба вечером, уставать нормально). Claude смотрит это в разборах.
-const FEEL = [['up', '🔥', 'Зашёл'], ['ok', '🙂', 'Нормально'], ['down', '🥱', 'Не зашёл']];
+// «Как зашёл урок» — оценка 1–5: интерес к теме, а не усталость (учёба вечером, уставать нормально). Claude смотрит это в разборах.
+const FEEL = [[1, 'Мимо'], [2, 'Слабо'], [3, 'Норм'], [4, 'Хорошо'], [5, 'Огонь']];
+const FEEL_OLD = { up: 5, ok: 3, down: 1 };
+function feelVal(v) { return FEEL_OLD[v] || Number(v) || 0; }
 function feelRowHtml(n) {
-  const l = S.lessons.find(x => String(x.n) === String(n)), cur = l && l.feel;
-  return `<p class="fld">Как зашёл урок? <span class="m">(интерес к теме, не усталость)</span></p><div class="feel-row">${FEEL.map(([v, e, t]) => `<button type="button" class="btn feel${cur === v ? ' on' : ''}" data-action="lesson-feel" data-n="${esc(n)}" data-v="${v}">${e} ${t}</button>`).join('')}</div>`;
+  const l = S.lessons.find(x => String(x.n) === String(n)), cur = feelVal(l && l.feel);
+  return `<p class="fld">Как зашёл урок, 1–5? <span class="m">(интерес к теме, не усталость)</span></p><div class="feel-row">${FEEL.map(([v, t]) => `<button type="button" class="btn feel${cur === v ? ' on' : ''}" data-action="lesson-feel" data-n="${esc(n)}" data-v="${v}"><b>${v}</b><small>${t}</small></button>`).join('')}</div>`;
 }
 async function setFeel(n, v) {
-  const l = S.lessons.find(x => String(x.n) === String(n)); if (!l) return false;
-  return writeLessons(list => { const x = list.find(y => y.id === l.id); if (x) x.feel = v; }, `Учёба: урок ${l.n} — ${(FEEL.find(f => f[0] === v) || [0, 0, v])[2].toLowerCase()}`);
+  const l = S.lessons.find(x => String(x.n) === String(n)); v = Number(v); if (!l || !(v >= 1 && v <= 5)) return false;
+  return writeLessons(list => { const x = list.find(y => y.id === l.id); if (x) x.feel = v; }, `Учёба: урок ${l.n} — ${v}/5`);
 }
 function openFeel(n) {
   S.cur = { type: 'feel', n };
@@ -4265,7 +4267,7 @@ document.addEventListener('click', async ev => {
     case 'actual-set': { const c = S.cur; if (!c || c.type !== 'actual') break; busy(b, true); const ok = await logStudy(Number(b.dataset.min), c.n, c.date, 'manual'); busy(b, false); if (ok) { closeSheet(); toast('Записал: ' + hmShort(Number(b.dataset.min))); } break; }
     case 'lesson-feel': {
       busy(b, true); const ok = await setFeel(b.dataset.n, b.dataset.v); busy(b, false);
-      if (ok) { document.querySelectorAll('[data-action="lesson-feel"]').forEach(x => x.classList.toggle('on', x === b)); if (S.cur && S.cur.type === 'feel') { closeSheet(); toast('Записал'); } }
+      if (ok) { document.querySelectorAll('[data-action="lesson-feel"]').forEach(x => x.classList.toggle('on', x === b)); if (S.cur && S.cur.type === 'feel') { closeSheet(); toast('Записал: ' + b.dataset.v + '/5'); } }
       break;
     }
     case 'weight': openWeight(d); break;
