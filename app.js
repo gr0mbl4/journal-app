@@ -1111,6 +1111,9 @@ function sessionFor(i) {
   blocks.forEach((b, bi) => (b.ex || []).forEach((x, ei) => { const k = bi + '.' + ei; if (swap[k]) { x.orig = x.name; x.name = swap[k]; x.swapped = true; } }));
   return { key, title, blocks, replaced, note: (ses[key] || {}).note || '' };
 }
+// «Чистые» дни (config.restDays, номера дней JS: 6 = суббота): без учёбы и спорта, автопереносы туда не ставятся.
+// Перенести вручную на конкретную дату по-прежнему можно.
+function restDay(d) { const r = (S.config || {}).restDays; return Array.isArray(r) && r.map(Number).includes(dow(d)); }
 function planMove(inst, target) {
   const list = S.sportList, t = today();
   const occ = (d, excl, virt) => list.filter(i => i.eff === d && i.state !== 'skipped' && !excl.includes(i.id)).concat(virt.filter(v => v.eff === d));
@@ -1118,7 +1121,7 @@ function planMove(inst, target) {
   const find = (i, from, excl, virt) => {
     for (let d = from, k = 0; k < 14; d = addDays(d, 1), k++) {
       if (i.kind !== 'strength' && d > weekEnd(i)) return null;
-      if (dutyOn(d)) continue;
+      if (dutyOn(d) || restDay(d)) continue;
       const o = occ(d, excl, virt);
       if (!o.length) return { date: d };
       if (i.kind === 'strength' && o.every(x => x.kind !== 'strength')) return { date: d, bump: o.find(x => x.id) || null };
@@ -1506,6 +1509,7 @@ function dayRows(d, study, sport) {
   regularRows(d).forEach(r => rows.push(r));
   plannedRows(d).forEach(r => rows.push(r));
   dateRows(d).concat(graceRows(d)).forEach(r => rows.push(r));
+  if (restDay(d) && !rows.some(r => /data-action="(study|sport)"/.test(r))) rows.unshift(`<div class="row slim rest-day"><span class="tag rest">Отдых</span><span class="rb"><span class="t">Чистый день</span><span class="m">без учёбы и спорта — обнулиться</span></span></div>`);
   return rows;
 }
 /* ---------- sleep ---------- */
@@ -3185,6 +3189,7 @@ function openDay(d) {
   else S.lessons.filter(l => l.done === d || (l.progressDates || []).includes(d)).forEach(l => rows.push(`<div class="row slim is-done"><span class="tag study">Учёба</span><span class="rb"><span class="t">Урок ${esc(l.n)}${l.title ? ' · ' + esc(l.title) : ''}</span><span class="m">${l.done === d ? 'пройден' : 'часть урока'}</span></span><span class="s">✓</span></div>`));
   for (const i of sport) if (i.eff === d) rows.push(rowSport(i));
   for (const i of sport) if (i.orig === d && i.eff !== d) rows.push(rowGhost(i));
+  if (restDay(d) && !rows.some(r => /data-action="(study|sport)"/.test(r))) rows.unshift(`<div class="row slim rest-day"><span class="tag rest">Отдых</span><span class="rb"><span class="t">Чистый день</span><span class="m">без учёбы и спорта — обнулиться</span></span></div>`);
   S.sportList = Array.from(new Map(S.sportList.concat(sport).map(i => [i.id, i])).values());
   let studyBox = '';
   if (S.config.study) {
