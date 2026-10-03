@@ -234,7 +234,7 @@ function b64dec(b64) {
 const S = {
   ready: false, loading: false, lastLoad: 0,
   config: null, learned: {}, lessons: [], studyDays: {}, sportMoves: {}, sportExtra: [], events: [], recipes: [], meals: { days: {} }, requests: [],
-  ideas: [], sleep: { days: {} }, curriculum: { blocks: [] }, notes: null, notesErr: null, notesLoading: false, noteCache: {},
+  ideas: [], sleep: { days: {} }, curriculum: { blocks: [] }, ex: { cats: [], items: [], complexes: [] }, exCat: 'all', exQ: '', media: {}, notes: null, notesErr: null, notesLoading: false, noteCache: {},
   openCur: new Set(), touchedCur: new Set(), showAllDone: false,
   english: { cards: {}, sessions: [] }, benefits: { items: {} }, books: { books: [], progress: {}, listen: {} }, shop: LS.get('bj-shop') || { items: [] },
   money: {}, workouts: {}, fresh: new Set(), dirty: new Set(), tab: 'plan', open: new Set(), reviews: [], rev: null, portfolio: null, notesDays: LS.get('bj-notes-days'), duties: {}, absences: [], studyLog: [], body: { weight: {} }, quarters: {}, inbox: [], period: null, periodP: null, calMonth: monthKey(today()), foodDate: today(), img: {},
@@ -718,6 +718,7 @@ function applyData(d) {
   if (d.benefits) S.benefits = d.benefits;
   if (d.shop && !S.shopBusy) { S.shop = d.shop; LS.set('bj-shop', S.shop); }
   if (d.books) S.books = d.books;
+  if (d.exercises) S.ex = d.exercises && Array.isArray(d.exercises.items) ? d.exercises : { cats: [], items: [], complexes: [] };
   if (d.ideas) S.ideas = Array.isArray(d.ideas.ideas) ? d.ideas.ideas : [];
   if (d.sleep) S.sleep = d.sleep && d.sleep.days ? d.sleep : { days: {} };
   if (d.curriculum) S.curriculum = d.curriculum && Array.isArray(d.curriculum.blocks) ? d.curriculum : { blocks: [] };
@@ -733,7 +734,7 @@ function applyData(d) {
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, exercises: S.ex, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => readDoc(prefix + k + '.json')));
@@ -750,13 +751,13 @@ async function loadAll(quiet) {
     if (queueCount()) await flushQueue();
     GH.changed = 0;
     GH.info().then(j => { if (j && j.private === false) { toast('Внимание: репозиторий с данными стал открытым! Сделай его приватным.'); setSync('Репозиторий с данными открытый — сделай приватным', true); } }).catch(() => {});
-    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop, booksDoc] = await Promise.all([
+    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop, booksDoc, exDoc] = await Promise.all([
       readDoc('config.json'), readDoc('lessons.json'), readDoc('plan.json'), readDoc('learned.json'), readDoc('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
-      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json'), readDoc('books.json')
+      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json'), readDoc('books.json'), readDoc('exercises.json')
     ]);
     const inboxNames = inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name);
     const quietSame = S.ready && !GH.changed && !queueCount() && inboxNames.join('|') === (S.inbox || []).join('|');
-    if (!quietSame) applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    if (!quietSame) applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, exercises: exDoc || { cats: [], items: [], complexes: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
@@ -1204,8 +1205,8 @@ function workoutForm(i, ses) {
     const order = ex.map((x, ei) => ({ x, ei, n: (wrAll.find(o => o.ei === ei) || {}).n || 0, ps: (x.log === 'wr' || x.log === 'r') ? exSets(x, b) : 0 })).sort((a, z) => z.ps - a.ps || a.ei - z.ei);
     const multi = ex.length > 1;
     const letter = new Map(order.map((o, k) => [o.ei, multi ? LET[k] : '']));
-    const names = order.map(({ x, ei }) => `<div class="exl"><span class="let">${letter.get(ei)}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${(x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${(wrAll.find(o => o.ei === ei) || {}).n} ${plural((wrAll.find(o => o.ei === ei) || {}).n, 'подход', 'подхода', 'подходов')}</span>` : ''}</span>${ses.replaced === 'custom' ? '<span></span>' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</div>
-      <div class="swap-form" id="swf-${bi}-${ei}" hidden><input id="swi-${bi}-${ei}" placeholder="Чем заменить" value="${esc(x.swapped ? x.name : '')}"><div class="two"><button type="button" class="btn sm" data-action="ex-swap-once" data-b="${bi}" data-e="${ei}">Только в этот раз</button><button type="button" class="btn sm" data-action="ex-swap-perm" data-b="${bi}" data-e="${ei}">В программе навсегда</button></div>${x.swapped ? `<button type="button" class="btn sm" data-action="ex-unswap" data-b="${bi}" data-e="${ei}">Вернуть по программе</button>` : ''}</div>`).join('');
+    const names = order.map(({ x, ei }) => `<div class="exl"><span class="let">${letter.get(ei)}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${(x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${(wrAll.find(o => o.ei === ei) || {}).n} ${plural((wrAll.find(o => o.ei === ei) || {}).n, 'подход', 'подхода', 'подходов')}</span>` : ''}</span><span class="ex-acts">${exFind(x.name) ? `<button type="button" class="icon-btn sm ex-tech" data-action="ex-open" data-id="${esc(exFind(x.name).id)}" data-from="sport:${esc(i.id)}" aria-label="Техника: ${esc(x.name)}">${ico('play')}</button>` : ''}${ses.replaced === 'custom' ? '' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</span></div>
+      <div class="swap-form" id="swf-${bi}-${ei}" hidden><input id="swi-${bi}-${ei}" list="ex-dl" placeholder="Чем заменить (подсказки — из базы)" value="${esc(x.swapped ? x.name : '')}"><div class="two"><button type="button" class="btn sm" data-action="ex-swap-once" data-b="${bi}" data-e="${ei}">Только в этот раз</button><button type="button" class="btn sm" data-action="ex-swap-perm" data-b="${bi}" data-e="${ei}">В программе навсегда</button></div>${x.swapped ? `<button type="button" class="btn sm" data-action="ex-unswap" data-b="${bi}" data-e="${ei}">Вернуть по программе</button>` : ''}</div>`).join('');
     let body = '', filled = 0, total = 0;
     const wr = order.filter(o => o.x.log === 'wr' || o.x.log === 'r');
     if (wr.length) {
@@ -1249,7 +1250,8 @@ function workoutForm(i, ses) {
   if (prevDate) info.push(`Серые цифры — прошлый раз, ${short(prevDate)}. «+» с пустого поля подставляет прошлое.`);
   if (draft) info.push('Есть несохранённые подходы — они подставлены.');
   else if (log) info.push('Подходы сохранены ' + (log.ts ? hhmm(new Date(log.ts)) + ', ' : '') + short(log.date) + '.');
-  return `<div class="wk-prog" id="wk-prog"></div>` + html + (info.length ? `<p class="note">${info.join(' ')}</p>` : '');
+  const dl = exItems().length ? `<datalist id="ex-dl">${exItems().map(x => `<option value="${esc(x.name)}">`).join('')}</datalist>` : '';
+  return `<div class="wk-prog" id="wk-prog"></div>` + html + dl + (info.length ? `<p class="note">${info.join(' ')}</p>` : '');
 }
 function wkProgress() {
   const box = document.getElementById('wk'); if (!box) return;
@@ -1420,7 +1422,7 @@ function bannerHtml() {
   return '<div class="callout">Журнал ещё не настроен: в репозитории нет расписания (config.json). Попроси Claude заполнить его.</div>';
 }
 // Рисуем только открытую вкладку, остальные — при переходе на них.
-const RENDER = { plan: () => renderPlan(), cal: () => renderCal(), lessons: () => renderLessons(), food: () => renderFood(), money: () => renderMoney() };
+const RENDER = { plan: () => renderPlan(), cal: () => renderCal(), lessons: () => renderLessons(), sport: () => renderSportTab(), food: () => renderFood(), money: () => renderMoney() };
 function renderTab(t) { S.dirty.delete(t); (RENDER[t] || RENDER.plan)(); }
 function render() {
   const t = today();
@@ -3797,8 +3799,157 @@ function openSettings() {
     <p class="note">«Отключить» удаляет ключ и сохранённые данные только с этого устройства. Сам ключ отзывается на GitHub: Settings → Developer settings → Personal access tokens.</p>`);
 }
 
+
+/* ---------- спорт: неделя, комплексы, база упражнений ----------
+   exercises.json собирает Claude из присланных видео: упражнения по категориям, техника, дозировка,
+   клип (кусок исходного ролика, режет GitHub Actions) или анимация из кадров. */
+const exNorm = s => String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/[«»"'().,:;!?—–-]+/g, ' ').replace(/\s+/g, ' ').trim();
+function exItems() { return (S.ex && Array.isArray(S.ex.items)) ? S.ex.items : []; }
+function exById(id) { return exItems().find(x => x.id === id) || null; }
+function exCx() { return (S.ex && Array.isArray(S.ex.complexes)) ? S.ex.complexes : []; }
+function exCatName(id) { const c = ((S.ex || {}).cats || []).find(x => x.id === id); return c ? c.title : ''; }
+function exFind(name) {
+  const n = exNorm(name); if (!n) return null;
+  return exItems().find(x => exNorm(x.name) === n || (x.aka || []).some(a => exNorm(a) === n)) || null;
+}
+// где упражнение стоит в программе: «Кардио · пн»
+function exInProgram(it) {
+  const cfg = (S.config || {}).sport || {}, ses = cfg.sessions || {}, out = [];
+  const names = [it.name].concat(it.aka || []).map(exNorm);
+  for (const [key, s] of Object.entries(ses)) {
+    if (!(s.blocks || []).some(b => (b.ex || []).some(x => names.includes(exNorm(x.name))))) continue;
+    const days = (cfg.template || []).filter(t => t.key === key || (t.alt || []).includes(key)).map(t => DOW_S[Number(t.dow)]);
+    out.push((s.title || key) + (days.length ? ' · ' + days.join(', ') : ''));
+  }
+  return out;
+}
+function cxInProgram(c) {
+  const cfg = (S.config || {}).sport || {};
+  if (!c.program || !(cfg.sessions || {})[c.program]) return '';
+  const days = (cfg.template || []).filter(t => t.key === c.program).map(t => DOW_S[Number(t.dow)]);
+  return 'в программе' + (days.length ? ': ' + days.join(', ') : '');
+}
+// видео из приватного репозитория: Cache Storage, чтобы второй раз открывалось сразу и без сети
+async function mediaUrl(path) {
+  if (S.media[path]) return S.media[path];
+  const key = 'https://media.local/' + path;
+  let blob = null;
+  try { const c = await caches.open('bj-media'); const hit = await c.match(key); if (hit) blob = await hit.blob(); } catch (_) {}
+  if (!blob) {
+    blob = await GH.rawIn(GH.cred.repo, path);
+    try { const c = await caches.open('bj-media'); await c.put(key, new Response(blob, { headers: { 'Content-Type': /\.mp4$/.test(path) ? 'video/mp4' : 'image/jpeg' } })); } catch (_) {}
+  }
+  return (S.media[path] = URL.createObjectURL(blob));
+}
+function exCard(it) {
+  const prog = exInProgram(it).length;
+  return `<button type="button" class="ex-card" data-action="ex-open" data-id="${esc(it.id)}"><span class="ph">${it.poster ? `<img data-gh="${esc(it.poster)}" alt="" loading="lazy">` : ''}${it.clip ? `<span class="pl">${ico('play')}</span>` : ''}${prog ? '<span class="in-prog">в программе</span>' : ''}</span><span class="t">${esc(it.name)}</span><span class="m">${esc([exCatName(it.cat), it.dose].filter(Boolean).join(' · '))}</span></button>`;
+}
+function cxCard(c) {
+  const first = exById((c.items[0] || {}).ex) || {}, pr = cxInProgram(c);
+  const meta = [c.items.length + ' ' + plural(c.items.length, 'упражнение', 'упражнения', 'упражнений'), c.rounds ? c.rounds + ' ' + plural(c.rounds, 'круг', 'круга', 'кругов') : ''].filter(Boolean).join(' · ');
+  return `<button type="button" class="cx-card" data-action="cx-open" data-id="${esc(c.id)}"><span class="ph">${first.poster ? `<img data-gh="${esc(first.poster)}" alt="" loading="lazy">` : ''}</span><span class="cx-b"><span class="t">${esc(c.title)}</span><span class="m">${esc(meta)}</span>${pr ? `<span class="in-prog">${esc(pr)}</span>` : ''}</span></button>`;
+}
+function exFiltered() {
+  const q = exNorm(S.exQ), cat = S.exCat || 'all';
+  return exItems().filter(x => (cat === 'all' || x.cat === cat || (cat === 'prog' && exInProgram(x).length)) &&
+    (!q || exNorm([x.name, (x.aka || []).join(' '), exCatName(x.cat), x.eq, (x.how || []).join(' ')].join(' ')).includes(q)));
+}
+function renderExGrid() {
+  const g = $('#ex-grid'); if (!g) return;
+  const l = exFiltered();
+  g.innerHTML = l.length ? l.map(exCard).join('') : `<p class="note">${exItems().length ? 'Ничего не нашлось.' : 'База пока пустая — шли ролики через «Поделиться» → Claude, разберу и разложу по категориям.'}</p>`;
+  hydrateImages(g);
+}
+function renderSportTab() {
+  const box = $('#tab-sport'); if (!box) return;
+  if (!S.ready) { box.innerHTML = bannerHtml(); return; }
+  const t = today(), from = mondayOf(t), to = addDays(from, 6);
+  const week = buildSport(addDays(from, -7), addDays(to, 7)).filter(i => i.eff >= from && i.eff <= to).sort((a, b) => a.eff < b.eff ? -1 : a.eff > b.eff ? 1 : 0);
+  const done = week.filter(i => i.state === 'done' || i.state === 'other').length, planned = week.filter(i => i.state !== 'skipped').length;
+  const rows = week.map(i => {
+    let chip = '';
+    if (i.state === 'done') chip = '<span class="chip good">✓</span>';
+    else if (i.state === 'other') chip = '<span class="chip good">✓ другое</span>';
+    else if (i.state === 'skipped') chip = '<span class="chip">пропуск</span>';
+    else if (i.eff === t) chip = '<span class="chip warn">сегодня</span>';
+    else if (i.eff !== i.orig) chip = `<span class="chip warn">с ${short(i.orig)}</span>`;
+    return `<button type="button" class="row${i.state === 'done' || i.state === 'other' ? ' is-done' : i.state === 'skipped' ? ' is-skipped' : ''}" data-action="sport" data-id="${esc(i.id)}"><span class="tag sport">${DOW_S[pd(i.eff).getDay()]} ${pd(i.eff).getDate()}</span><span class="rb"><span class="t">${esc(i.title)}</span><span class="m">${esc(i.state === 'other' ? (i.note || 'сделал другое') : i.sub)}</span></span><span class="s">${chip}</span></button>`;
+  }).join('');
+  const cats = ((S.ex || {}).cats || []).filter(c => exItems().some(x => x.cat === c.id));
+  const chips = [['all', 'Все', exItems().length], ['prog', 'В программе', exItems().filter(x => exInProgram(x).length).length]].concat(cats.map(c => [c.id, c.title, exItems().filter(x => x.cat === c.id).length]));
+  box.innerHTML = `<div class="sec-row"><h2 class="sec">Неделя</h2><span class="sec-n">${done} из ${planned}</span></div>
+    <div class="stack">${rows || '<p class="note">На этой неделе тренировок нет.</p>'}</div>
+    ${exCx().length ? `<h2 class="sec">Комплексы</h2><div class="cx-row">${exCx().map(cxCard).join('')}</div>` : ''}
+    <div class="sec-row"><h2 class="sec">Упражнения</h2><span class="sec-n">${exItems().length}</span></div>
+    <input id="ex-q" type="search" class="notes-q" placeholder="Поиск: рывок, резина, кор…" value="${esc(S.exQ || '')}" autocomplete="off" autocapitalize="off">
+    <div class="chips ex-cats" role="group" aria-label="Категория">${chips.map(([k, l, n]) => `<button type="button" class="chip-btn" data-action="ex-cat" data-cat="${k}" aria-pressed="${k === (S.exCat || 'all')}">${esc(l)} <small>${n}</small></button>`).join('')}</div>
+    <div id="ex-grid" class="ex-grid"></div>
+    <p class="note">Новые упражнения: в Instagram «Поделиться» → Claude, добавь слово «в базу» или «в ударку» — разберу, разложу по категориям и вырежу кусок ролика с техникой.</p>
+    <p class="note"><button type="button" class="link-btn" data-action="ideas" data-area="sport">+ Идея по спорту для Claude</button></p>`;
+  renderExGrid();
+  hydrateImages(box);
+}
+function exMediaHtml(it) {
+  if (!it.poster && !it.clip) return '';
+  return `<div class="ex-media">${it.poster ? `<img data-gh="${esc(it.poster)}" alt="" class="ex-poster">` : ''}${it.clip ? `<video id="ex-vid" muted loop playsinline autoplay preload="auto"></video><span class="ex-load" id="ex-load">загружаю видео…</span>` : ''}</div>`;
+}
+async function exLoadVideo(it) {
+  if (!it.clip) return;
+  try {
+    const url = await mediaUrl(it.clip);
+    const v = $('#ex-vid'); if (!v || !S.cur || S.cur.exId !== it.id) return;
+    v.src = url; v.muted = true;
+    v.addEventListener('playing', () => { v.classList.add('on'); const l = $('#ex-load'); if (l) l.remove(); }, { once: true });
+    v.addEventListener('error', () => { const l = $('#ex-load'); if (l) l.textContent = 'видео не открылось — смотри кадр'; }, { once: true });
+    try { await v.play(); } catch (_) {}
+  } catch (_) { const l = $('#ex-load'); if (l) l.textContent = 'видео не загрузилось'; }
+}
+function backBtnHtml() {
+  const b = S.exBack; if (!b) return '';
+  const label = b.type === 'sport' ? 'К тренировке' : b.type === 'cx' ? 'К комплексу' : 'Назад';
+  return `<button type="button" class="link-btn ex-back" data-action="ex-back">← ${label}</button>`;
+}
+function openExercise(id, back) {
+  const it = exById(id); if (!it) return;
+  if (back !== undefined) S.exBack = back;
+  S.cur = { type: 'ex', exId: it.id };
+  const prog = exInProgram(it), cxs = exCx().filter(c => c.items.some(x => x.ex === it.id));
+  const src = (it.src || []).filter((s, k, a) => a.findIndex(z => (z.author || '') === (s.author || '') && (z.link || '') === (s.link || '')) === k);
+  const linkless = it.clipKind === 'frames' && !(it.src || []).some(s => s.link);
+  openSheet(`${backBtnHtml()}${exMediaHtml(it)}
+    <h2 class="sh-title ex-title">${esc(it.name)}</h2>
+    <div class="chips ex-tags"><span class="chip">${esc(exCatName(it.cat))}</span>${it.eq ? `<span class="chip">${esc(it.eq)}</span>` : ''}${prog.map(p => `<span class="chip good">${esc(p)}</span>`).join('')}</div>
+    ${it.dose ? `<div class="ex-dose"><span>Сколько</span><b>${esc(it.dose)}</b></div>` : ''}
+    ${(it.how || []).length ? `<h3 class="sec">Техника</h3><ol class="ing">${it.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+    ${(it.tips || []).length ? `<h3 class="sec">Важно</h3><ul class="ing">${it.tips.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${cxs.length ? `<h3 class="sec">В комплексах</h3><div class="stack">${cxs.map(c => `<button type="button" class="row cx-in" data-action="cx-open" data-id="${esc(c.id)}"><span class="rb"><span class="t">${esc(c.title)}</span><span class="m">${esc((c.items.find(x => x.ex === it.id) || {}).dose || '')}</span></span><span class="s">›</span></button>`).join('')}</div>` : ''}
+    ${src.length ? `<p class="note ex-src">Из роликов: ${src.map(s => s.link ? `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.author || 'видео')}</a>` : esc(s.author || 'видео')).join(', ')}${linkless ? '. Здесь анимация из кадров — пришли этот ролик через «Поделиться», будет настоящее видео.' : ''}</p>` : ''}`);
+  hydrateImages($('#sheet-body'));
+  exLoadVideo(it);
+}
+function openComplex(id, back) {
+  const c = exCx().find(x => x.id === id); if (!c) return;
+  if (back !== undefined) S.exBack = back;
+  S.cur = { type: 'cx', cxId: c.id };
+  const pr = cxInProgram(c);
+  openSheet(`${backBtnHtml()}<h2 class="sh-title">${esc(c.title)}</h2>
+    <div class="chips ex-tags">${c.rounds ? `<span class="chip">${c.rounds} ${plural(c.rounds, 'круг', 'круга', 'кругов')}</span>` : ''}${c.rest ? `<span class="chip">отдых ${esc(c.rest)}</span>` : ''}${pr ? `<span class="chip good">${esc(pr)}</span>` : ''}</div>
+    ${c.note ? `<p class="note">${esc(c.note)}</p>` : ''}
+    <div class="stack cx-list">${c.items.map((x, k) => { const it = exById(x.ex) || { name: x.ex }; return `<button type="button" class="row cx-ex" data-action="ex-open" data-id="${esc(x.ex)}" data-from="cx:${esc(c.id)}"><span class="cx-n">${k + 1}</span><span class="thumb">${it.poster ? `<img data-gh="${esc(it.poster)}" alt="">` : ''}</span><span class="rb"><span class="t">${esc(it.name)}</span><span class="m">${esc(x.dose || it.dose || '')}</span></span><span class="s">›</span></button>`; }).join('')}</div>
+    ${c.src && c.src.author ? `<p class="note">Источник: ${esc(c.src.author)}</p>` : ''}`);
+  hydrateImages($('#sheet-body'));
+}
+function exBack() {
+  const b = S.exBack; S.exBack = null;
+  if (!b) { closeSheet(); return; }
+  if (b.type === 'sport') openSport(b.id, true);
+  else if (b.type === 'cx') openComplex(b.id, null);
+  else closeSheet();
+}
+
 /* ---------- events wiring ---------- */
-const TABS = ['plan', 'cal', 'lessons', 'food', 'money'];
+const TABS = ['plan', 'cal', 'lessons', 'sport', 'food', 'money'];
 function setTab(t) {
   if (!TABS.includes(t)) t = 'plan';
   S.tab = t;
@@ -3823,6 +3974,16 @@ document.addEventListener('click', async ev => {
   if (a === 'day' && S.swipedAt && Date.now() - S.swipedAt < 400) return;
   switch (a) {
     case 'tab': setTab(b.dataset.tab); break;
+    case 'ex-cat': S.exCat = b.dataset.cat; document.querySelectorAll('[data-action="ex-cat"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.cat === S.exCat))); renderExGrid(); break;
+    case 'ex-open': {
+      const from = b.dataset.from || '';
+      let back = null;
+      if (from.startsWith('cx:')) back = { type: 'cx', id: from.slice(3) };
+      else if (from.startsWith('sport:')) { if (S.cur && S.cur.type === 'sport') saveDraftNow(); back = { type: 'sport', id: from.slice(6) }; }
+      openExercise(id, back); break;
+    }
+    case 'cx-open': openComplex(id, null); break;
+    case 'ex-back': exBack(); break;
     case 'stp': stepSet(b.dataset.k, b.dataset.f, Number(b.dataset.d)); break;
     case 'set-add': {
       const c = S.cur; if (!c || c.type !== 'sport') return;
@@ -4246,6 +4407,7 @@ document.addEventListener('submit', ev => {
 });
 let draftT;
 $('#notes-q').addEventListener('input', ev => notesSearch(ev.target.value));
+document.addEventListener('input', ev => { if (ev.target && ev.target.id === 'ex-q') { S.exQ = ev.target.value; renderExGrid(); } });
 $('#sheet').addEventListener('input', ev => {
   const c = S.cur;
   if (ev.target.id === 'ev-n') repNote();

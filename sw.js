@@ -1,6 +1,6 @@
 // Офлайн-оболочка журнала: страница и скрипт берутся из кэша, если нет сети.
 // Данные (api.github.com) сюда не попадают — они в localStorage приложения.
-const CACHE = 'bj-shell-20261003c';
+const CACHE = 'bj-shell-20261003d';
 const STATIC = ['./manifest.webmanifest', './icon-192.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -17,7 +17,8 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k.startsWith('bj-') && k !== CACHE) await caches.delete(k);
+    // только старые оболочки: кэши аудиокниг (bj-audio) и видео упражнений (bj-media) не трогаем
+    for (const k of await caches.keys()) if (k.startsWith('bj-shell-') && k !== CACHE) await caches.delete(k);
     await self.clients.claim();
   })());
 });

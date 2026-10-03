@@ -372,9 +372,9 @@ details.more-box[open] summary::after{content:"▴"}
 
 /* nav + toast */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
-.tabs-in{display:grid;grid-template-columns:repeat(5,1fr);width:100%;max-width:560px}
+.tabs-in{display:grid;grid-template-columns:repeat(6,1fr);width:100%;max-width:560px}
 .tab-btn{display:grid;justify-items:center;gap:3px;background:none;border:0;color:var(--muted);font-weight:500;font-size:11px;padding:4px 1px;cursor:pointer;min-width:0}
-.tab-btn .ic{display:grid;place-items:center;padding:3px 10px;border-radius:12px}
+.tab-btn .ic{display:grid;place-items:center;padding:3px 8px;border-radius:12px}
 .tab-btn svg{width:22px;height:22px}
 .tab-btn[aria-selected="true"]{color:var(--ink)}
 .tab-btn[aria-selected="true"] .ic{background:var(--surface-2)}
@@ -933,6 +933,49 @@ details.blk-f[open]{padding-bottom:10px}
 .upp-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4D8DFF,#2F6FE0);transition:width .25s ease-out}
 .upp-d{font-size:12.5px;color:var(--muted)}
 /* фоновая отправка: тонкая полоска сверху, подробности — в чате */
+/* спорт: база упражнений */
+.sec-n{font:600 12.5px var(--f-mono);color:var(--muted)}
+.ex-cats{margin:8px 0 12px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.ex-cats::-webkit-scrollbar{display:none}
+.ex-cats .chip-btn{white-space:nowrap;flex:none}
+.ex-cats .chip-btn small{opacity:.6;font-weight:500;margin-left:2px}
+.ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ex-card{display:flex;flex-direction:column;text-align:left;padding:0;border-radius:18px;overflow:hidden;background:var(--glass-2);border:1px solid var(--glass-line);color:var(--ink);cursor:pointer;min-width:0}
+.ex-card .ph,.cx-card .ph{position:relative;display:block;aspect-ratio:4/5;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow:hidden}
+.ex-card .ph img,.cx-card .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ex-card .pl{position:absolute;right:8px;bottom:8px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center}
+.ex-card .pl svg{width:14px;height:14px;fill:#fff;stroke:none}
+.in-prog{display:inline-block;font:600 10.5px var(--f-mono);letter-spacing:.02em;text-transform:uppercase;color:#fff;background:rgba(32,150,90,.85);padding:3px 7px;border-radius:8px}
+.ex-card .in-prog{position:absolute;left:8px;top:8px}
+.ex-card .t{font-weight:600;font-size:14px;line-height:1.25;padding:9px 10px 2px}
+.ex-card .m{font-size:12px;color:var(--muted);padding:0 10px 10px;line-height:1.3}
+.cx-row{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:2px 16px 6px;scrollbar-width:none}
+.cx-row::-webkit-scrollbar{display:none}
+.cx-card{flex:none;width:168px;scroll-snap-align:start;display:flex;flex-direction:column;text-align:left;padding:0;border-radius:18px;overflow:hidden;background:var(--glass-2);border:1px solid var(--glass-line);color:var(--ink);cursor:pointer}
+.cx-card .ph{aspect-ratio:16/11}
+.cx-b{display:grid;gap:3px;padding:9px 10px 11px}
+.cx-b .t{font-weight:600;font-size:14px;line-height:1.25}
+.cx-b .m{font-size:12px;color:var(--muted)}
+.cx-b .in-prog{justify-self:start;margin-top:3px}
+.ex-media{position:relative;width:100%;max-width:340px;aspect-ratio:9/16;max-height:52vh;margin:0 auto 12px;border-radius:20px;overflow:hidden;background:#000}
+.ex-media img,.ex-media video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.ex-media video{opacity:0;transition:opacity .25s}
+.ex-media video.on{opacity:1}
+.ex-load{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font:600 12px var(--f-mono);color:#fff;background:rgba(0,0,0,.55);padding:4px 10px;border-radius:10px;white-space:nowrap}
+.ex-title{margin-top:2px}
+.ex-tags{margin:2px 0 10px}
+.ex-dose{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:10px 14px;border-radius:14px;background:var(--glass-2);border:1px solid var(--glass-line);margin-bottom:6px}
+.ex-dose span{color:var(--muted);font-size:13px}
+.ex-dose b{text-align:right;font-size:14.5px}
+.ex-src a{color:inherit;text-decoration:underline}
+.row.cx-in{grid-template-columns:minmax(0,1fr) auto}
+.ex-back{display:inline-block;margin:0 0 10px;font-weight:600}
+.row.cx-ex{grid-template-columns:18px 44px minmax(0,1fr) auto;padding-block:8px}
+.cx-ex .cx-n{font:600 13px var(--f-mono);color:var(--muted);width:18px;text-align:center}
+.cx-ex .thumb{width:44px;height:44px;border-radius:12px;overflow:hidden;flex:none;background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.cx-ex .thumb img{width:100%;height:100%;object-fit:cover}
+.ex-acts{display:flex;gap:4px;align-items:center}
+.ex-tech svg{width:14px;height:14px;fill:currentColor;stroke:none}
 .up-prog.mini{padding:6px 12px 7px;gap:4px;border-radius:14px;max-width:360px;pointer-events:none;opacity:.96}
 .up-prog.mini .upp-row{font-size:12.5px}
 .up-prog.mini .upp-bar{height:4px}
@@ -1058,6 +1101,7 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
       <div id="curriculum"></div>
     </section>
 
+    <section id="tab-sport" class="tab" aria-label="Спорт" hidden></section>
     <section id="tab-food" class="tab" aria-label="Еда" hidden>
       <div class="cal-bar">
         <button type="button" class="btn sm" data-action="food-prev" aria-label="Предыдущий день">‹</button>
@@ -1134,6 +1178,9 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
     <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="lessons" aria-selected="false">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5"/></svg></span>Учёба
     </button>
+    <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="sport" aria-selected="false">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg></span>Спорт
+    </button>
     <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="food" aria-selected="false">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10"/><path d="M17 21V3c-2.2 1.2-3.5 3.7-3.5 7v3H17"/></svg></span>Еда
     </button>
@@ -1160,6 +1207,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261003c"></script>
+<script src="app.js?v=20261003d"></script>
 </body>
 </html>
