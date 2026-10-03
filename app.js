@@ -355,10 +355,30 @@ async function accountSave() {
 }
 
 /* ---------- parsing "хлеб 45, такси 320" ---------- */
+// Числа, которые не суммы: «180 г», «0,5 л», «4 пачки», «по 180», «2 пива» (рядом с настоящей суммой) — остаются в названии.
+// Прячем их цифры (полноширинные цифры не попадают в \d), после разбора возвращаем обычные.
+const FW0 = 0xFF10;
+const fwHide = s => s.replace(/\d/g, d => String.fromCharCode(FW0 + Number(d)));
+const fwShow = s => String(s).replace(/[\uFF10-\uFF19]/g, c => String(c.charCodeAt(0) - FW0));
+const UNIT_RE = /(\d+(?:[.,]\d+)?)(\s*(?:кг|гр|грамм[а-яё]*|г|мл|литр[а-яё]*|л|шт[а-яё.]*|штук[а-яё]*|пач[а-яё]*|бут[а-яё]*|бан[а-яё]*|упак[а-яё]*|уп|пак[а-яё]*)(?![а-яёa-z]))/gi;
+const PO_RE = /((?:^|[^а-яёa-z])по\s+)(\d+(?:[.,]\d+)?)(?!\s*(?:к|k|тыс\.?)?\s*(?:руб|р\.|₽|р(?![а-яё])))/gi;
+const COUNT_RE = /(^|[^\d.,])([1-9])(\s+(?!руб|р\.|р(?![а-яё])|к(?![а-яё])|тыс)[а-яё]{2,})/gi;
+function spendProtect(t) {
+  let s = t.replace(UNIT_RE, (m, n, u) => fwHide(n) + u).replace(PO_RE, (m, a, n) => a + fwHide(n));
+  // «2 пива», «4 пачки» — счёт штук, если в тексте есть и настоящая сумма (≥ 10)
+  if (/\d{2,}/.test(t)) s = s.replace(COUNT_RE, (m, a, n, w) => a + fwHide(n) + w);
+  return s;
+}
 function parseSpend(text) {
+  const r = parseSpendRaw(spendProtect(String(text || '')));
+  r.items.forEach(x => { x.name = fwShow(x.name); });
+  r.bad = r.bad.map(fwShow);
+  return r;
+}
+function parseSpendRaw(text) {
   const items = [], bad = [];
   const src = String(text || '').replace(/(\d)\s(?=\d{3}(?!\d))/g, '$1');
-  const chunks = src.split(/\n|;|,(?=\s*[^\d\s])/).map(s => s.trim()).filter(Boolean);
+  const chunks = src.split(/\n|;|,(?=\s*[^\d\uFF10-\uFF19\s])/).map(s => s.trim()).filter(Boolean);
   for (const ch of chunks) {
     const re = /([^\d]*?)(\d+(?:[.,]\d{1,2})?)(?:\s*(к|k|тыс\.?)(?![a-zа-яё]))?(?:\s*(?:руб(?:лей|ля|ль)?\.?|р\.?|₽|zł|zl|pln|eur|€|usd|\$)(?![a-zа-яё]))?/gi;
     let m, last = 0, found = 0;
