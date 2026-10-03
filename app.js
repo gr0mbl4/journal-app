@@ -386,6 +386,7 @@ function parseSpend(text) {
    Отдельный ключ Команды умеет только Issues — к файлам журнала доступа у него нет. Журнал при открытии
    разбирает такие issue в записи, обновляет остаток карты и закрывает issue. Непонятое — в inbox/quick.json для Claude. */
 const QUICK_TITLE = 'В журнал';
+const IDEA_TITLE = 'Идея'; // issue из «Поделиться» → GitHub Actions в journal-data делает из него идею и качает видео
 const MERCH = [
   [/pyaterochk|пят[её]роч/i, 'Пятёрочка'], [/magnit|магнит/i, 'Магнит'], [/dixy|diksi|дикси/i, 'Дикси'], [/krasnoe|красное\s*(&|и)\s*белое/i, 'Красное & Белое'],
   [/\blenta\b|лента/i, 'Лента'], [/vkusvill|вкусвилл/i, 'ВкусВилл'], [/perekrest|перекр[её]ст/i, 'Перекрёсток'], [/auchan|ашан/i, 'Ашан'],
@@ -569,6 +570,14 @@ function openAutoSetup() {
     <li>SMS об операциях включаются в приложении банка и обычно платные — push-уведомления Команды читать не умеют.</li></ol>
     <h3 class="sec">4. Руками — двойным касанием по задней крышке</h3>
     <p class="note">Настройки → Универсальный доступ → Касание → Коснуться сзади → Двойное касание → «В журнал». Скажи или напиши «шоколадка 42», «вчера такси 320», «получил 5000».</p>
+    <h3 class="sec" id="share-setup">5. Видео из Instagram — через «Поделиться»</h3>
+    <ol class="ing">
+      <li>Команды → долгое нажатие на «В журнал» → <b>Дублировать</b>. Копию назови <b>Claude</b> — так она будет называться в меню «Поделиться».</li>
+      <li>В копии нажми ⓘ → «Показывать в меню „Поделиться“» уже включено; в блоке «Получать» отметь ещё тип <b>URL</b>.</li>
+      <li>В действии «Получить содержимое URL» замени title: ${copyRow('title', IDEA_TITLE)} Остальное не трогай — ключ тот же.</li>
+      <li>Пользоваться: в Instagram у рилса — самолётик → системное «Поделиться» → <b>Claude</b>. Через 1–2 минуты кадры, подпись и речь будут в «Связи с Claude».</li>
+    </ol>
+    <p class="note">Хочешь сразу дописать, что сделать с видео, — добавь перед запросом «Запросить ввод» и вставь ответ в body после ссылки. Без этого видео придёт с темой «Общее».</p>
     <h3 class="sec">Проверить, как журнал поймёт текст</h3>
     <textarea id="aq-text" rows="3" placeholder="Вставь сюда SMS банка"></textarea>
     <div class="sh-acts"><button type="button" class="btn block" data-action="auto-test">Проверить</button></div>
@@ -1505,6 +1514,8 @@ function slStepper(f, label, val) {
   // крупные цифры всегда в 24-часовом виде; поверх — прозрачное системное поле: тап открывает колесо выбора времени
   return `<div class="sl-row"><span class="sl-lab">${label}</span><button type="button" class="sl-b" data-sl="${f}" data-d="-5" aria-label="${label}: на 5 минут раньше">−</button><label class="sl-val"><span id="sl-${f}-v" aria-hidden="true">${esc(val || '—')}</span><input type="time" id="sl-${f}" step="300" value="${esc(val)}" aria-label="${label}"></label><button type="button" class="sl-b" data-sl="${f}" data-d="5" aria-label="${label}: на 5 минут позже">+</button></div>`;
 }
+// После полуночи и до 5 утра новая ночь ещё не закончилась — сон по умолчанию пишется за вчера (день пробуждения).
+function sleepTarget() { const t = today(); return new Date().getHours() < 5 && !(S.sleep.days || {})[t] ? addDays(t, -1) : t; }
 function openSleep(d) {
   const s = (S.sleep.days || {})[d] || {};
   const kind = sleepKind(d), ty = sleepTypical(kind, s.bed ? null : d);
@@ -4384,7 +4395,7 @@ function openReadiness() {
     <ul class="rd-list">${r.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
     <div class="rd-tip lvl-${r.level}">${tips.map(x => `<p>${esc(x)}</p>`).join('')}</div>
     <p class="note">Считается из сна за 2–3 ночи, тренировок за 2 дня и нарядов. Это подсказка, а не приговор.</p>
-    <div class="sh-acts"><button type="button" class="btn block" data-action="sleep" data-date="${t}">Отметить сон</button></div>`);
+    <div class="sh-acts"><button type="button" class="btn block" data-action="sleep" data-date="${sleepTarget()}">Отметить сон</button></div>`);
 }
 function weekProgress(sport) {
   const t = today(), from = mondayOf(t), to = addDays(from, 6);
@@ -4403,7 +4414,7 @@ function tilesHtml(sport) {
   const r = readiness(t), st = streakInfo() || { cur: 0, best: 0 }, w = weekProgress(sport);
   const wp = w.plan ? w.done / w.plan * 100 : 0;
   return `<div class="tiles">
-    <button type="button" class="tile t-sleep" data-action="sleep" data-date="${t}"><span class="ti">${ico('moon')}</span><span class="tv">${m ? hmClock(m) : '—'}</span><span class="tk">${m ? 'сон' + (a && a.n > 1 ? ' · ср ' + hmClock(a.avg) : '') : 'отметь сон'}</span></button>
+    <button type="button" class="tile t-sleep" data-action="sleep" data-date="${sleepTarget()}"><span class="ti">${ico('moon')}</span><span class="tv">${m ? hmClock(m) : '—'}</span><span class="tk">${m ? 'сон' + (a && a.n > 1 ? ' · ср ' + hmClock(a.avg) : '') : 'отметь сон'}</span></button>
     <button type="button" class="tile t-ready lvl-${r.level}" data-action="ready"><span class="ti">${ico('bolt')}</span><span class="tv">${r.score}</span><span class="tk">${{ good: 'в форме', mid: 'обычный день', low: 'полегче' }[r.level]}</span></button>
     <button type="button" class="tile t-streak${st.cur ? '' : ' off'}" data-action="streak"><span class="ti">${ico('flame')}</span><span class="tv">${st.cur}</span><span class="tk">${plural(st.cur, 'день', 'дня', 'дней')} подряд</span></button>
     <button type="button" class="tile t-week" data-action="rev-open" data-type="week"><span class="ti tr">${ring(wp, 34, 'wk')}</span><span class="tv">${w.done}<small>/${w.plan}</small></span><span class="tk">дела недели</span></button>
@@ -4751,7 +4762,7 @@ function openRequests(tab, keepScroll, area) {
     <textarea id="msg-text" rows="3" placeholder="Задача, вопрос или идея">${esc(prev.draft || '')}</textarea>
     <div class="msg-row"><input id="msg-link" type="url" inputmode="url" placeholder="Ссылка (необязательно)"><label class="btn file-btn msg-file" aria-label="Фото или видео"><span id="msg-files-label">📎</span><input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label></div>
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="msg-send">Отправить</button></div>
-    <p class="note">${area === 'books' ? 'MP3 до 45 МБ каждый — главы по отдельности или одним файлом. Название и автора напиши, если их нет в именах файлов.' : 'Ссылку на Instagram, TikTok или YouTube можно просто вставить — видео скачаю сам. Файлы отправляются в фоне: можно сразу писать следующее.'}</p>
+    <p class="note">${area === 'books' ? 'MP3 до 45 МБ каждый — главы по отдельности или одним файлом. Название и автора напиши, если их нет в именах файлов.' : 'Ссылку на Instagram, TikTok или YouTube можно просто вставить — видео скачаю сам; из Instagram ещё проще — «Поделиться» → Claude (настройка: Меню → Автозапись, п. 5). Файлы отправляются в фоне: можно сразу писать следующее.'}</p>
     <div id="out-box">${outBoxHtml()}</div><div id="rq-open">${openFeedHtml()}</div>`;
   } else body = done.length ? `<div class="stack" style="margin-top:12px">${done.map(x => feedItemHtml(x, false)).join('')}</div>` : '<p class="note">Ответов пока нет.</p>';
   openSheet(`<h2 class="sh-title sh-claude"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span>Связь с Claude</h2>${seg}${body}`, keepScroll);
