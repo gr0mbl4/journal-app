@@ -719,7 +719,7 @@ function errText(e) {
 function applyData(d) {
   if ('config' in d) S.config = d.config || null;
   if (d.lessons) S.lessons = Array.isArray(d.lessons.lessons) ? d.lessons.lessons : [];
-  if (d.plan) { S.studyDays = d.plan.studyDays || {}; S.sportMoves = d.plan.sportMoves || {}; S.sportExtra = Array.isArray(d.plan.sportExtra) ? d.plan.sportExtra : []; S.duties = d.plan.duties || {}; S.absences = Array.isArray(d.plan.absences) ? d.plan.absences : []; S.studyLog = Array.isArray(d.plan.studyLog) ? d.plan.studyLog : []; }
+  if (d.plan) { S.studyDays = d.plan.studyDays || {}; S.sportMoves = d.plan.sportMoves || {}; S.sportExtra = Array.isArray(d.plan.sportExtra) ? d.plan.sportExtra : []; S.duties = d.plan.duties || {}; S.absences = Array.isArray(d.plan.absences) ? d.plan.absences : []; S.studyLog = Array.isArray(d.plan.studyLog) ? d.plan.studyLog : []; S.dayOrder = d.plan.dayOrder || {}; }
   if (d.body) S.body = d.body && d.body.weight ? d.body : { weight: {} };
   if (d.quarters) S.quarters = d.quarters;
   if (d.english) S.english = d.english;
@@ -742,7 +742,7 @@ function applyData(d) {
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, exercises: S.ex, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog, dayOrder: S.dayOrder }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, exercises: S.ex, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => readDoc(prefix + k + '.json')));
@@ -925,7 +925,7 @@ async function write(path, fn, msg, empty) {
 }
 async function writePlan(fn, msg) {
   const next = await write('plan.json', p => { p.studyDays = p.studyDays || {}; p.sportMoves = p.sportMoves || {}; p.sportExtra = Array.isArray(p.sportExtra) ? p.sportExtra : []; fn(p); return p; }, msg, { studyDays: {}, sportMoves: {}, sportExtra: [] });
-  if (next) { S.studyDays = next.studyDays; S.sportMoves = next.sportMoves; S.sportExtra = next.sportExtra || []; S.duties = next.duties || {}; S.absences = next.absences || []; S.studyLog = next.studyLog || []; cacheNow(); render(); }
+  if (next) { S.studyDays = next.studyDays; S.sportMoves = next.sportMoves; S.sportExtra = next.sportExtra || []; S.duties = next.duties || {}; S.absences = next.absences || []; S.studyLog = next.studyLog || []; S.dayOrder = next.dayOrder || {}; cacheNow(); render(); }
   return !!next;
 }
 async function writeIdeas(fn, msg) {
@@ -1204,6 +1204,14 @@ function exRows(c, x, b, bi, ei, v) {
 function stepper(id, val, ph, mode, label, k, f) {
   return `<span class="stp"><button type="button" class="sb" data-action="stp" data-k="${k}" data-f="${f}" data-d="-1" aria-label="${esc(label)}: меньше">−</button><input id="${id}" inputmode="${mode}" value="${esc(val)}" placeholder="${esc(ph)}" aria-label="${esc(label)}"><button type="button" class="sb" data-action="stp" data-k="${k}" data-f="${f}" data-d="1" aria-label="${esc(label)}: больше">+</button></span>`;
 }
+// порядок упражнений в тренировке: по программе или как Олег перетащил (черновик — в браузере, после сохранения — order в логе)
+function wkOrder(i, ses) {
+  const n = ses.blocks.length, ok = a => Array.isArray(a) && a.length === n && new Set(a).size === n && a.every(x => Number.isInteger(x) && x >= 0 && x < n);
+  const ls = LS.get('bj-wkord-' + i.id), log = logFor(i);
+  if (ok(ls)) return ls.slice();
+  if (log && ok(log.order)) return log.order.slice();
+  return ses.blocks.map((_, k) => k);
+}
 function workoutForm(i, ses) {
   const c = S.cur && S.cur.type === 'sport' && S.cur.id === i.id ? S.cur : { rows: {}, times: {} };
   c.rows = c.rows || {}; c.times = c.times || {};
@@ -1214,7 +1222,9 @@ function workoutForm(i, ses) {
   let prevDate = null;
   const anyOpen = ses.blocks.some((b, bi) => S.open.has('wk-' + i.id + '-' + bi));
   let firstOpen = -1;
-  const html = ses.blocks.map((b, bi) => {
+  const ord = wkOrder(i, ses), moved = ord.some((x, k) => x !== k);
+  const html = ord.map((bi, pos) => {
+    const b = ses.blocks[bi];
     const ex = b.ex || [];
     const wrAll = ex.map((x, ei) => ({ x, ei, n: 0 })).filter(o => o.x.log === 'wr' || o.x.log === 'r');
     wrAll.forEach(o => { o.n = exRows(c, o.x, b, bi, o.ei, val(bi, o.ei)); });
@@ -1254,21 +1264,23 @@ function workoutForm(i, ses) {
       if (x.log === 'check') { total++; if (v && v.done) filled++; body += `<label class="chk"><input type="checkbox" id="lg-${bi}-${ei}-c"${v && v.done ? ' checked' : ''}> ${multi ? letter.get(ei) + ': ' : ''}сделано</label>`; }
       else if (x.log === 'note') { total++; if (v && v.note) filled++; body += `<input class="note-in" id="lg-${bi}-${ei}-n" value="${esc((v && v.note) || '')}" placeholder="${esc(x.ph || 'заметка')}" aria-label="${esc(x.name)}">`; }
     });
-    if (!wr.length) return `<div class="blk" data-bi="${bi}">${b.type ? `<div class="blk-h">${esc(b.type)}</div>` : ''}${names}${body ? `<div class="sets">${body}</div>` : ''}</div>`;
+    if (!wr.length) return `<div class="blk" data-bi="${bi}" data-sort-item>${b.type ? `<div class="blk-h">${esc(b.type)}</div>` : ''}${names}${body ? `<div class="sets">${body}</div>` : ''}</div>`;
     if (firstOpen < 0 && filled < total) firstOpen = bi;
     const key = 'wk-' + i.id + '-' + bi;
     const open = anyOpen ? S.open.has(key) : firstOpen === bi;
     if (!anyOpen && open) S.open.add(key);
-    const title = (b.type || 'Упражнение') + (b.type ? ' ' + (ses.blocks.slice(0, bi + 1).filter(z => z.type === b.type).length) : '');
+    const title = (b.type || 'Упражнение') + (b.type ? ' ' + (ord.slice(0, pos + 1).filter(z => ses.blocks[z].type === b.type).length) : '');
     const shortNames = order.filter(o => o.x.log === 'wr' || o.x.log === 'r').map(o => o.x.name.split(/[ ,(]/)[0]).join(' · ');
-    return `<details class="blk blk-f${filled >= total ? ' full' : ''}" data-bi="${bi}" data-k="${key}"${open ? ' open' : ''}><summary><span class="bf-t">${esc(title)}</span><span class="bf-n">${esc(shortNames)}</span><span class="bf-c" data-c="${bi}">${filled}/${total}</span></summary>${names}<div class="sets">${body}</div></details>`;
+    return `<details class="blk blk-f${filled >= total ? ' full' : ''}" data-bi="${bi}" data-k="${key}" data-sort-item${open ? ' open' : ''}><summary data-sort-handle><span class="bf-t">${esc(title)}</span><span class="bf-n">${esc(shortNames)}</span><span class="bf-c" data-c="${bi}">${filled}/${total}</span></summary>${names}<div class="sets">${body}</div></details>`;
   }).join('');
   const info = [];
   if (prevDate) info.push(`Серые цифры — прошлый раз, ${short(prevDate)}. «+» с пустого поля подставляет прошлое.`);
+  if (moved) info.push('Порядок упражнений изменён.');
+  info.push('Переставить упражнение — удерживай заголовок и тяни.');
   if (draft) info.push('Есть несохранённые подходы — они подставлены.');
   else if (log) info.push('Подходы сохранены ' + (log.ts ? hhmm(new Date(log.ts)) + ', ' : '') + short(log.date) + '.');
   const dl = exItems().length ? `<datalist id="ex-dl">${exItems().map(x => `<option value="${esc(x.name)}">`).join('')}</datalist>` : '';
-  return `<div class="wk-prog" id="wk-prog"></div>` + html + dl + (info.length ? `<p class="note">${info.join(' ')}</p>` : '');
+  return `<div class="wk-prog" id="wk-prog"></div><div class="wk-list" data-sort="wk">${html}</div>` + dl + (info.length ? `<p class="note">${info.join(' ')}</p>` : '');
 }
 function wkProgress() {
   const box = document.getElementById('wk'); if (!box) return;
@@ -1409,8 +1421,9 @@ async function wkPhotoUpload(files) {
 async function saveLog(i, ses, blocks) {
   blocks = cleanBlocks(blocks);
   const mk = monthKey(i.eff);
-  const next = await write('workouts/' + mk + '.json', d => { d.logs = d.logs || {}; const prev = d.logs[i.id] || {}; d.logs[i.id] = { date: i.eff, key: ses.key, title: ses.title, blocks, ts: Date.now() }; if (Array.isArray(prev.photos) && prev.photos.length) d.logs[i.id].photos = prev.photos; return d; }, `Тренировка ${i.eff}: ${ses.title}`, { logs: {} });
-  if (next) { S.workouts[mk] = next; LS.del('bj-draft-' + i.id); cacheNow(); }
+  const ord = wkOrder(i, ses), order = ord.some((x, k) => x !== k) ? ord : null;
+  const next = await write('workouts/' + mk + '.json', d => { d.logs = d.logs || {}; const prev = d.logs[i.id] || {}; d.logs[i.id] = { date: i.eff, key: ses.key, title: ses.title, blocks, ts: Date.now() }; if (order) d.logs[i.id].order = order; if (Array.isArray(prev.photos) && prev.photos.length) d.logs[i.id].photos = prev.photos; return d; }, `Тренировка ${i.eff}: ${ses.title}`, { logs: {} });
+  if (next) { S.workouts[mk] = next; LS.del('bj-draft-' + i.id); LS.del('bj-wkord-' + i.id); cacheNow(); }
   return !!next;
 }
 
@@ -2582,15 +2595,32 @@ function statsRowHtml(sport) {
 // дела дня: учёба, спорт, события-дела; крупно, по одному пункту, нажатие раскрывает подробности
 function todayItems(d, study, sport) {
   const out = [];
-  S.lessons.filter(l => l.done === d).forEach(l => out.push({ k: 'study', key: 'ld-' + l.id, title: 'Урок ' + l.n, sub: l.title || '', done: true, open: `data-action="lesson" data-id="${esc(l.id)}"`, more: lessonMore(l) }));
-  (study.byDate[d] || []).filter(e => !e.blocked).forEach(e => out.push({ k: 'study', key: 'st-' + e.L.key + '-' + e.part, title: e.L.placeholder ? 'Учёба' : 'Урок ' + e.L.n, sub: [e.L.title, slotLabel(e.date, { cap: e.cap, extra: e.extra }), e.total > 1 ? 'часть ' + e.part + ' из ' + e.total : ''].filter(Boolean).join(' · '), done: false,
+  let si = 0; const sk = () => 'study' + (si++);
+  S.lessons.filter(l => l.done === d).forEach(l => out.push({ k: 'study', ok: sk(), key: 'ld-' + l.id, title: 'Урок ' + l.n, sub: l.title || '', done: true, open: `data-action="lesson" data-id="${esc(l.id)}"`, more: lessonMore(l) }));
+  (study.byDate[d] || []).filter(e => !e.blocked).forEach(e => out.push({ k: 'study', ok: sk(), key: 'st-' + e.L.key + '-' + e.part, title: e.L.placeholder ? 'Учёба' : 'Урок ' + e.L.n, sub: [e.L.title, slotLabel(e.date, { cap: e.cap, extra: e.extra }), e.total > 1 ? 'часть ' + e.part + ' из ' + e.total : ''].filter(Boolean).join(' · '), done: false,
     open: `data-action="study" data-date="${e.date}" data-key="${esc(e.L.key)}" data-part="${e.part}"`, openLabel: 'Открыть урок', more: e.L.doc ? lessonMore(e.L.doc) : '' }));
-  sport.filter(i => i.eff === d).forEach(i => out.push({ k: 'sport', key: 'sp-' + i.id, title: sportShort(i), sub: i.state === 'other' ? (i.note || 'сделал другое') : i.sub, done: i.state === 'done' || i.state === 'other', skipped: i.state === 'skipped',
+  sport.filter(i => i.eff === d).forEach(i => out.push({ k: 'sport', ok: 'sp-' + i.id, key: 'sp-' + i.id, title: sportShort(i), sub: i.state === 'other' ? (i.note || 'сделал другое') : i.sub, done: i.state === 'done' || i.state === 'other', skipped: i.state === 'skipped',
     open: `data-action="sport" data-id="${esc(i.id)}"`, openLabel: 'Открыть тренировку', chk: i.state ? '' : `data-action="sp-done" data-id="${esc(i.id)}"`, more: sportMore(i) }));
-  eventsOn(d).forEach(o => out.push({ k: 'ev', key: 'ev-' + o.ev.id, title: o.ev.title, sub: [o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
+  eventsOn(d).forEach(o => out.push({ k: 'ev', ok: 'ev-' + o.ev.id, key: 'ev-' + o.ev.id, title: o.ev.title, sub: [o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
     open: `data-action="event" data-id="${esc(o.ev.id)}" data-date="${d}"`, openLabel: 'Изменить', chk: `data-action="td-ev" data-id="${esc(o.ev.id)}" data-date="${d}"` }));
+  out.forEach((x, n) => { x.n = n; });
+  // свой порядок дня (перетащил удержанием): идёт как день, сделанное остаётся на месте; новое — в конец
+  const ord = (S.dayOrder || {})[d];
+  if (Array.isArray(ord) && ord.length) {
+    const pos = new Map(ord.map((k, j) => [k, j])), at = x => pos.has(x.ok) ? pos.get(x.ok) : 1000 + x.n;
+    return out.sort((a, b) => at(a) - at(b));
+  }
   const rank = x => x.done || x.skipped ? 1 : 0;
-  return out.map((x, n) => Object.assign(x, { n })).sort((a, b) => rank(a) - rank(b) || a.n - b.n);
+  return out.sort((a, b) => rank(a) - rank(b) || a.n - b.n);
+}
+async function saveDayOrder(d, keys) {
+  const lim = addDays(today(), -14);
+  S.dayOrder = Object.assign({}, S.dayOrder, { [d]: keys });
+  return writePlan(p => {
+    const o = p.dayOrder = p.dayOrder || {};
+    o[d] = keys;
+    Object.keys(o).forEach(k => { if (k < lim) delete o[k]; });
+  }, `Дела ${d}: свой порядок`);
 }
 function sportShort(i) { return i.kind === 'cardio' ? 'Спорт · кардио' : 'Спорт · ' + String(i.title || '').replace(/^Силовая\s*·\s*/i, '').replace(/\s*\(.*\)$/, ''); }
 function lessonMore(l) {
@@ -2616,12 +2646,12 @@ function todayCardHtml(d, study, sport, big) {
   const list = items.map(x => {
     const id = key + '-' + x.key, open = S.open.has(id);
     const chk = x.done ? '<span class="td-c on">✓</span>' : x.skipped ? '<span class="td-c x">–</span>' : x.chk ? `<button type="button" class="td-c" ${x.chk} aria-label="Отметить: ${esc(x.title)}"></button>` : `<button type="button" class="td-c" ${x.open} aria-label="${esc(x.title)}"></button>`;
-    return `<div class="td-i k-${x.k}${x.done ? ' done' : ''}${x.skipped ? ' skipped' : ''}${open ? ' open' : ''}">${chk}<button type="button" class="td-m" data-action="td-x" data-k="${esc(id)}" aria-expanded="${open}"><span class="td-t">${esc(x.title)}</span>${x.sub ? `<span class="td-s">${esc(x.sub)}</span>` : ''}</button>
+    return `<div class="td-i k-${x.k}${x.done ? ' done' : ''}${x.skipped ? ' skipped' : ''}${open ? ' open' : ''}" data-sort-item data-ok="${esc(x.ok)}">${chk}<button type="button" class="td-m" data-action="td-x" data-k="${esc(id)}" aria-expanded="${open}"><span class="td-t">${esc(x.title)}</span>${x.sub ? `<span class="td-s">${esc(x.sub)}</span>` : ''}</button>
       <div class="td-more"${open ? '' : ' hidden'}>${x.more || ''}<button type="button" class="btn sm${x.k === 'sport' ? ' sport' : x.k === 'study' ? ' study' : ''}" ${x.open}>${esc(x.openLabel || 'Открыть')}</button></div></div>`;
   }).join('');
   const empty = !items.length ? `<p class="td-empty">${rest ? 'Чистый день — без учёбы и спорта. Обнулиться.' : 'Дел нет.'}</p>` : '';
   const add = big ? `<form class="td-add" data-date="${d}" autocomplete="off"><input class="td-add-in" placeholder="+ дело на сегодня" enterkeyhint="done" autocapitalize="sentences" aria-label="Новое дело на сегодня"></form>` : '';
-  return `<section class="td${big ? ' big' : ''}">${head}${bar}<div class="td-list">${list}</div>${empty}${add}${extra.length ? `<div class="stack td-extra">${extra.join('')}</div>` : ''}</section>`;
+  return `<section class="td${big ? ' big' : ''}">${head}${bar}<div class="td-list" data-sort="td" data-date="${d}">${list}</div>${empty}${add}${extra.length ? `<div class="stack td-extra">${extra.join('')}</div>` : ''}</section>`;
 }
 async function tdEventToggle(id, d) {
   const e = S.events.find(x => x.id === id); if (!e) return;
@@ -2633,6 +2663,113 @@ async function tdAdd(d, title) {
   const ok = await writeEvents(list => { list.push({ id: rid(), date: d, title }); }, `Дела на ${d}: ${title.slice(0, 50)}`);
   if (ok) toast('Добавил: ' + title);
 }
+
+/* ---------- перестановка удержанием ---------- */
+// Зажал пункт ~0,35 с → он поднимается, тянешь вверх-вниз, отпускаешь — новый порядок.
+// Список — [data-sort], пункты — его прямые дети [data-sort-item]; если у пункта есть [data-sort-handle], тянуть только за него.
+const DRAG = { st: null, lift: false, tm: 0, until: 0 };
+function dragFind(t) {
+  if (!t || !t.closest || t.closest('input, textarea, select, .sb, .td-c, .icon-btn, .btn, a, .swap-form')) return null;
+  const item = t.closest('[data-sort-item]'); if (!item) return null;
+  const list = item.parentElement; if (!list || !list.hasAttribute('data-sort')) return null;
+  if (item.querySelector('[data-sort-handle]') && !t.closest('[data-sort-handle]')) return null;
+  return { item, list };
+}
+function dragDown(t, x, y) {
+  dragReset();
+  const f = dragFind(t); if (!f) return;
+  DRAG.st = Object.assign(f, { x, y });
+  DRAG.tm = setTimeout(dragLift, 350);
+}
+function dragLift() {
+  const s = DRAG.st; if (!s || !s.item.isConnected) { dragReset(); return; }
+  const g0 = s.item.getBoundingClientRect();
+  s.sc = s.list.closest('.sheet-panel') || document.scrollingElement || document.documentElement;
+  s.sc.classList.add('no-anchor');
+  s.list.classList.add('sorting');
+  dragKeep(s.sc, s.item, g0.top);
+  s.items = Array.from(s.list.children).filter(el => el.hasAttribute('data-sort-item'));
+  if (s.items.length < 2) { dragReset(); return; }
+  s.from = s.to = s.items.indexOf(s.item);
+  s.rects = s.items.map(el => { const r = el.getBoundingClientRect(); return { top: r.top, h: r.height }; });
+  s.grab = Math.max(8, Math.min(s.y - g0.top, s.rects[s.from].h - 8));
+  const r0 = s.rects[0], r1 = s.rects[1];
+  s.step = s.rects[s.from].h + Math.max(0, r1.top - (r0.top + r0.h));
+  DRAG.lift = true;
+  s.item.classList.add('lifted');
+  try { if (navigator.vibrate) navigator.vibrate(12); } catch (_) {}
+  dragMove(s.y);
+}
+function dragMove(y) {
+  const s = DRAG.st; if (!s || !DRAG.lift) return;
+  const me = s.rects[s.from], top = y - s.grab, mid = top + me.h / 2;
+  let k = 0;
+  s.rects.forEach((r, j) => { if (j !== s.from && r.top + r.h / 2 < mid) k++; });
+  s.to = k;
+  s.items.forEach((el, j) => {
+    if (j === s.from) { el.style.transform = `translateY(${top - me.top}px) scale(1.02)`; return; }
+    const sh = s.from < k && j > s.from && j <= k ? -s.step : k < s.from && j >= k && j < s.from ? s.step : 0;
+    el.style.transform = sh ? `translateY(${sh}px)` : '';
+  });
+}
+// свернул/развернул содержимое списка — прокрутить так, чтобы пункт остался под пальцем
+function dragKeep(sc, el, top0) {
+  const d = el.getBoundingClientRect().top - top0;
+  if (sc && d) sc.scrollTop += d;
+}
+function dragEnd() {
+  const s = DRAG.st, lifted = DRAG.lift;
+  if (lifted && s) {
+    DRAG.until = Date.now() + 450;
+    const items = s.items.slice(); const [m] = items.splice(s.from, 1); items.splice(s.to, 0, m);
+    if (s.to !== s.from) items.forEach(el => s.list.appendChild(el));
+    const done = s.to !== s.from ? items : null, list = s.list, el = s.item, sc = s.sc;
+    items.forEach(x => { x.style.transform = ''; });
+    const t0 = el.getBoundingClientRect().top;
+    dragReset();
+    dragKeep(sc, el, t0);
+    if (sc) sc.classList.add('no-anchor');
+    if (done) dragDone(list, done);
+    return;
+  }
+  dragReset();
+}
+function dragReset() {
+  clearTimeout(DRAG.tm);
+  const s = DRAG.st;
+  if (s) { (s.items || []).forEach(el => { el.style.transform = ''; el.classList.remove('lifted'); }); s.list.classList.remove('sorting'); if (s.sc && !DRAG.lift) s.sc.classList.remove('no-anchor'); }
+  DRAG.st = null; DRAG.lift = false;
+}
+function dragDone(list, items) {
+  const kind = list.dataset.sort;
+  setTimeout(() => document.querySelectorAll('.no-anchor').forEach(x => x.classList.remove('no-anchor')), 600);
+  if (kind === 'td') saveDayOrder(list.dataset.date, items.map(el => el.dataset.ok));
+  else if (kind === 'wk') {
+    const c = S.cur; if (!c || c.type !== 'sport') return;
+    clearTimeout(draftT); const lg = collectLog(c.ses); if (lg.any) LS.set('bj-draft-' + c.id, { blocks: lg.blocks });
+    LS.set('bj-wkord-' + c.id, items.map(el => Number(el.dataset.bi)));
+    rerenderWk();
+  }
+}
+document.addEventListener('touchstart', e => { if (e.touches.length !== 1) { dragReset(); return; } const t = e.touches[0]; dragDown(e.target, t.clientX, t.clientY); }, { passive: true });
+document.addEventListener('touchmove', e => {
+  const s = DRAG.st; if (!s) return;
+  const t = e.touches[0];
+  if (!DRAG.lift) { if (Math.abs(t.clientY - s.y) > 10 || Math.abs(t.clientX - s.x) > 10) dragReset(); return; }
+  e.preventDefault(); dragMove(t.clientY);
+}, { passive: false });
+document.addEventListener('touchend', dragEnd);
+document.addEventListener('touchcancel', dragReset);
+document.addEventListener('mousedown', e => { if (e.button === 0 && !e.sourceCapabilities?.firesTouchEvents) dragDown(e.target, e.clientX, e.clientY); });
+document.addEventListener('mousemove', e => {
+  const s = DRAG.st; if (!s) return;
+  if (!DRAG.lift) { if (Math.abs(e.clientY - s.y) > 10 || Math.abs(e.clientX - s.x) > 10) dragReset(); return; }
+  e.preventDefault(); dragMove(e.clientY);
+});
+document.addEventListener('mouseup', () => { if (DRAG.st) dragEnd(); });
+document.addEventListener('contextmenu', e => { if (DRAG.st) e.preventDefault(); });
+// после перетаскивания не нажимать то, над чем отпустил палец
+document.addEventListener('click', e => { if (Date.now() < DRAG.until) { e.preventDefault(); e.stopPropagation(); } }, true);
 
 /* ---------- calendar ---------- */
 function sportMark(d, list) {
@@ -3156,6 +3293,8 @@ function closeSheet() {
   panel.addEventListener('touchmove', e => {
     if (mode === 'skip' || mode === 'scroll') return;
     const t = e.touches[0], ddy = t.clientY - y0, ddx = t.clientX - x0;
+    if (DRAG.lift) { mode = 'skip'; return; }
+    if (DRAG.st && Math.abs(ddy) < 10 && Math.abs(ddx) < 10) return;
     if (!mode) {
       if (Math.abs(ddy) < 6 && Math.abs(ddx) < 6) return;
       if (ddy > 0 && Math.abs(ddy) > Math.abs(ddx) && (fromTop || panel.scrollTop <= 0)) { mode = 'drag'; panel.classList.add('drag'); panel.classList.remove('snap'); }
@@ -4347,17 +4486,17 @@ document.addEventListener('click', async ev => {
       const i = findInst(id); if (!i) return;
       const k = b.dataset.as;
       busy(b, true);
-      if (await writePlan(p => setMove(p, id, { as: k === i.key ? undefined : k, custom: undefined, swap: undefined }), `Спорт: ${id} заменена на ${k}`)) { LS.del('bj-draft-' + id); toast('Тренировка заменена'); const ni = findInst(id); if (ni) openSport(id); }
+      if (await writePlan(p => setMove(p, id, { as: k === i.key ? undefined : k, custom: undefined, swap: undefined }), `Спорт: ${id} заменена на ${k}`)) { LS.del('bj-draft-' + id); LS.del('bj-wkord-' + id); toast('Тренировка заменена'); const ni = findInst(id); if (ni) openSport(id); }
       busy(b, false); break;
     }
     case 'sp-custom': {
       const lines = (($('#sp-custom') && $('#sp-custom').value) || '').split('\n').map(s => s.trim()).filter(Boolean);
       if (!lines.length) { toast('Впиши упражнения, каждое с новой строки'); return; }
       busy(b, true);
-      if (await writePlan(p => setMove(p, id, { custom: lines, as: undefined, swap: undefined }), `Спорт: ${id} — своя тренировка`)) { LS.del('bj-draft-' + id); toast('Тренировка заменена'); openSport(id); }
+      if (await writePlan(p => setMove(p, id, { custom: lines, as: undefined, swap: undefined }), `Спорт: ${id} — своя тренировка`)) { LS.del('bj-draft-' + id); LS.del('bj-wkord-' + id); toast('Тренировка заменена'); openSport(id); }
       busy(b, false); break;
     }
-    case 'sp-as-clear': busy(b, true); if (await writePlan(p => setMove(p, id, { as: undefined, custom: undefined, swap: undefined }), `Спорт: ${id} — по программе`)) { LS.del('bj-draft-' + id); toast('Вернул тренировку по программе'); openSport(id); } busy(b, false); break;
+    case 'sp-as-clear': busy(b, true); if (await writePlan(p => setMove(p, id, { as: undefined, custom: undefined, swap: undefined }), `Спорт: ${id} — по программе`)) { LS.del('bj-draft-' + id); LS.del('bj-wkord-' + id); toast('Вернул тренировку по программе'); openSport(id); } busy(b, false); break;
     case 'ex-swap': { const f = document.getElementById(`swf-${b.dataset.b}-${b.dataset.e}`); if (f) { f.hidden = !f.hidden; if (!f.hidden) { const inp = f.querySelector('input'); if (inp) inp.focus(); } } break; }
     case 'ex-swap-once': case 'ex-swap-perm': case 'ex-unswap': {
       const c = S.cur && S.cur.type === 'sport' ? S.cur : null; if (!c) return;

@@ -1000,6 +1000,13 @@ details.blk-f[open]{padding-bottom:10px}
 .td-bar{height:5px;border-radius:3px;background:color-mix(in srgb,var(--ink) 9%,transparent);margin:10px 0 2px;overflow:hidden}
 .td-bar i{display:block;height:100%;background:linear-gradient(90deg,#2E9E6B,#45C08A);border-radius:3px;transition:width .3s}
 .td-list{display:grid;gap:8px;margin-top:10px}
+[data-sort-item]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+[data-sort].sorting>[data-sort-item]{transition:transform .16s ease}
+[data-sort]>[data-sort-item].lifted{transition:none;position:relative;z-index:5;box-shadow:0 12px 30px rgba(0,0,0,.25);opacity:.97}
+.td-list.sorting .td-more{display:none}
+.wk-list.sorting details.blk>:not(summary),.wk-list.sorting div.blk>.sets,.wk-list.sorting .swap-form{display:none}
+.wk-list>.blk.lifted{background:var(--bg)}
+.no-anchor{overflow-anchor:none}
 .td-i{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;column-gap:6px;padding:11px 12px 11px 10px;border-radius:16px;background:#FFFFFF;border:1px solid var(--line);--acc:var(--muted)}
 @media (prefers-color-scheme: dark){.td-i{background:rgba(255,255,255,.09)}}
 .td-i.k-sport{background:var(--sport-soft);border-color:color-mix(in srgb,var(--sport) 35%,transparent);--acc:var(--sport)}
@@ -1257,6 +1264,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261004a"></script>
+<script src="app.js?v=20261004b"></script>
 </body>
 </html>
