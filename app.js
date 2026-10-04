@@ -3063,6 +3063,7 @@ function renderLessons() {
   if (!isReady()) { bn.innerHTML = bannerHtml(); nx.innerHTML = sl.innerHTML = dn.innerHTML = ''; S.slotsSig = ''; return; }
   bn.innerHTML = '';
   const pfc = $('#pf-card'); if (pfc) pfc.innerHTML = pfCardHtml();
+  const sch = $('#study-chart'); if (sch) sch.innerHTML = studyProgressHtml();
   const enc = $('#en-card'); if (enc) enc.innerHTML = enCardHtml();
   const bkc = $('#bk-card'); if (bkc) bkc.innerHTML = bookCardHtml();
   const study = S.studyCache || buildStudy();
@@ -4360,6 +4361,58 @@ function renderExGrid() {
   g.innerHTML = l.length ? l.map(exCard).join('') : `<p class="note">${exItems().length ? 'Ничего не нашлось.' : 'База пока пустая — шли ролики через «Поделиться» → Claude, разберу и разложу по категориям.'}</p>`;
   hydrateImages(g);
 }
+/* ---------- графики прогресса: спорт и учёба ---------- */
+const wkLabel = f => pd(f).getDate() + ' ' + MON_S[pd(f).getMonth()];
+function lastWeeks(n, start) {
+  const mon = mondayOf(today()), out = [];
+  for (let k = n - 1; k >= 0; k--) { const f = addDays(mon, -7 * k); if (start && addDays(f, 6) < start) continue; out.push(f); }
+  return out;
+}
+// лучший подход каждой тренировки по упражнению (вес; без веса — повторы), за всё загруженное время
+function exSeries() {
+  const ex = {};
+  for (const mk of Object.keys(S.workouts)) for (const L of Object.values((S.workouts[mk] || {}).logs || {})) {
+    if (!L || !L.date) continue;
+    for (const b of L.blocks || []) for (const x of b.ex || []) {
+      if (!Array.isArray(x.sets)) continue;
+      const sets = x.sets.filter(st => st && Number(st.r) > 0).map(st => ({ w: Number(st.w) > 0 ? Number(st.w) : null, r: Number(st.r) }));
+      if (!sets.length) continue;
+      const t = topSet(sets), o = ex[x.name] = ex[x.name] || { pts: [], kg: false };
+      if (t.w != null) o.kg = true;
+      o.pts.push({ d: L.date, w: t.w, r: t.r });
+    }
+  }
+  Object.values(ex).forEach(o => { o.pts.sort((a, b) => a.d < b.d ? -1 : 1); if (o.kg) o.pts = o.pts.filter(p => p.w != null); });
+  return ex;
+}
+function exChartHtml(name, o) {
+  if (!o || !o.pts.length) return '';
+  const n = v => String(v).replace('.', ',');
+  const last = o.pts[o.pts.length - 1], first = o.pts[0];
+  const cap = o.kg ? `${name}: лучший подход, кг · сейчас ${n(last.w)}×${last.r}` : `${name}: лучший подход, повторы · сейчас ${last.r}`;
+  if (o.pts.length < 2) return `<p class="note">${esc(name)}: пока одна тренировка (${esc(o.kg ? n(last.w) + ' × ' + last.r : last.r + ' повт')}) — график появится после второй.</p>`;
+  const delta = o.kg ? last.w - first.w : last.r - first.r;
+  return lineChart(o.pts.map(p => ({ label: dm(p.d), v: o.kg ? p.w : p.r })), { title: cap + (delta ? ` · ${delta > 0 ? '+' : '−'}${n(Math.abs(Math.round(delta * 10) / 10))} с ${dm(first.d)}` : ''), fmt: v => n(v), cls: 'sport' });
+}
+function sportProgressHtml() {
+  const st = (S.config.sport || {}).start, weeks = lastWeeks(8, st); if (!weeks.length) return '';
+  const all = buildSport(weeks[0], addDays(weeks[weeks.length - 1], 6)), mon = mondayOf(today());
+  const per = weeks.map(f => ({ label: wkLabel(f), v: all.filter(i => i.eff >= f && i.eff <= addDays(f, 6) && (i.state === 'done' || i.state === 'other')).length, hi: f === mon }));
+  const ex = exSeries(), names = Object.keys(ex).sort((a, b) => ex[b].pts.length - ex[a].pts.length || a.localeCompare(b, 'ru'));
+  const sel = names.includes(S.pgEx) ? S.pgEx : names[0];
+  const ws = Object.keys(weights()).sort(), wpts = ws.map(d => ({ label: dm(d), v: weights()[d] }));
+  let h = per.length >= 2 ? barChart(per, { title: 'Тренировок в неделю' + (per.some(x => x.hi) ? ' · последняя — текущая' : ''), fmt: v => String(v), cls: 'sport-bars' }) : '';
+  if (wpts.length >= 2) h += lineChart(wpts.slice(-30), { title: 'Вес тела, кг', fmt: v => String(v).replace('.', ','), cls: 'sport' });
+  if (names.length) h += `<label class="fld" for="pg-ex">Упражнение</label><select id="pg-ex">${names.map(nm => `<option value="${esc(nm)}"${nm === sel ? ' selected' : ''}>${esc(nm)} (${ex[nm].pts.length})</option>`).join('')}</select><div id="pg-chart">${exChartHtml(sel, ex[sel])}</div>`;
+  return h ? `<details class="fold" data-k="sp-prog"${openAttr('sp-prog')}><summary><span>Прогресс</span><span class="sec-note">графики</span></summary>${h}</details>` : '';
+}
+function studyProgressHtml() {
+  const st = (S.config.study || {}).start, weeks = lastWeeks(8, st); if (weeks.length < 2) return '';
+  const mon = mondayOf(today());
+  const data = weeks.map(f => { const to = addDays(f, 6), m = studyMinutes(f, to); return { label: wkLabel(f), v: Math.round(m / 6) / 10, hi: f === mon, title: `${wkLabel(f)}: ${hmShort(m)} из ${hmShort(plannedMinutes(f, to < today() ? to : today()))} по плану` }; });
+  if (!data.some(x => x.v > 0)) return '';
+  return barChart(data, { title: 'Часов учёбы в неделю (по таймеру и отметкам)', fmt: v => String(v).replace('.', ','), cls: 'study-bars' });
+}
 function renderSportTab() {
   const box = $('#tab-sport'); if (!box) return;
   if (!S.ready) { box.innerHTML = bannerHtml(); return; }
@@ -4379,6 +4432,7 @@ function renderSportTab() {
   const chips = [['all', 'Все', exItems().length], ['prog', 'В программе', exItems().filter(x => exInProgram(x).length).length]].concat(cats.map(c => [c.id, c.title, exItems().filter(x => x.cat === c.id).length]));
   box.innerHTML = `<div class="sec-row"><h2 class="sec">Неделя</h2><span class="sec-n">${done} из ${planned}</span></div>
     <div class="stack">${rows || '<p class="note">На этой неделе тренировок нет.</p>'}</div>
+    ${sportProgressHtml()}
     ${exCx().length ? `<h2 class="sec">Комплексы</h2><div class="cx-row">${exCx().map(cxCard).join('')}</div>` : ''}
     <div class="sec-row"><h2 class="sec">Упражнения</h2><span class="sec-n">${exItems().length}</span></div>
     <input id="ex-q" type="search" class="notes-q" placeholder="Поиск: рывок, резина, кор…" value="${esc(S.exQ || '')}" autocomplete="off" autocapitalize="off">
@@ -4991,6 +5045,7 @@ $('#sheet').addEventListener('input', ev => {
 });
 document.addEventListener('change', async ev => {
   const el = ev.target;
+  if (el.id === 'pg-ex') { S.pgEx = el.value; const box = document.getElementById('pg-chart'); if (box) box.innerHTML = exChartHtml(el.value, exSeries()[el.value]); return; }
   if (el.id && el.id.startsWith('lg-') && el.type === 'checkbox') {
     const c = S.cur; if (c && c.type === 'sport') { saveDraftNow(); wkProgress(); }
     return;
