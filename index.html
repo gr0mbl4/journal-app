@@ -812,6 +812,7 @@ details.goal>summary .chip{justify-self:start}
 .en-o{padding:13px 16px;border-radius:16px;border:1px solid var(--glass-line);background:var(--glass-2);color:var(--ink);font-size:15.5px;text-align:left;cursor:pointer;min-height:50px}
 .en-o.ok{background:color-mix(in srgb,#17A35A 22%,var(--glass-2));border-color:#17A35A;font-weight:600}
 .en-o.bad{background:color-mix(in srgb,#D0342C 18%,var(--glass-2));border-color:#D0342C}
+.quiz-card{margin-top:10px;grid-template-columns:auto minmax(0,1fr) auto;align-items:center} .quiz-card.new{border-color:color-mix(in srgb,#FFB020 55%,transparent)} .qz-q{font-size:21px} .quiz-card .pc-go{color:var(--muted);font-size:22px;line-height:1} .qz-miss .en-miss{grid-template-columns:1fr;gap:3px} .qz-miss .en-miss span{color:var(--muted);font-size:13px} .qz-why{margin-top:10px}
 .en-o.dim{opacity:.55}
 .en-o:disabled{cursor:default;color:var(--ink)}
 .en-miss{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:9px 12px;border-radius:14px;background:var(--glass-3);font-size:14px}
@@ -1238,6 +1239,7 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
       <div id="lesson-hero"></div>
       <div class="duo"><div id="pf-card"></div><div id="en-card"></div></div>
       <div id="bk-card"></div>
+      <div id="quiz-card"></div>
       <h2 class="sec">Дальше в очереди</h2>
       <div id="lessons-next" class="stack"></div>
       <details class="fold" data-k="l-setup"><summary><span>Добавить урок · окна для учёбы</span></summary>
@@ -1370,6 +1372,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261004j"></script>
+<script src="app.js?v=20261004k"></script>
 </body>
 </html>

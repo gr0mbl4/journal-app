@@ -727,6 +727,7 @@ function applyData(d) {
   if (d.benefits) S.benefits = d.benefits;
   if (d.shop && !S.shopBusy) { S.shop = d.shop; LS.set('bj-shop', S.shop); }
   if (d.books) S.books = d.books;
+  if (d.quiz) S.quiz = d.quiz && Array.isArray(d.quiz.quizzes) ? d.quiz : { quizzes: [] };
   if (d.exercises) S.ex = d.exercises && Array.isArray(d.exercises.items) ? d.exercises : { cats: [], items: [], complexes: [] };
   if (d.ideas) S.ideas = Array.isArray(d.ideas.ideas) ? d.ideas.ideas : [];
   if (d.sleep) S.sleep = d.sleep && d.sleep.days ? d.sleep : { days: {} };
@@ -743,7 +744,7 @@ function applyData(d) {
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog, dayOrder: S.dayOrder }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, exercises: S.ex, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog, dayOrder: S.dayOrder }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, exercises: S.ex, quiz: S.quiz, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => readDoc(prefix + k + '.json')));
@@ -760,13 +761,13 @@ async function loadAll(quiet) {
     if (queueCount()) await flushQueue();
     GH.changed = 0;
     GH.info().then(j => { if (j && j.private === false) { toast('Внимание: репозиторий с данными стал открытым! Сделай его приватным.'); setSync('Репозиторий с данными открытый — сделай приватным', true); } }).catch(() => {});
-    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop, booksDoc, exDoc] = await Promise.all([
+    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop, booksDoc, exDoc, quizDoc] = await Promise.all([
       readDoc('config.json'), readDoc('lessons.json'), readDoc('plan.json'), readDoc('learned.json'), readDoc('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
-      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json'), readDoc('books.json'), readDoc('exercises.json')
+      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json'), readDoc('books.json'), readDoc('exercises.json'), readDoc('quiz.json')
     ]);
     const inboxNames = inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name);
     const quietSame = S.ready && !GH.changed && !queueCount() && inboxNames.join('|') === (S.inbox || []).join('|');
-    if (!quietSame) applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, exercises: exDoc || { cats: [], items: [], complexes: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    if (!quietSame) applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, exercises: exDoc || { cats: [], items: [], complexes: [] }, quiz: quizDoc || { quizzes: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
@@ -3066,6 +3067,7 @@ function renderLessons() {
   const sch = $('#study-chart'); if (sch) sch.innerHTML = studyProgressHtml();
   const enc = $('#en-card'); if (enc) enc.innerHTML = enCardHtml();
   const bkc = $('#bk-card'); if (bkc) bkc.innerHTML = bookCardHtml();
+  const qzc = $('#quiz-card'); if (qzc) qzc.innerHTML = quizCardHtml();
   const study = S.studyCache || buildStudy();
   const pend = pendingSorted();
   const hero = $('#lesson-hero');
@@ -4617,6 +4619,9 @@ document.addEventListener('click', async ev => {
     case 'en-open': openEnglish(); break;
     case 'en-start': enStart(); break;
     case 'en-ans': enAnswer(Number(b.dataset.k)); break;
+    case 'qz-open': openQuiz(b.dataset.id); break;
+    case 'qz-ans': qzAnswer(Number(b.dataset.k)); break;
+    case 'qz-next': if (S.cur && S.cur.type === 'qz') { S.cur.i++; qzShow(); } break;
     case 'en-next': if (S.cur && S.cur.type === 'en') { S.cur.i++; enShow(); } break;
     case 'ben-open': openBenefits(); break;
     case 'ben-st': busy(b, true); await benSet(id, b.dataset.st); busy(b, false); break;
@@ -5469,6 +5474,61 @@ async function enFinish() {
   }, `English: тест ${ok}/10`, { cards: {}, sessions: [] });
   if (next) { S.english = next; cacheNow(); }
   const st = document.getElementById('en-save-st'); if (st) st.textContent = next ? 'Прогресс сохранён.' : 'Прогресс не сохранился — проверь связь.';
+  if (S.tab === 'lessons') renderLessons();
+}
+
+/* ---------- мини-тест недели: вопросы по пройденным урокам (quiz.json пишет Claude по понедельникам) ---------- */
+function quizzes() { return ((S.quiz || {}).quizzes || []).filter(q => Array.isArray(q.questions) && q.questions.length); }
+function quizCardHtml() {
+  if (!S.ready) return '';
+  const l = quizzes().slice().sort((a, b) => (a.id < b.id ? 1 : -1)), open = l.find(q => !q.done), last = l.find(q => q.done);
+  if (open) return `<button type="button" class="en-card quiz-card new" data-action="qz-open" data-id="${esc(open.id)}"><span class="en-ic">${ico('chat')}</span><span class="rb"><span class="t">Мини-тест недели</span><span class="m">${open.questions.length} ${plural(open.questions.length, 'вопрос', 'вопроса', 'вопросов')} · ${esc(open.title || 'по пройденным урокам')}</span></span><span class="pc-go">›</span></button>`;
+  if (last) return `<button type="button" class="en-card quiz-card" data-action="qz-open" data-id="${esc(last.id)}"><span class="en-ic">${ico('chat')}</span><span class="rb"><span class="t">Мини-тест: ${last.done.score} из ${last.questions.length}</span><span class="m">${esc(dm(last.done.at || last.id))} · следующий в понедельник вечером</span></span><span class="pc-go">›</span></button>`;
+  return '';
+}
+function openQuiz(id) {
+  const q = quizzes().find(x => x.id === id); if (!q) return;
+  if (q.done) return quizResult(q, q.done.picks || []);
+  S.cur = { type: 'qz', id, i: 0, res: [] };
+  qzShow();
+}
+function qzShow() {
+  const c = S.cur; if (!c || c.type !== 'qz') return;
+  const qz = quizzes().find(x => x.id === c.id); if (!qz) return;
+  if (c.i >= qz.questions.length) return qzFinish(qz);
+  const q = qz.questions[c.i], ans = c.res[c.i];
+  openSheet(`<div class="en-prog"><span style="width:${(c.i / qz.questions.length * 100).toFixed(0)}%"></span></div>
+    <p class="sh-meta">${c.i + 1} из ${qz.questions.length}${q.topic ? ' · ' + esc(q.topic) : ''}</p>
+    <h2 class="en-q qz-q">${esc(q.q)}</h2>
+    <div class="en-opts">${(q.o || []).map((o, k) => {
+      const cls = ans == null ? '' : k === q.a ? ' ok' : k === ans ? ' bad' : ' dim';
+      return `<button type="button" class="en-o${cls}" data-action="qz-ans" data-k="${k}"${ans != null ? ' disabled' : ''}>${esc(o)}</button>`;
+    }).join('')}</div>
+    ${ans != null && q.why ? `<p class="note qz-why">${ans === q.a ? '✓ ' : '✗ '}${esc(q.why)}</p>` : ''}
+    ${ans != null ? `<div class="sh-acts"><button type="button" class="btn study block" data-action="qz-next">${c.i + 1 < qz.questions.length ? 'Дальше' : 'Итог'}</button></div>` : ''}`, true);
+}
+function qzAnswer(k) { const c = S.cur; if (!c || c.type !== 'qz' || c.res[c.i] != null) return; c.res[c.i] = k; qzShow(); }
+function quizResult(qz, picks) {
+  const ok = qz.questions.filter((q, i) => picks[i] === q.a).length, n = qz.questions.length, pct = Math.round(ok / n * 100);
+  const bad = qz.questions.map((q, i) => ({ q, p: picks[i] })).filter(o => o.p !== o.q.a);
+  S.cur = { type: 'qz-res', id: qz.id };
+  openSheet(`<div class="rd-hero lvl-${pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'low'}">${ring(pct, 112, 'rd')}<div class="rd-n"><b>${ok}/${n}</b><span>${pct >= 80 ? 'Отлично' : pct >= 50 ? 'Неплохо' : 'Повторим'}</span></div></div>
+    <p class="sh-meta">${esc(qz.title || 'Мини-тест недели')}</p>
+    ${bad.length ? `<h2 class="sh-title">Что повторить</h2><div class="stack qz-miss">${bad.map(o => `<div class="en-miss"><b>${esc(o.q.q)}</b><span>Верно: ${esc((o.q.o || [])[o.q.a] || '')}${o.q.why ? ' — ' + esc(o.q.why) : ''}</span></div>`).join('')}</div>` : '<p class="sh-meta">Без ошибок.</p>'}
+    <p class="note" id="qz-save-st"></p>
+    <div class="sh-acts"><button type="button" class="btn block" data-action="close">Закрыть</button></div>`);
+}
+async function qzFinish(qz) {
+  const c = S.cur, picks = c.res.slice(), ok = qz.questions.filter((q, i) => picks[i] === q.a).length;
+  quizResult(qz, picks);
+  const st = document.getElementById('qz-save-st'); if (st) st.textContent = 'Сохраняю результат…';
+  const next = await write('quiz.json', d => {
+    d.quizzes = Array.isArray(d.quizzes) ? d.quizzes : [];
+    const x = d.quizzes.find(y => y.id === qz.id); if (x && !x.done) x.done = { at: today(), score: ok, picks };
+    return d;
+  }, `Мини-тест ${qz.id}: ${ok}/${qz.questions.length}`, { quizzes: [] });
+  if (next) { S.quiz = next; cacheNow(); }
+  const st2 = document.getElementById('qz-save-st'); if (st2) st2.textContent = next ? 'Результат сохранён — разберу ошибки в недельном разборе.' : 'Результат не сохранился — проверь связь.';
   if (S.tab === 'lessons') renderLessons();
 }
 
