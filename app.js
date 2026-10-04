@@ -1462,6 +1462,7 @@ function render() {
   Object.keys(RENDER).forEach(k => S.dirty.add(k));
   renderTab(cur);
   renderClaudeBtn();
+  if (S.cur && S.cur.type === 'req') refreshFeed();
   renderDayChip();
   renderTimerChip();
 }
@@ -3265,10 +3266,11 @@ async function ideaSave(btn, area) {
 }
 
 /* ---------- sheet + toast ---------- */
-function openSheet(html, keepScroll) {
+function openSheet(html, keepScroll, mode) {
   const sh = $('#sheet');
   const panel = sh.querySelector('.sheet-panel');
   const top = panel.scrollTop;
+  panel.classList.toggle('chat-mode', mode === 'chat');
   $('#sheet-body').innerHTML = html;
   const wasHidden = sh.hidden;
   sh.hidden = false;
@@ -3276,11 +3278,23 @@ function openSheet(html, keepScroll) {
   panel.scrollTop = keepScroll && !wasHidden ? top : 0;
   if (wasHidden && panel.style) { panel.style.transform = ''; panel.classList.remove('drag', 'snap'); }
   if (wasHidden) setTimeout(() => { try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }, 20);
+  vvFit();
 }
 function closeSheet() {
   S.cur = null; $('#sheet').hidden = true; document.body.classList.remove('locked');
-  const p = document.querySelector('.sheet-panel'); if (p && p.style) { p.style.transform = ''; p.classList.remove('drag', 'snap'); }
+  const p = document.querySelector('.sheet-panel'); if (p && p.style) { p.style.transform = ''; p.classList.remove('drag', 'snap', 'chat-mode'); }
+  clearTimeout(chatPollT); chatPollT = 0;
+  vvFit();
 }
+// чат: шторка подстраивается под экранную клавиатуру (iOS сдвигает только видимую область)
+function vvFit() {
+  const sh = $('#sheet'), vv = window.visualViewport; if (!sh) return;
+  const on = vv && !sh.hidden && !!document.querySelector('.sheet-panel.chat-mode');
+  sh.style.top = on ? vv.offsetTop + 'px' : '';
+  sh.style.height = on ? vv.height + 'px' : '';
+  sh.style.bottom = on ? 'auto' : '';
+}
+if (window.visualViewport) { window.visualViewport.addEventListener('resize', vvFit); window.visualViewport.addEventListener('scroll', vvFit); }
 (function sheetSwipe() {
   const panel = document.querySelector('.sheet-panel');
   if (!panel || !panel.addEventListener) return;
@@ -3297,7 +3311,7 @@ function closeSheet() {
     if (DRAG.st && Math.abs(ddy) < 10 && Math.abs(ddx) < 10) return;
     if (!mode) {
       if (Math.abs(ddy) < 6 && Math.abs(ddx) < 6) return;
-      if (ddy > 0 && Math.abs(ddy) > Math.abs(ddx) && (fromTop || panel.scrollTop <= 0)) { mode = 'drag'; panel.classList.add('drag'); panel.classList.remove('snap'); }
+      if (ddy > 0 && Math.abs(ddy) > Math.abs(ddx) && (fromTop || (panel.scrollTop <= 0 && !panel.classList.contains('chat-mode')))) { mode = 'drag'; panel.classList.add('drag'); panel.classList.remove('snap'); }
       else { mode = 'scroll'; return; }
     }
     dy = Math.max(0, ddy);
@@ -4328,22 +4342,61 @@ document.addEventListener('click', async ev => {
     case 'done-toggle': S.showAllDone = !S.showAllDone; renderLessons(); break;
     case 'ideas': S.cur = null; openRequests('new', false, b.dataset.area || 'sport'); break;
     case 'req-tab': openRequests(b.dataset.tab); break;
+    case 'cl-tap': {
+      if (!(S.cur && S.cur.type === 'req') || (ev.target.closest && ev.target.closest('a'))) break;
+      S.cur.sel = S.cur.sel === id ? null : id; refreshFeed();
+      const row = b.closest('.cl-row'); if (S.cur.sel && row) { const ch = $('#cl-chat'), el = document.getElementById(row.id); if (ch && el && el.getBoundingClientRect().bottom > ch.getBoundingClientRect().bottom) el.scrollIntoView({ block: 'end', behavior: 'smooth' }); }
+      break;
+    }
+    case 'cl-goto': {
+      const el = document.getElementById(b.dataset.to); if (!el) { toast('Это сообщение выше — нажми «Показать раньше»'); break; }
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      break;
+    }
+    case 'cl-reply': {
+      if (!(S.cur && S.cur.type === 'req')) break;
+      S.cur.re = id; S.cur.reMe = !!b.dataset.me; S.cur.sel = null;
+      clCtxRefresh(); refreshFeed();
+      const t = $('#msg-text'); if (t) try { t.focus({ preventScroll: true }); } catch (_) { t.focus(); }
+      break;
+    }
+    case 'cl-pick': {
+      const x = clItems().find(y => y.id === id), k = Number(b.dataset.k), t = x && x.choices[k]; if (!t) break;
+      busy(b, true);
+      await writeRequests(list => { list.push({ id: 'q' + rid().slice(0, 10), text: t, date: today(), ts: Date.now(), status: 'new', re: id, pick: k }); }, 'Ответ Claude: ' + t.slice(0, 50));
+      busy(b, false); clScrollEnd(); break;
+    }
+    case 'cl-copy': {
+      const a2 = id.startsWith('a:'), x = clItems().find(y => y.id === (a2 ? id.slice(2) : id)); if (!x) break;
+      try { await navigator.clipboard.writeText(a2 ? x.answer : x.text); toast('Скопировано'); } catch (_) { toast('Не получилось скопировать'); }
+      if (S.cur) { S.cur.sel = null; refreshFeed(); } break;
+    }
+    case 'cl-reply-x': if (S.cur && S.cur.type === 'req') { S.cur.re = null; S.cur.reMe = false; clCtxRefresh(); } break;
+    case 'cl-files-x': { const f = $('#msg-files'); if (f) f.value = ''; clCtxRefresh(); break; }
+    case 'cl-area-x': if (S.cur && S.cur.type === 'req') { S.cur.area = ''; clCtxRefresh(); } break;
+    case 'cl-more': {
+      if (!(S.cur && S.cur.type === 'req')) break;
+      const ch = $('#cl-chat'), fromEnd = ch ? ch.scrollHeight - ch.scrollTop : 0;
+      S.cur.limit = (S.cur.limit || 60) + 60; refreshFeed();
+      if (ch) ch.scrollTop = ch.scrollHeight - fromEnd; break;
+    }
+    case 'cl-strip': if (S.cur && S.cur.type === 'req') { S.cur.strip = S.cur.strip === id ? null : id; refreshFeed(); } break;
     case 'out-retry': { const j = OUT.jobs.find(x => x.id === b.dataset.id); if (j) { j.st = 'wait'; j.err = ''; refreshFeed(); outRun(); } break; }
     case 'out-drop': { OUT.jobs = OUT.jobs.filter(x => x.id !== b.dataset.id); refreshFeed(); break; }
     case 'idea-save': await ideaSave(b, b.dataset.area); break;
     case 'idea-del': {
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Точно?'; return; }
       busy(b, true);
-      if (await writeIdeas(list => { const k = list.findIndex(x => x.id === id); if (k >= 0) list.splice(k, 1); }, 'Идея удалена')) openRequests(null, true);
+      if (await writeIdeas(list => { const k = list.findIndex(x => x.id === id); if (k >= 0) list.splice(k, 1); }, 'Идея удалена')) refreshFeed();
       busy(b, false); break;
     }
-    case 'rq-edit': if (S.cur && S.cur.type === 'req') { S.cur.editId = id; openRequests('req', true); const t = $('#rq-edit'); if (t && t.focus) t.focus(); } break;
-    case 'rq-edit-cancel': if (S.cur && S.cur.type === 'req') { S.cur.editId = null; openRequests('req', true); } break;
+    case 'rq-edit': if (S.cur && S.cur.type === 'req') { S.cur.editId = id; S.cur.sel = null; refreshFeed(); const t = $('#rq-edit'); if (t && t.focus) t.focus(); } break;
+    case 'rq-edit-cancel': if (S.cur && S.cur.type === 'req') { S.cur.editId = null; refreshFeed(); } break;
     case 'rq-edit-save': {
       const text = (($('#rq-edit') && $('#rq-edit').value) || '').trim();
       if (!text) { toast('Запрос пустой — лучше удали его'); return; }
       busy(b, true);
-      if (await writeRequests(list => { const r = list.find(x => x.id === id); if (r) { r.text = text; r.edited = today(); } }, 'Запрос для Claude изменён')) { S.cur.editId = null; toast('Сохранено'); openRequests('req', true); }
+      if (await writeRequests(list => { const r = list.find(x => x.id === id); if (r) { r.text = text; r.edited = today(); } }, 'Запрос для Claude изменён')) { if (S.cur && S.cur.type === 'req') S.cur.editId = null; toast('Сохранено'); refreshFeed(); }
       busy(b, false); break;
     }
     case 'note': openNote(b.dataset.path); break;
@@ -4544,7 +4597,7 @@ document.addEventListener('click', async ev => {
     case 'rq-del': {
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Точно?'; return; }
       busy(b, true);
-      if (await writeRequests(list => { const k = list.findIndex(r => r.id === id); if (k >= 0) list.splice(k, 1); }, 'Запрос для Claude удалён')) openRequests();
+      if (await writeRequests(list => { const k = list.findIndex(r => r.id === id); if (k >= 0) list.splice(k, 1); }, 'Запрос для Claude удалён')) refreshFeed();
       busy(b, false); break;
     }
     case 'ev-done': {
@@ -4669,7 +4722,10 @@ document.addEventListener('submit', ev => {
 });
 let draftT;
 $('#notes-q').addEventListener('input', ev => notesSearch(ev.target.value));
-document.addEventListener('input', ev => { if (ev.target && ev.target.id === 'ex-q') { S.exQ = ev.target.value; renderExGrid(); } });
+document.addEventListener('input', ev => {
+  if (ev.target && ev.target.id === 'ex-q') { S.exQ = ev.target.value; renderExGrid(); }
+  if (ev.target && ev.target.id === 'msg-text') { clGrow(); if (S.cur && S.cur.type === 'req') S.cur.draft = ev.target.value; }
+});
 $('#sheet').addEventListener('input', ev => {
   const c = S.cur;
   if (ev.target.id === 'ev-n') repNote();
@@ -4714,7 +4770,7 @@ document.addEventListener('change', async ev => {
     const files = Array.from(el.files || []); el.value = '';
     if (files.length) wkPhotoUpload(files);
   } else if (el.id === 'msg-files') {
-    const n = el.files ? el.files.length : 0, lab = $('#msg-files-label'); if (lab) lab.textContent = n ? '📎 ' + n : '📎';
+    clCtxRefresh();
   } else if (el.id === 'rc-files' || el.id === 'id-files') {
     const n = el.files ? el.files.length : 0, lab = $(el.id === 'rc-files' ? '#rc-files-label' : '#id-files-label');
     if (lab) lab.textContent = n ? `Выбрано файлов: ${n}` : (el.id === 'rc-files' ? 'Выбрать фото или видео' : 'Добавить фото или видео');
@@ -4781,6 +4837,8 @@ const ICP = {
   cart: '<path d="M3 4h2l2.4 11h10.2L20 8H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>',
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   play: '<path d="M8 5.5v13l10-6.5z"/>',
+  clip: '<path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+  send: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2"/><rect x="16" y="14" width="5" height="7" rx="2"/>',
   cam: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   warn: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17h.01"/>'
@@ -5185,55 +5243,176 @@ function shopFromMenu() {
   toast(`Добавил из меню: ${add.length}`);
 }
 
-/* ---------- связь с Claude: одна форма для запросов и идей ---------- */
+/* ---------- связь с Claude: чат как в Telegram ----------
+   Справа — мои сообщения: текст → requests.json, файлы и ссылки на видео → ideas.json.
+   Слева — ответы Claude (answer) с цитатой сообщения, на которое он отвечает; время ответа — answerTs.
+   Если Claude спрашивает (status "waiting" или choices) — под ответом кнопки; нажатие или «Ответить»
+   пишет новый запрос с re = id сообщения (reMe — если дополняю своё же сообщение). */
 const MSG_AREA = [['general', 'Общее'], ['sport', 'Спорт'], ['study', 'Учёба'], ['food', 'Еда'], ['books', 'Книги']];
-function claudeFeed() {
-  const rq = S.requests.filter(r => !demoBad(r.text + ' ' + (r.answer || ''))).map(r => ({ kind: 'rq', id: r.id, text: r.text, area: 'general', date: r.date, ts: r.ts, open: r.status !== 'done', waiting: r.status === 'waiting', answer: r.answer, doneAt: r.doneAt }));
-  const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, text: x.title || x.text || x.link || (x.names && x.names.length ? x.names.join(', ') : 'Файлы'), link: x.link, files: (x.media || []).length + (x.audio || []).length, frames: x.frames, area: x.area || 'general', date: x.date, ts: x.ts, open: x.status !== 'seen', answer: x.answer, doneAt: x.date, fetching: linkPending(x), fetchErr: x.status !== 'seen' ? x.fetchErr : null }));
+const AREA_WORDS = [
+  ['books', /(^|[^а-яё])(книг|аудиокниг)/i],
+  ['food', /(^|[^а-яё])(рецепт|блюд|готовк|приготов|завтрак|обед|ужин|перекус|протеин|ккал|калори)/i],
+  ['sport', /(^|[^а-яё])(трен|упражн|зал([^а-яё]|$)|бег([^а-яё]|$)|присед|жим|гир[яиюе]|скакал|кардио|пресс|кор([^а-яё]|$)|мышц|отжим|подтяг|растяж|бокс|удар|плаван|бассейн|спорт|комплекс)/i],
+  ['study', /(^|[^а-яё])(урок|уч[её]б|курс|сет[ьи]([^а-яё]|$)|linux|линукс|python|питон|ansible|docker|git|cisco|vlan|ospf|bgp|netdevops|программир|скрипт|английск)/i]
+];
+const AREA_SHORT = { sport: 'спорт', study: 'учёба', food: 'еда', books: 'книги', general: '' };
+function guessArea(text) { const t = String(text || ''); const m = AREA_WORDS.find(([, re]) => re.test(t)); return m ? m[0] : 'general'; }
+const tsDay = t => { const d = new Date(t); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const clSnip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); n = n || 90; return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+function clFmt(s) {
+  return esc(String(s || '').trim()).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(https?:\/\/[^\s<]+[^\s<.,!?»)])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>');
+}
+function clItems() {
+  const ts = x => x.ts || Date.parse((x.date || today()) + 'T12:00:00') || 0;
+  const rq = S.requests.filter(r => !demoBad(r.text + ' ' + (r.answer || ''))).map(r => ({ kind: 'rq', id: r.id, src: r, text: r.text || '', area: r.area || 'general', ts: ts(r), date: r.date, status: r.status || 'new',
+    answer: r.answer, answerTs: r.answerTs, choices: Array.isArray(r.choices) ? r.choices : [], re: r.re, reMe: r.reMe, edited: r.edited, media: [], audio: [] }));
+  const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, src: x, text: x.text || x.title || '', area: x.area || 'general', ts: ts(x), date: x.date, status: x.status === 'seen' ? 'done' : (x.status || 'new'),
+    answer: x.answer, answerTs: x.answerTs, choices: Array.isArray(x.choices) ? x.choices : [], re: x.re, reMe: x.reMe, link: x.link, media: x.media || [], frames: x.frames, audio: x.audio || [], names: x.names || [],
+    fetching: linkPending(x), fetchErr: x.status !== 'seen' ? x.fetchErr : null, source: x.source, caption: x.caption, failed: x.failed, via: x.via }));
   return rq.concat(id);
 }
-function feedItemHtml(x, editable) {
-  const areaL = (MSG_AREA.find(a => a[0] === x.area) || [0, ''])[1];
-  const meta = [x.date ? short(x.date) : '', x.frames ? 'видео · ' + x.frames + ' ' + plural(x.frames, 'кадр', 'кадра', 'кадров') : x.files ? x.files + ' ' + plural(x.files, 'файл', 'файла', 'файлов') : '', x.link ? (x.fetching ? 'ссылка · скачиваю видео…' : 'ссылка') : '', x.waiting ? 'ждёт тебя' : ''].filter(Boolean).join(' · ');
-  const editBox = editable && S.cur && S.cur.editId === x.id && x.kind === 'rq';
-  if (editBox) return `<div class="req-item"><textarea id="rq-edit" rows="4">${esc(x.text)}</textarea><div class="req-meta"><button type="button" class="btn sm" data-action="rq-edit-cancel">Отмена</button><button type="button" class="btn sm study" data-action="rq-edit-save" data-id="${esc(x.id)}">Сохранить</button></div></div>`;
-  return `<div class="req-item"><div class="rq-top"><span class="chip ar-${esc(x.area)}">${esc(areaL)}</span><span class="rq-d">${esc(meta)}</span></div><div>${esc(x.text)}</div>${x.fetchErr ? `<div class="rq-err">Видео по ссылке не скачалось: ${esc(x.fetchErr)}</div>` : ''}${x.answer ? `<div class="ans">${esc(x.answer)}</div>` : ''}${editable ? `<div class="req-meta">${x.kind === 'rq' ? `<button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(x.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(x.id)}">Удалить</button>` : `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>`}</div>` : ''}</div>`;
+function clSnippet(x) {
+  if (x.text) return x.text;
+  if (x.frames) return 'Видео';
+  if (x.media && x.media.length) return x.media.length > 1 ? 'Фото · ' + x.media.length : 'Фото';
+  if (x.audio && x.audio.length) return 'Аудио · ' + x.audio.length;
+  if (x.link) return x.link;
+  return 'Сообщение';
+}
+function clDay(d) {
+  const t = today();
+  if (d === t) return 'Сегодня';
+  if (d === addDays(t, -1)) return 'Вчера';
+  const x = pd(d);
+  return x.getDate() + ' ' + MON_G[x.getMonth()] + (d.slice(0, 4) !== t.slice(0, 4) ? ' ' + d.slice(0, 4) : '');
+}
+const clImgTag = (p, cls) => `<img${cls ? ` class="${cls}"` : ''} data-ghl="${esc(p)}"${S.imgUrl && S.imgUrl[p] ? ` src="${S.imgUrl[p]}"` : ''} alt="">`;
+function clMediaHtml(x) {
+  const imgs = (x.media || []).filter(p => /\.(jpe?g|png|webp|gif|heic)$/i.test(p));
+  let h = '';
+  if (imgs.length) {
+    const strip = S.cur && S.cur.strip === x.id;
+    if (x.frames) h += `<button type="button" class="cl-media" data-action="cl-strip" data-id="${esc(x.id)}" aria-label="Кадры видео">${clImgTag(imgs[Math.min(imgs.length - 1, 1)])}<span class="cl-badge">▶ видео · ${x.frames} ${plural(x.frames, 'кадр', 'кадра', 'кадров')}</span></button>`;
+    else if (imgs.length === 1) h += `<button type="button" class="cl-media photo" data-action="cl-strip" data-id="${esc(x.id)}" aria-label="Фото">${clImgTag(imgs[0])}</button>`;
+    else h += `<button type="button" class="cl-grid" data-action="cl-strip" data-id="${esc(x.id)}" aria-label="Фото">${imgs.slice(0, 4).map((p, k) => k === 3 && imgs.length > 4 ? `<span class="cl-more-ph">${clImgTag(p)}<b>+${imgs.length - 3}</b></span>` : clImgTag(p)).join('')}</button>`;
+    if (strip) h += `<div class="cl-strip">${imgs.map(p => clImgTag(p)).join('')}</div>`;
+  }
+  if (x.audio && x.audio.length) h += `<div class="cl-up">${ico('headphones')} ${x.audio.length} ${plural(x.audio.length, 'файл', 'файла', 'файлов')}${x.names && x.names.length ? ': ' + esc(clSnip(x.names.join(', '), 60)) : ''}</div>`;
+  if (x.failed) h += `<div class="cl-up">не дошло файлов: ${x.failed}</div>`;
+  return h;
+}
+function clLinkHtml(x) {
+  let host = 'ссылка'; try { host = new URL(x.link).hostname.replace(/^www\./, ''); } catch (_) {}
+  const st = x.fetching ? 'скачиваю видео…' : x.fetchErr ? 'не скачалось: ' + x.fetchErr : '';
+  return `<a class="cl-link" href="${esc(x.link)}" target="_blank" rel="noopener"><b>${esc(x.source ? '@' + String(x.source).replace(/^@/, '') : host)}</b>${x.caption ? `<span>${esc(clSnip(x.caption, 140))}</span>` : `<span>${esc(clSnip(x.link, 60))}</span>`}${st ? `<i>${esc(st)}</i>` : ''}</a>`;
+}
+function clMeHtml(x, byId) {
+  const c = S.cur || {}, sel = c.sel === x.id;
+  if (c.editId === x.id && x.kind === 'rq') return `<div class="cl-row me" id="cl-m-${esc(x.id)}"><div class="cl-edit"><textarea id="rq-edit" rows="3">${esc(x.text)}</textarea><div class="cl-acts"><button type="button" class="btn sm" data-action="rq-edit-cancel">Отмена</button><button type="button" class="btn sm study" data-action="rq-edit-save" data-id="${esc(x.id)}">Сохранить</button></div></div></div>`;
+  const p = x.re && byId.get(x.re);
+  const q = p ? (x.reMe ? `<span class="cl-q" data-action="cl-goto" data-to="cl-m-${esc(p.id)}"><b>Ты</b><span>${esc(clSnip(clSnippet(p)))}</span></span>`
+    : `<span class="cl-q" data-action="cl-goto" data-to="cl-a-${esc(p.id)}"><b>Claude</b><span>${esc(clSnip(p.answer || clSnippet(p)))}</span></span>`) : '';
+  const tick = x.fetching ? '<i class="cl-tk">⏳</i>' : x.answer ? '<i class="cl-tk read">✓✓</i>' : '<i class="cl-tk">✓</i>';
+  const tag = x.area && AREA_SHORT[x.area] ? `<span class="cl-tag">#${esc(AREA_SHORT[x.area])}</span>` : '';
+  const empty = !x.text && !(x.media || []).length && !x.link && !(x.audio || []).length;
+  const body = q + clMediaHtml(x) + (x.link ? clLinkHtml(x) : '') + (x.text || empty ? `<div class="cl-t">${x.text ? clFmt(x.text) : '…'}</div>` : '');
+  const canDel = !x.answer && x.status === 'new';
+  const acts = sel ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="cl-reply" data-id="${esc(x.id)}" data-me="1">Дополнить</button>${x.text ? `<button type="button" class="btn sm" data-action="cl-copy" data-id="${esc(x.id)}">Копировать</button>` : ''}${x.kind === 'rq' && canDel ? `<button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(x.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(x.id)}">Удалить</button>` : ''}${x.kind === 'idea' && canDel ? `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>` : ''}</div>` : '';
+  return `<div class="cl-row me${sel ? ' sel' : ''}" id="cl-m-${esc(x.id)}"><div class="cl-b me" role="button" tabindex="0" data-action="cl-tap" data-id="${esc(x.id)}">${body}<span class="cl-meta">${tag}${x.edited ? 'изм. ' : ''}${hhmm(new Date(x.ts))}${tick}</span></div>${acts}</div>`;
+}
+function clAsked(x, replies) {
+  const asked = x.status === 'waiting' || x.choices.length > 0;
+  return asked && !(replies.get(x.id) || []).some(r => !r.reMe);
+}
+function clClHtml(x, replies) {
+  const c = S.cur || {}, sel = c.sel === 'a:' + x.id, open = clAsked(x, replies);
+  const q = `<span class="cl-q" data-action="cl-goto" data-to="cl-m-${esc(x.id)}"><b>Ты</b><span>${esc(clSnip(clSnippet(x)))}</span></span>`;
+  const kb = open ? `<div class="cl-kb">${x.choices.map((t, k) => `<button type="button" class="cl-k" data-action="cl-pick" data-id="${esc(x.id)}" data-k="${k}">${esc(t)}</button>`).join('')}<button type="button" class="cl-k alt" data-action="cl-reply" data-id="${esc(x.id)}">${x.choices.length ? '✎ Другое' : '✎ Ответить'}</button></div>` : '';
+  const acts = sel ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="cl-reply" data-id="${esc(x.id)}">Ответить</button><button type="button" class="btn sm" data-action="cl-copy" data-id="a:${esc(x.id)}">Копировать</button></div>` : '';
+  const time = x.answerTs ? hhmm(new Date(x.answerTs)) : '';
+  return `<div class="cl-row cl${sel ? ' sel' : ''}" id="cl-a-${esc(x.id)}"><div class="cl-b cl" role="button" tabindex="0" data-action="cl-tap" data-id="a:${esc(x.id)}">${q}<div class="cl-t">${clFmt(x.answer)}</div><span class="cl-meta">${open ? '<span class="cl-wait">ждёт твоего ответа</span>' : ''}${time}</span></div>${kb}${acts}</div>`;
+}
+function clOutHtml(j) {
+  const err = j.st === 'err', n = j.files.length + j.audio.length;
+  return `<div class="cl-row me"><div class="cl-b me out${err ? ' err' : ''}" data-out="${esc(j.id)}">${j.text ? `<div class="cl-t">${clFmt(j.text)}</div>` : ''}<div class="cl-up">${ico('clip')} ${n} ${plural(n, 'файл', 'файла', 'файлов')} · <span data-od>${esc(outLabel(j))}</span></div>${err ? '' : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}<span class="cl-meta">${hhmm(new Date(j.ts))}<i class="cl-tk">${err ? '!' : '🕓'}</i></span></div>${err ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">Повторить</button></div>` : ''}</div>`;
+}
+function clChatHtml() {
+  const items = clItems(), byId = new Map(items.map(x => [x.id, x])), replies = new Map();
+  items.forEach(x => { if (x.re) { if (!replies.has(x.re)) replies.set(x.re, []); replies.get(x.re).push(x); } });
+  const ev = [];
+  items.forEach(x => { ev.push({ t: x.ts, w: 0, x }); if (x.answer) ev.push({ t: x.answerTs || x.ts + 1, w: 1, x }); });
+  OUT.jobs.forEach(j => ev.push({ t: j.ts, w: 2, j }));
+  ev.sort((a, z) => a.t - z.t || a.w - z.w);
+  const lim = (S.cur && S.cur.limit) || 60, shown = ev.slice(-lim);
+  let html = ev.length > shown.length ? `<button type="button" class="cl-older" data-action="cl-more">Показать раньше · ${ev.length - shown.length}</button>` : '';
+  if (!ev.length) html += '<p class="cl-empty">Пиши сюда задачи, вопросы и идеи, прикрепляй фото, видео и ссылки на ролики — отвечу здесь же.</p>';
+  let day = '';
+  shown.forEach(e => {
+    const d = e.j ? today() : tsDay(e.w ? (e.x.answerTs || e.x.ts) : e.x.ts);
+    if (d !== day) { day = d; html += `<div class="cl-day"><span>${esc(clDay(d))}</span></div>`; }
+    html += e.j ? clOutHtml(e.j) : e.w ? clClHtml(e.x, replies) : clMeHtml(e.x, byId);
+  });
+  return html;
+}
+function clCtxHtml() {
+  const c = S.cur && S.cur.type === 'req' ? S.cur : {}, out = [];
+  if (c.re) {
+    const x = clItems().find(y => y.id === c.re);
+    if (x) out.push(`<div class="cl-ctx-i"><span class="cl-q"><b>${c.reMe ? 'Дополняю своё' : 'Ответ Claude'}</b><span>${esc(clSnip(c.reMe ? clSnippet(x) : (x.answer || clSnippet(x))))}</span></span><button type="button" class="cl-x" data-action="cl-reply-x" aria-label="Не отвечать на это">×</button></div>`);
+  }
+  const f = $('#msg-files'), n = f && f.files ? f.files.length : 0;
+  if (n) out.push(`<div class="cl-ctx-i">${ico('clip')}<span class="cl-fn">${n} ${plural(n, 'файл', 'файла', 'файлов')}: ${esc(clSnip(Array.from(f.files).map(z => z.name).join(', '), 60))}</span><button type="button" class="cl-x" data-action="cl-files-x" aria-label="Убрать файлы">×</button></div>`);
+  if (c.area && AREA_SHORT[c.area]) out.push(`<div class="cl-ctx-i"><span class="cl-fn">Тема: #${esc(AREA_SHORT[c.area])}</span><button type="button" class="cl-x" data-action="cl-area-x" aria-label="Без темы">×</button></div>`);
+  return out.join('');
+}
+function clCtxRefresh() { const el = $('#cl-ctx'); if (el) el.innerHTML = clCtxHtml(); }
+function clScrollEnd() { const ch = $('#cl-chat'); if (ch) ch.scrollTop = ch.scrollHeight; }
+let clObs = null;
+async function clImg(img) {
+  const p = img.dataset.ghl; if (!p || img.getAttribute('src')) return;
+  try { S.img[p] = S.img[p] || GH.blob(p); const u = await S.img[p]; S.imgUrl = S.imgUrl || {}; S.imgUrl[p] = u; img.src = u; }
+  catch (_) { delete S.img[p]; img.classList.add('bad'); }
+}
+function clLazy() {
+  const root = $('#cl-chat'); if (!root || !GH.cred) return;
+  const imgs = root.querySelectorAll('img[data-ghl]:not([src])');
+  if (!('IntersectionObserver' in window)) { imgs.forEach(clImg); return; }
+  if (!clObs || clObs.root !== root) { if (clObs) clObs.disconnect(); clObs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { clObs.unobserve(e.target); clImg(e.target); } }), { root, rootMargin: '400px 0px' }); }
+  imgs.forEach(i => clObs.observe(i));
 }
 function openRequests(tab, keepScroll, area) {
   const prev = S.cur && S.cur.type === 'req' ? S.cur : {};
-  if (tab === 'sport' || tab === 'study' || tab === 'food') { area = tab; tab = 'new'; }
-  tab = tab === 'done' ? 'done' : (tab === 'new' || tab === 'req' ? 'new' : (prev.tab || 'new'));
-  area = area || prev.area || 'general';
-  S.cur = { type: 'req', tab, area, editId: prev.editId || null };
-  const feed = claudeFeed();
-  const open = feed.filter(x => x.open).sort(byNewest);
-  const done = feed.filter(x => !x.open).sort((a, b) => (b.doneAt || b.date || '') < (a.doneAt || a.date || '') ? -1 : (b.doneAt || b.date || '') > (a.doneAt || a.date || '') ? 1 : byNewest(a, b)).slice(0, 30);
-  const seg = `<div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="Раздел">${[['new', `Написать${open.length ? ' · ' + open.length : ''}`], ['done', 'Ответы']].map(([k, l]) => `<button type="button" data-action="req-tab" data-tab="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>`;
-  let body;
-  if (tab === 'new') {
-    body = `<div class="chips ar-chips" role="group" aria-label="О чём">${MSG_AREA.map(([k, l]) => `<button type="button" class="chip-btn" data-action="msg-area" data-area="${k}" aria-pressed="${k === area}">${l}</button>`).join('')}</div>
-    <textarea id="msg-text" rows="3" placeholder="Задача, вопрос или идея">${esc(prev.draft || '')}</textarea>
-    <div class="msg-row"><input id="msg-link" type="url" inputmode="url" placeholder="Ссылка (необязательно)"><label class="btn file-btn msg-file" aria-label="Фото или видео"><span id="msg-files-label">📎</span><input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label></div>
-    <div class="sh-acts"><button type="button" class="btn primary block" data-action="msg-send">Отправить</button>${claudeNowHtml()}</div>
-    <p class="note">${area === 'books' ? 'MP3 до 45 МБ каждый — главы по отдельности или одним файлом. Название и автора напиши, если их нет в именах файлов.' : 'Ссылку на Instagram, TikTok или YouTube можно просто вставить — видео скачаю сам; из Instagram ещё проще — «Поделиться» → Claude (настройка: Меню → Автозапись, п. 5). Файлы отправляются в фоне: можно сразу писать следующее.'}</p>
-    <div id="out-box">${outBoxHtml()}</div><div id="rq-open">${openFeedHtml()}</div>`;
-  } else body = done.length ? `<div class="stack" style="margin-top:12px">${done.map(x => feedItemHtml(x, false)).join('')}</div>` : '<p class="note">Ответов пока нет.</p>';
-  openSheet(`<h2 class="sh-title sh-claude"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span>Связь с Claude</h2>${seg}${body}`, keepScroll);
+  if (['sport', 'study', 'food', 'books'].includes(tab)) area = tab;
+  S.cur = { type: 'req', area: area || prev.area || '', limit: prev.limit || 60, sel: null, editId: null, re: prev.re || null, reMe: prev.reMe || false, strip: null, draft: prev.draft || '' };
+  const sub = ((S.config || {}).claude || {}).hours || 'отвечает в течение часа, с 9 до 24';
+  openSheet(`<div class="cl-head"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span><span class="cl-hn"><b>Claude</b><small>${esc(sub)}</small></span></div>
+    <div class="cl-chat" id="cl-chat" aria-live="polite">${clChatHtml()}</div>
+    <div class="cl-in"><div id="cl-ctx">${clCtxHtml()}</div>
+      <div class="cl-bar"><label class="cl-att file-btn" aria-label="Прикрепить фото, видео или аудио">${ico('clip')}<input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label><textarea id="msg-text" rows="1" placeholder="Сообщение" aria-label="Сообщение для Claude" autocapitalize="sentences">${esc(S.cur.draft)}</textarea><button type="button" class="cl-send" data-action="msg-send" aria-label="Отправить">${ico('send')}</button></div>
+    </div>`, false, 'chat');
+  clScrollEnd(); clLazy(); clGrow();
   markAnswersSeen();
-  if (tab === 'new') linkPoll();
+  chatPoll();
 }
+function clGrow() { const t = $('#msg-text'); if (!t) return; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 140) + 'px'; }
 async function sendMsg(btn) {
-  const c = S.cur && S.cur.type === 'req' ? S.cur : { area: 'general' };
-  let text = (($('#msg-text') && $('#msg-text').value) || '').trim(), link = (($('#msg-link') && $('#msg-link').value) || '').trim();
-  // ссылку на видео часто вставляют прямо в сообщение — достаём её оттуда, иначе GitHub её не увидит
-  if (!link) { const m = /https?:\/\/\S+/i.exec(text); if (m && isVideoLink(m[0])) { link = m[0].replace(/[),.!?»]+$/, ''); text = text.replace(m[0], ' ').replace(/\s+/g, ' ').trim(); } }
+  const c = S.cur && S.cur.type === 'req' ? S.cur : {};
+  const ta = $('#msg-text');
+  let text = ((ta && ta.value) || '').trim(), link = '';
+  // ссылку на видео достаём из текста — её скачает GitHub (см. .github/workflows в journal-data)
+  const m = /https?:\/\/\S+/i.exec(text);
+  if (m && isVideoLink(m[0])) { link = m[0].replace(/[),.!?»]+$/, ''); text = text.replace(m[0], ' ').replace(/[ \t]+/g, ' ').trim(); }
   const files = Array.from(($('#msg-files') && $('#msg-files').files) || []);
-  if (!text && !link && !files.length) { toast('Напиши текст, добавь ссылку или файл'); return; }
-  if (!link && !files.length && c.area === 'general') {
-    busy(btn, true);
-    const ok = await writeRequests(list => { list.push({ id: 'q' + rid().slice(0, 10), text, date: today(), ts: Date.now(), status: 'new' }); }, 'Запрос для Claude: ' + text.slice(0, 50));
-    busy(btn, false);
-    if (ok) { toast('Записал. Сделаю, когда откроешь меня.'); msgClear(); }
+  if (!text && !link && !files.length) { if (ta) ta.focus(); return; }
+  const re = c.re || null, reMe = !!c.reMe;
+  if (!link && !files.length) {
+    const rec = { id: 'q' + rid().slice(0, 10), text, date: today(), ts: Date.now(), status: 'new' };
+    if (re) { rec.re = re; if (reMe) rec.reMe = true; }
+    if (c.area && AREA_SHORT[c.area]) rec.area = c.area;
+    msgClear();
+    const ok = await writeRequests(list => { list.push(rec); }, 'Запрос для Claude: ' + text.slice(0, 50));
+    if (!ok && ta && !ta.value) { ta.value = text; clGrow(); }
     return;
   }
   const audio = files.filter(isAudio), other = files.filter(f => !isAudio(f));
@@ -5242,43 +5421,37 @@ async function sendMsg(btn) {
     if (big) { toast(`«${big.name}» больше 45 МБ. Скачай книгу по главам или раздели файл.`); return; }
     if (S.booksRepo !== 'ok') { busy(btn, true); const okR = await booksRepoCheck(); busy(btn, false); if (!okR) { toast('Сначала нужен репозиторий для книг — открываю инструкцию'); openBooks(); return; } }
   }
-  const job = { id: 'i' + rid().slice(0, 10), area: audio.length ? 'books' : c.area, text, link, files: other, audio, st: 'wait', pct: 0, ts: Date.now() };
+  const area = audio.length ? 'books' : (c.area && AREA_SHORT[c.area] ? c.area : guessArea(text));
+  const job = { id: 'i' + rid().slice(0, 10), area, text, link, files: other, audio, st: 'wait', pct: 0, ts: Date.now(), re, reMe };
   if (!files.length) {
-    // только ссылка/текст — пишется сразу; ссылку на видео скачает GitHub (см. .github/workflows в journal-data)
-    busy(btn, true);
+    msgClear();
     const ok = await writeIdeas(list => { list.push(outRec(job)); }, `Идея (${IDEA_AREA[job.area] || job.area}): ${(text || link).slice(0, 50)}`);
-    busy(btn, false);
-    if (ok) { toast(isVideoLink(link) ? 'Записал. Видео по ссылке скачаю сам — через пару минут будут кадры.' : 'Записал. Посмотрю, когда позовёшь.'); msgClear(); if (isVideoLink(link)) linkPoll(); }
+    if (ok) chatPoll(); else if (ta && !ta.value) { ta.value = (text + ' ' + link).trim(); clGrow(); }
     return;
   }
-  // файлы — в фоне: форма сразу свободна, можно писать следующее
+  // файлы — в фоне: поле сразу свободно, можно писать дальше
   OUT.jobs.push(job);
   msgClear();
-  toast(files.some(isVideo) ? 'Видео отправляется в фоне — можно писать дальше' : 'Отправляю в фоне — можно писать дальше');
   outRun();
 }
-// очистить форму, не перерисовывая окно (чтобы не сбить то, что набирается)
+// очистить поле ввода, не перерисовывая окно
 function msgClear() {
-  if (S.cur && S.cur.type === 'req') S.cur.draft = '';
-  const t = $('#msg-text'), l = $('#msg-link'), f = $('#msg-files'), lab = $('#msg-files-label');
-  if (t) t.value = ''; if (l) l.value = ''; if (f) f.value = ''; if (lab) lab.textContent = '📎';
-  refreshFeed();
+  const c = S.cur && S.cur.type === 'req' ? S.cur : null;
+  if (c) { c.draft = ''; c.re = null; c.reMe = false; c.sel = null; }
+  const t = $('#msg-text'), f = $('#msg-files');
+  if (t) { t.value = ''; clGrow(); } if (f) f.value = '';
+  clCtxRefresh(); refreshFeed(); clScrollEnd();
 }
 function outRec(j, up, au) {
   const rec = { id: j.id, area: j.area, date: today(), ts: j.ts || Date.now(), status: 'new' };
   if (j.text) rec.text = j.text; if (j.link) rec.link = j.link;
+  if (j.re) { rec.re = j.re; if (j.reMe) rec.reMe = true; }
   if (up && up.media.length) rec.media = up.media;
   if (au && au.media.length) { rec.audio = au.media; rec.names = au.names; rec.repo = booksRepo(); }
   if (up && up.frames) rec.frames = up.frames;
   const failed = ((up && up.failed.length) || 0) + ((au && au.failed.length) || 0);
   if (failed) rec.failed = failed;
   return rec;
-}
-
-// «Разобрать сейчас»: Команда iOS дёргает API-триггер задачи «Журнал: входящие» (токен живёт только в Команде)
-function claudeNowHtml() {
-  const c = (S.config || {}).claude || {}; if (!c.fireUrl) return '';
-  return `<a class="btn block claude-now" href="shortcuts://run-shortcut?name=${encodeURIComponent(c.shortcut || 'Claude разбор')}">⚡ Разобрать сейчас</a>`;
 }
 
 /* ---------- фоновые отправки ----------
@@ -5290,14 +5463,6 @@ function outLabel(j) {
   if (j.st === 'err') return 'не отправилось' + (j.err ? ' · ' + j.err : '');
   if (j.st === 'wait') return 'в очереди';
   return (j.detail ? j.detail + ' · ' : '') + Math.round(j.pct || 0) + '%' + (j.eta ? ' · ' + j.eta : '');
-}
-function outItemHtml(j) {
-  const areaL = (MSG_AREA.find(a => a[0] === j.area) || [0, ''])[1];
-  return `<div class="req-item out-item${j.st === 'err' ? ' err' : ''}" data-out="${esc(j.id)}"><div class="rq-top"><span class="chip ar-${esc(j.area)}">${esc(areaL)}</span><span class="rq-d" data-od>${esc(outLabel(j))}</span></div><div>${esc(outName(j))}</div>${j.st === 'err' ? `<div class="req-meta"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">Повторить</button></div>` : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}</div>`;
-}
-function outBoxHtml() {
-  const l = OUT.jobs;
-  return l.length ? `<h3 class="sec">Отправляется · ${l.length}</h3><div class="stack">${l.map(outItemHtml).join('')}</div>` : '';
 }
 // прогресс текущей отправки (зовётся из PROG.set)
 function outTick(pct, detail, eta) {
@@ -5336,27 +5501,40 @@ async function outSend(j) {
 }
 // обновить ленту в открытом чате, не трогая поле ввода и выбранные файлы
 function refreshFeed() {
-  const ob = $('#out-box'), rb = $('#rq-open');
-  if (ob) ob.innerHTML = outBoxHtml();
-  if (rb) rb.innerHTML = openFeedHtml();
+  const ch = $('#cl-chat'); if (!ch || !(S.cur && S.cur.type === 'req')) return;
+  const atEnd = ch.scrollHeight - ch.scrollTop - ch.clientHeight < 80, top = ch.scrollTop;
+  ch.innerHTML = clChatHtml();
+  ch.scrollTop = atEnd ? ch.scrollHeight : top;
+  clLazy();
+  if (unseenAnswers()) markAnswersSeen();
+  if (!chatPollT) chatPoll();
 }
-function openFeedHtml() {
-  const open = claudeFeed().filter(x => x.open).sort(byNewest);
-  return open.length ? `<h3 class="sec">Ждут ответа · ${open.length}</h3><div class="stack">${open.map(x => feedItemHtml(x, true)).join('')}</div>` : '';
-}
-// ссылки на видео (Instagram, TikTok, YouTube, VK) скачивает GitHub — пока чат открыт, тихо проверяем, готово ли
+// ссылки на видео (Instagram, TikTok, YouTube, VK) скачивает GitHub; ответы Claude приходят раз в час —
+// пока чат открыт, тихо проверяем (раз в 20 с, пока качается видео, иначе раз в минуту, если есть сообщения без ответа)
 const isVideoLink = u => /^https?:\/\/([a-z0-9-]+\.)*(instagram\.com|instagr\.am|tiktok\.com|youtube\.com|youtu\.be|vk\.com|vkvideo\.ru|rutube\.ru|x\.com|twitter\.com|pinterest\.[a-z.]+|pin\.it)\//i.test(u || '');
 const linkPending = x => x.link && isVideoLink(x.link) && x.status !== 'seen' && !(x.media && x.media.length) && !x.fetchErr && Date.now() - (x.ts || 0) < 30 * 60000;
-let linkPollT = 0;
-function linkPoll() {
-  clearTimeout(linkPollT);
-  if (!S.ideas.some(linkPending)) return;
-  linkPollT = setTimeout(async () => {
-    if (!(S.cur && S.cur.type === 'req') || document.hidden) { linkPollT = 0; return; }
-    try { const d = await readDoc('ideas.json'); if (d && Array.isArray(d.ideas)) { S.ideas = d.ideas; cacheNow(); refreshFeed(); } } catch (_) {}
-    linkPoll();
-  }, 20000);
+let chatPollT = 0;
+function chatPoll() {
+  clearTimeout(chatPollT); chatPollT = 0;
+  if (!(S.cur && S.cur.type === 'req')) return;
+  const fast = S.ideas.some(linkPending);
+  if (!fast && !clItems().some(x => !x.answer && x.status !== 'done')) return;
+  chatPollT = setTimeout(async () => {
+    chatPollT = 0;
+    if (!(S.cur && S.cur.type === 'req') || document.hidden) return;
+    if (!S.pending && !queueCount()) {
+      try {
+        const [q, i] = await Promise.all([readDoc('requests.json'), readDoc('ideas.json')]);
+        let ch = false;
+        if (q && Array.isArray(q.requests) && JSON.stringify(q.requests) !== JSON.stringify(S.requests)) { S.requests = q.requests; ch = true; }
+        if (i && Array.isArray(i.ideas) && JSON.stringify(i.ideas) !== JSON.stringify(S.ideas)) { S.ideas = i.ideas; ch = true; }
+        if (ch) { cacheNow(); refreshFeed(); renderClaudeBtn(); }
+      } catch (_) {}
+    }
+    chatPoll();
+  }, fast ? 20000 : 60000);
 }
+const linkPoll = chatPoll;
 
 /* ---------- книги: аудио по главам, плеер с памятью позиции ----------
    Аудио лежит в отдельном приватном репозитории (config.books.repo, по умолчанию journal-books),
