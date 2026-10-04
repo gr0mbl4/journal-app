@@ -863,7 +863,7 @@ details.rcpt[open]>summary .mn::after{content:" ▴"}
 .rc-items .mrow .mn{font-weight:400;font-size:14px}
 
 /* тренировка v3: шаги, дроп-сеты, прогресс, блоки-аккордеоны */
-.set{display:grid;grid-template-columns:26px minmax(0,1.15fr) 10px minmax(0,1fr) 32px;gap:5px;align-items:center}
+.set{display:grid;grid-template-columns:26px minmax(0,1.15fr) 10px minmax(0,1fr) 38px;gap:5px;align-items:center}
 .set.r{grid-template-columns:26px minmax(0,1fr) auto}
 .set .u{font-size:12px;color:var(--muted);text-align:center}
 .set.drop-row .sl{color:var(--sport);text-align:center;font-weight:700}
@@ -881,7 +881,10 @@ details.rcpt[open]>summary .mn::after{content:" ▴"}
 .stp input:focus{box-shadow:none;background:var(--glass-2)}
 .sb{width:30px;height:38px;border:0;background:transparent;color:var(--muted);font-size:19px;font-weight:600;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;touch-action:manipulation}
 .sb:active{background:var(--glass-2);color:var(--ink)}
-.sb.drop{border:1px dashed color-mix(in srgb,var(--sport) 45%,transparent);border-radius:10px;width:32px;color:var(--sport);font-size:16px}
+.sb.drop{border:1px solid color-mix(in srgb,var(--sport) 55%,transparent);border-radius:10px;width:38px;color:var(--sport);font-size:15px;background:color-mix(in srgb,var(--sport) 10%,transparent);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.sb.drop small{font-size:9.5px;font-weight:600;line-height:1;letter-spacing:.02em;margin-top:1px}
+.ex-prev{font-size:12.5px;color:var(--sport);line-height:1.35}
+.ex-prev b{font-weight:700}
 .set-add{display:flex;gap:16px;flex-wrap:wrap;margin-top:4px}
 .set-add .link-btn{text-decoration:none;color:var(--sport);font-weight:600}
 details.blk-f{padding:0}
@@ -1358,6 +1361,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261004d"></script>
+<script src="app.js?v=20261004e"></script>
 </body>
 </html>

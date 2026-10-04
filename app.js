@@ -1213,6 +1213,17 @@ function wkOrder(i, ses) {
   if (log && ok(log.order)) return log.order.slice();
   return ses.blocks.map((_, k) => k);
 }
+// подсказка у тренажёра: с чего начинал в прошлый раз (первый подход) и как шли остальные
+function prevHint(x, before) {
+  if (x.log !== 'wr' && x.log !== 'r') return '';
+  const p = prevSets(null, x.name, before); if (!p) return '';
+  const n = v => String(v).replace('.', ',');
+  const one = s => s.w != null ? n(s.w) + (s.r != null ? ' × ' + s.r : ' кг') : (s.r != null ? s.r + ' повт' : '');
+  const list = p.sets.filter(s => s && (s.w != null || s.r != null));
+  if (!list.length) return '';
+  const first = list[0], rest = list.slice(1).map(one);
+  return `<span class="ex-prev">Прошлый раз, ${esc(dm(p.date))}: начал с <b>${esc(x.log === 'wr' && first.w != null ? n(first.w) + ' кг' : one(first))}</b>${x.log === 'wr' && first.w != null && first.r != null ? ' × ' + first.r : ''}${rest.length ? ' · дальше ' + esc(rest.join(', ')) : ''}</span>`;
+}
 function workoutForm(i, ses) {
   const c = S.cur && S.cur.type === 'sport' && S.cur.id === i.id ? S.cur : { rows: {}, times: {} };
   c.rows = c.rows || {}; c.times = c.times || {};
@@ -1233,7 +1244,7 @@ function workoutForm(i, ses) {
     const order = ex.map((x, ei) => ({ x, ei, n: (wrAll.find(o => o.ei === ei) || {}).n || 0, ps: (x.log === 'wr' || x.log === 'r') ? exSets(x, b) : 0 })).sort((a, z) => z.ps - a.ps || a.ei - z.ei);
     const multi = ex.length > 1;
     const letter = new Map(order.map((o, k) => [o.ei, multi ? LET[k] : '']));
-    const names = order.map(({ x, ei }) => `<div class="exl"><span class="let">${letter.get(ei)}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${(x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${(wrAll.find(o => o.ei === ei) || {}).n} ${plural((wrAll.find(o => o.ei === ei) || {}).n, 'подход', 'подхода', 'подходов')}</span>` : ''}</span><span class="ex-acts">${exFind(x.name) ? `<button type="button" class="icon-btn sm ex-tech" data-action="ex-open" data-id="${esc(exFind(x.name).id)}" data-from="sport:${esc(i.id)}" aria-label="Техника: ${esc(x.name)}">${ico('play')}</button>` : ''}${ses.replaced === 'custom' ? '' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</span></div>
+    const names = order.map(({ x, ei }) => `<div class="exl"><span class="let">${letter.get(ei)}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${prevHint(x, i.eff)}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${(x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${(wrAll.find(o => o.ei === ei) || {}).n} ${plural((wrAll.find(o => o.ei === ei) || {}).n, 'подход', 'подхода', 'подходов')}</span>` : ''}</span><span class="ex-acts">${exFind(x.name) ? `<button type="button" class="icon-btn sm ex-tech" data-action="ex-open" data-id="${esc(exFind(x.name).id)}" data-from="sport:${esc(i.id)}" aria-label="Техника: ${esc(x.name)}">${ico('play')}</button>` : ''}${ses.replaced === 'custom' ? '' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</span></div>
       <div class="swap-form" id="swf-${bi}-${ei}" hidden><input id="swi-${bi}-${ei}" list="ex-dl" placeholder="Чем заменить (подсказки — из базы)" value="${esc(x.swapped ? x.name : '')}"><div class="two"><button type="button" class="btn sm" data-action="ex-swap-once" data-b="${bi}" data-e="${ei}">Только в этот раз</button><button type="button" class="btn sm" data-action="ex-swap-perm" data-b="${bi}" data-e="${ei}">В программе навсегда</button></div>${x.swapped ? `<button type="button" class="btn sm" data-action="ex-unswap" data-b="${bi}" data-e="${ei}">Вернуть по программе</button>` : ''}</div>`).join('');
     let body = '', filled = 0, total = 0;
     const wr = order.filter(o => o.x.log === 'wr' || o.x.log === 'r');
@@ -1251,7 +1262,7 @@ function workoutForm(i, ses) {
           const rIn = stepper(`lg-${k}-r`, s.r != null ? s.r : '', ps.r != null ? ps.r : 'повт', 'numeric', nm + ', повторы', k, 'r');
           let row;
           if (o.x.log === 'r') row = `<div class="set r" data-k="${k}"><span class="sl">${lab}</span>${rIn}<span class="u">повт</span></div>`;
-          else row = `<div class="set" data-k="${k}"><span class="sl">${lab}</span>${stepper(`lg-${k}-w`, s.w != null ? s.w : '', ps.w != null ? ps.w : 'кг', 'decimal', nm + ', вес', k, 'w')}<span class="u">×</span>${rIn}<button type="button" class="sb drop" data-action="drop-add" data-k="${k}" aria-label="Добавить дроп-сет">↓</button></div>`;
+          else row = `<div class="set" data-k="${k}"><span class="sl">${lab}</span>${stepper(`lg-${k}-w`, s.w != null ? s.w : '', ps.w != null ? ps.w : 'кг', 'decimal', nm + ', вес', k, 'w')}<span class="u">×</span>${rIn}<button type="button" class="sb drop" data-action="drop-add" data-k="${k}" aria-label="Добавить дроп-сет" title="Дроп-сет">↓<small>дроп</small></button></div>`;
           const drops = Array.isArray(s.drops) ? s.drops : [];
           const pd = Array.isArray(ps.drops) ? ps.drops : [];
           row += drops.map((dr, j) => { const kd = k + '-d' + j, pj = pd[j] || {}; return `<div class="set drop-row" data-k="${kd}"><span class="sl">↳</span>${stepper(`lg-${kd}-w`, dr && dr.w != null ? dr.w : '', pj.w != null ? pj.w : 'кг', 'decimal', nm + ', дроп, вес', kd, 'w')}<span class="u">×</span>${stepper(`lg-${kd}-r`, dr && dr.r != null ? dr.r : '', pj.r != null ? pj.r : 'повт', 'numeric', nm + ', дроп, повторы', kd, 'r')}<button type="button" class="sb" data-action="drop-del" data-k="${kd}" aria-label="Убрать дроп-сет">×</button></div>`; }).join('');
