@@ -1226,6 +1226,48 @@ function prevHint(x, before) {
   const first = list[0], rest = list.slice(1).map(one);
   return `<span class="ex-prev">Прошлый раз, ${esc(dm(p.date))}: начал с <b>${esc(x.log === 'wr' && first.w != null ? n(first.w) + ' кг' : one(first))}</b>${x.log === 'wr' && first.w != null && first.r != null ? ' × ' + first.r : ''}${rest.length ? ' · дальше ' + esc(rest.join(', ')) : ''}</span>`;
 }
+// История упражнения по тренировкам (новые первыми): только рабочие подходы с весом/повторами, без дропов.
+function exHistory(name, before, n) {
+  const out = [];
+  for (const mk of Object.keys(S.workouts)) for (const L of Object.values((S.workouts[mk] || {}).logs || {})) {
+    if (!L || !(L.date < before)) continue;
+    for (const b of L.blocks || []) for (const x of b.ex || []) {
+      if (x.name !== name || !Array.isArray(x.sets)) continue;
+      const sets = x.sets.filter(st => st && (Number(st.r) > 0)).map(st => ({ w: Number(st.w) > 0 ? Number(st.w) : null, r: Number(st.r) }));
+      if (sets.length) out.push({ date: L.date, sets });
+    }
+  }
+  return out.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, n || 3);
+}
+// лучший подход тренировки: самый тяжёлый вес, на нём — больше всего повторов
+function topSet(sets) {
+  const ws = sets.filter(st => st.w != null);
+  if (!ws.length) return { w: null, r: Math.max(...sets.map(st => st.r)) };
+  const w = Math.max(...ws.map(st => st.w));
+  return { w, r: Math.max(...ws.filter(st => st.w === w).map(st => st.r)) };
+}
+const better = (a, b) => (a.w || 0) > (b.w || 0) || ((a.w || 0) === (b.w || 0) && a.r > b.r);
+// Автопрогрессия (двойная): дошёл до верха диапазона повторов на самом тяжёлом подходе — добавь вес;
+// провалился ниже низа — сбавь; иначе — тот же вес и +1 повтор. Три тренировки без прогресса — лёгкая неделя.
+function progTip(x, before, blockType) {
+  if (blockType === 'Круг' || (x.log !== 'wr' && x.log !== 'r')) return '';
+  const h = exHistory(x.name, before, 3); if (!h.length) return '';
+  const last = topSet(h[0].sets), n = v => String(Math.round(v * 100) / 100).replace('.', ',');
+  const high = h[0].sets.every(st => st.r >= 15), lo = high ? 15 : 8, hi = high ? 20 : 12; // пирамида: лёгкий первый подход на 15+ — ещё не «многоповторка»
+  let tip;
+  if (x.log === 'r' || last.w == null) tip = `сегодня: <b>${last.r + 1}+ повторов</b> в лучшем подходе (было ${last.r})`;
+  else {
+    const step = wStep(x.name);
+    if (last.r >= hi) tip = `сегодня: <b>${n(last.w + step)} кг</b> на тяжёлом подходе — в прошлый раз ${last.r} повторов на ${n(last.w)} — диапазон ${lo}–${hi} пройден`;
+    else if (last.r < lo - 2) tip = `сегодня: <b>${n(Math.max(step, last.w - step))} кг</b> или держи ${n(last.w)} — было всего ${last.r} повторов`;
+    else tip = `сегодня: <b>${n(last.w)} кг × ${last.r + 1}+</b> — добивай повторы до ${hi}, потом вес`;
+  }
+  if (h.length >= 3) {
+    const t = h.map(o => topSet(o.sets));
+    if (!better(t[0], t[1]) && !better(t[1], t[2])) tip += ' · 3 тренировки без прогресса: сделай лёгкую неделю (−10% веса) или замени упражнение';
+  }
+  return `<span class="ex-prog">↗ ${tip}</span>`;
+}
 function workoutForm(i, ses) {
   const c = S.cur && S.cur.type === 'sport' && S.cur.id === i.id ? S.cur : { rows: {}, times: {} };
   c.rows = c.rows || {}; c.times = c.times || {};
@@ -1246,7 +1288,7 @@ function workoutForm(i, ses) {
     const order = ex.map((x, ei) => ({ x, ei, n: (wrAll.find(o => o.ei === ei) || {}).n || 0, ps: (x.log === 'wr' || x.log === 'r') ? exSets(x, b) : 0 })).sort((a, z) => z.ps - a.ps || a.ei - z.ei);
     const multi = ex.length > 1;
     const letter = new Map(order.map((o, k) => [o.ei, multi ? LET[k] : '']));
-    const names = order.map(({ x, ei }) => `<div class="exl"><span class="let">${letter.get(ei)}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${prevHint(x, i.eff)}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${(x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${(wrAll.find(o => o.ei === ei) || {}).n} ${plural((wrAll.find(o => o.ei === ei) || {}).n, 'подход', 'подхода', 'подходов')}</span>` : ''}</span><span class="ex-acts">${exFind(x.name) ? `<button type="button" class="icon-btn sm ex-tech" data-action="ex-open" data-id="${esc(exFind(x.name).id)}" data-from="sport:${esc(i.id)}" aria-label="Техника: ${esc(x.name)}">${ico('play')}</button>` : ''}${ses.replaced === 'custom' ? '' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</span></div>
+    const names = order.map(({ x, ei }) => `<div class="exl"><span class="let">${letter.get(ei)}</span><span class="rb"><span class="ex-name">${esc(x.name)}${x.swapped ? ' <span class="chip warn">замена</span>' : ''}</span>${x.hint ? `<span class="ex-hint">${esc(x.hint)}</span>` : ''}${prevHint(x, i.eff)}${progTip(x, i.eff, b.type)}${x.swapped && x.orig ? `<span class="ex-hint">по программе: ${esc(x.orig)}</span>` : ''}${(x.log === 'wr' || x.log === 'r') ? `<span class="ex-hint">${(wrAll.find(o => o.ei === ei) || {}).n} ${plural((wrAll.find(o => o.ei === ei) || {}).n, 'подход', 'подхода', 'подходов')}</span>` : ''}</span><span class="ex-acts">${exFind(x.name) ? `<button type="button" class="icon-btn sm ex-tech" data-action="ex-open" data-id="${esc(exFind(x.name).id)}" data-from="sport:${esc(i.id)}" aria-label="Техника: ${esc(x.name)}">${ico('play')}</button>` : ''}${ses.replaced === 'custom' ? '' : `<button type="button" class="icon-btn sm" data-action="ex-swap" data-b="${bi}" data-e="${ei}" aria-label="Заменить упражнение">⇄</button>`}</span></div>
       <div class="swap-form" id="swf-${bi}-${ei}" hidden><input id="swi-${bi}-${ei}" list="ex-dl" placeholder="Чем заменить (подсказки — из базы)" value="${esc(x.swapped ? x.name : '')}"><div class="two"><button type="button" class="btn sm" data-action="ex-swap-once" data-b="${bi}" data-e="${ei}">Только в этот раз</button><button type="button" class="btn sm" data-action="ex-swap-perm" data-b="${bi}" data-e="${ei}">В программе навсегда</button></div>${x.swapped ? `<button type="button" class="btn sm" data-action="ex-unswap" data-b="${bi}" data-e="${ei}">Вернуть по программе</button>` : ''}</div>`).join('');
     let body = '', filled = 0, total = 0;
     const wr = order.filter(o => o.x.log === 'wr' || o.x.log === 'r');
