@@ -1,6 +1,6 @@
 // Офлайн-оболочка журнала: страница и скрипт берутся из кэша, если нет сети.
 // Данные (api.github.com) сюда не попадают — они в localStorage приложения.
-const CACHE = 'bj-shell-20261004e';
+const CACHE = 'bj-shell-20261004f';
 const STATIC = ['./manifest.webmanifest', './icon-192.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -28,6 +28,7 @@ self.addEventListener('fetch', e => {
   if (r.method !== 'GET') return;
   const u = new URL(r.url);
   if (u.origin !== self.location.origin) return;
+  if (u.searchParams.has('vcheck')) return; // проверка новой версии — всегда сеть, мимо кэша
   if (r.mode === 'navigate') {
     // Сразу из кэша (журнал открывается мгновенно даже при плохой сети), свежая версия — в фоне, со следующего открытия.
     const cp = caches.open(CACHE);

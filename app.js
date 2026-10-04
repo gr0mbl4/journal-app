@@ -1183,7 +1183,7 @@ function prevSets(key, name, before) {
 }
 const exSets = (x, b) => Number(x.sets || b.sets || 3);
 const nowT = () => { const d = new Date(); return hhmm(d) + ':' + pad(d.getSeconds()); };
-// шаг веса по истории упражнения: самая маленькая разница между весами, от 1 до 5 кг (по умолчанию 2,5)
+// шаг веса по истории упражнения: самая маленькая разница между весами, от 1 до 5 кг (по умолчанию 2,5; гантели — 2)
 function wStep(name) {
   const ws = new Set();
   for (const mk of Object.keys(S.workouts)) for (const L of Object.values((S.workouts[mk] || {}).logs || {})) for (const b of (L && L.blocks) || []) for (const x of b.ex || []) {
@@ -1192,6 +1192,8 @@ function wStep(name) {
   }
   const v = Array.from(ws).sort((a, b) => a - b); let m = Infinity;
   for (let k = 1; k < v.length; k++) m = Math.min(m, Math.round((v[k] - v[k - 1]) * 100) / 100);
+  // гантели у Олега идут через 2 кг (20, 22, 24…)
+  if (/гантел/i.test(name)) return 2;
   return isFinite(m) && m > 0 ? Math.max(1, Math.min(5, m)) : 2.5;
 }
 function wkSrc(i) {
@@ -5926,6 +5928,37 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('online', () => { if (GH.cred) { S.offline = false; if (queueCount()) runFlush(); loadAll(true); } });
 window.addEventListener('offline', () => setSync(queueNote() || 'нет сети · показаны сохранённые данные'));
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
+// Новая версия журнала: сверяем app.js?v=… из свежего index.html с текущим и предлагаем перезайти.
+const APP_VER = ((document.querySelector('script[src*="app.js"]') || {}).src || '').replace(/^.*[?&]v=([^&]+).*$/, '$1');
+let verSeen = 0, verNew = '';
+async function checkVersion() {
+  if (!APP_VER || verNew || Date.now() - verSeen < 60000) return;
+  verSeen = Date.now();
+  try {
+    const res = await fetch('index.html?vcheck=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const html = await res.text(), m = html.match(/app\.js\?v=([^"'&]+)/);
+    if (!m || m[1] === APP_VER) return;
+    verNew = m[1];
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.textContent = 'Новая версия журнала · Обновить';
+    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));z-index:70;background:var(--ink);color:var(--on-ink);border:0;border-radius:999px;padding:11px 18px;font:inherit;font-size:14px;font-weight:600;white-space:nowrap;box-shadow:var(--shadow);max-width:calc(100% - 32px)';
+    el.addEventListener('click', async () => {
+      el.textContent = 'Обновляю…'; el.disabled = true;
+      try {
+        // кладём свежую страницу в кэш оболочки, чтобы перезагрузка сразу открыла новую версию, а не со второго раза
+        if (window.caches) for (const k of await caches.keys()) if (k.startsWith('bj-shell-')) await (await caches.open(k)).put(new Request('index.html'), new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }));
+        const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+        if (reg) await Promise.race([reg.update(), new Promise(r => setTimeout(r, 3000))]);
+      } catch (e) {}
+      location.reload();
+    });
+    document.body.appendChild(el);
+  } catch (e) {}
+}
+setTimeout(checkVersion, 1500);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
 setInterval(() => {
   const t = today();
   if (t !== S.lastToday) {
