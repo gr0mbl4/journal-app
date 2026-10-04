@@ -109,12 +109,13 @@ const GH = {
     const j = await r.json();
     return Array.isArray(j) ? j : [];
   },
-  async blob(path) {
+  async blob(path, type) {
     let r;
     try { r = await fetch('https://api.github.com' + this.url(path), { headers: { 'Authorization': 'Bearer ' + this.cred.token, 'Accept': 'application/vnd.github.raw', 'X-GitHub-Api-Version': '2022-11-28' } }); }
     catch (_) { const e = new Error('offline'); e.code = 'offline'; throw e; }
     if (!r.ok) throw this.fail(r);
-    return URL.createObjectURL(await r.blob());
+    const b = await r.blob();
+    return URL.createObjectURL(type ? new Blob([b], { type }) : b);
   },
   base() { return `/repos/${encodeURIComponent(this.cred.owner)}/${encodeURIComponent(this.cred.repo)}`; },
   baseOf(repo) { return `/repos/${encodeURIComponent(this.cred.owner)}/${encodeURIComponent(repo)}`; },
@@ -3284,6 +3285,7 @@ function closeSheet() {
   S.cur = null; $('#sheet').hidden = true; document.body.classList.remove('locked');
   const p = document.querySelector('.sheet-panel'); if (p && p.style) { p.style.transform = ''; p.classList.remove('drag', 'snap', 'chat-mode'); }
   clearTimeout(chatPollT); chatPollT = 0;
+  if (REC.mr) recStop(false);
   vvFit();
 }
 // чат: шторка подстраивается под экранную клавиатуру (iOS сдвигает только видимую область)
@@ -4368,11 +4370,11 @@ document.addEventListener('click', async ev => {
     }
     case 'cl-copy': {
       const a2 = id.startsWith('a:'), x = clItems().find(y => y.id === (a2 ? id.slice(2) : id)); if (!x) break;
-      try { await navigator.clipboard.writeText(a2 ? x.answer : x.text); toast('Скопировано'); } catch (_) { toast('Не получилось скопировать'); }
+      try { await navigator.clipboard.writeText(a2 ? x.answer : (x.text || x.transcript || '')); toast('Скопировано'); } catch (_) { toast('Не получилось скопировать'); }
       if (S.cur) { S.cur.sel = null; refreshFeed(); } break;
     }
     case 'cl-reply-x': if (S.cur && S.cur.type === 'req') { S.cur.re = null; S.cur.reMe = false; clCtxRefresh(); } break;
-    case 'cl-files-x': { const f = $('#msg-files'); if (f) f.value = ''; clCtxRefresh(); break; }
+    case 'cl-files-x': { const f = $('#msg-files'); if (f) f.value = ''; clCtxRefresh(); clBarState(); break; }
     case 'cl-area-x': if (S.cur && S.cur.type === 'req') { S.cur.area = ''; clCtxRefresh(); } break;
     case 'cl-more': {
       if (!(S.cur && S.cur.type === 'req')) break;
@@ -4380,6 +4382,10 @@ document.addEventListener('click', async ev => {
       S.cur.limit = (S.cur.limit || 60) + 60; refreshFeed();
       if (ch) ch.scrollTop = ch.scrollHeight - fromEnd; break;
     }
+    case 'cl-rec': recStart(); break;
+    case 'cl-rec-x': recStop(false); break;
+    case 'cl-rec-send': recStop(true); break;
+    case 'cl-play': voicePlay(b.dataset.path, b); break;
     case 'cl-strip': if (S.cur && S.cur.type === 'req') { S.cur.strip = S.cur.strip === id ? null : id; refreshFeed(); } break;
     case 'out-retry': { const j = OUT.jobs.find(x => x.id === b.dataset.id); if (j) { j.st = 'wait'; j.err = ''; refreshFeed(); outRun(); } break; }
     case 'out-drop': { OUT.jobs = OUT.jobs.filter(x => x.id !== b.dataset.id); refreshFeed(); break; }
@@ -4770,7 +4776,7 @@ document.addEventListener('change', async ev => {
     const files = Array.from(el.files || []); el.value = '';
     if (files.length) wkPhotoUpload(files);
   } else if (el.id === 'msg-files') {
-    clCtxRefresh();
+    clCtxRefresh(); clBarState();
   } else if (el.id === 'rc-files' || el.id === 'id-files') {
     const n = el.files ? el.files.length : 0, lab = $(el.id === 'rc-files' ? '#rc-files-label' : '#id-files-label');
     if (lab) lab.textContent = n ? `Выбрано файлов: ${n}` : (el.id === 'rc-files' ? 'Выбрать фото или видео' : 'Добавить фото или видео');
@@ -4839,6 +4845,8 @@ const ICP = {
   play: '<path d="M8 5.5v13l10-6.5z"/>',
   clip: '<path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
   send: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2"/><rect x="16" y="14" width="5" height="7" rx="2"/>',
   cam: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   warn: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17h.01"/>'
@@ -5266,13 +5274,15 @@ function clFmt(s) {
 function clItems() {
   const ts = x => x.ts || Date.parse((x.date || today()) + 'T12:00:00') || 0;
   const rq = S.requests.filter(r => !demoBad(r.text + ' ' + (r.answer || ''))).map(r => ({ kind: 'rq', id: r.id, src: r, text: r.text || '', area: r.area || 'general', ts: ts(r), date: r.date, status: r.status || 'new',
-    answer: r.answer, answerTs: r.answerTs, choices: Array.isArray(r.choices) ? r.choices : [], re: r.re, reMe: r.reMe, edited: r.edited, media: [], audio: [] }));
+    answer: r.answer, answerTs: r.answerTs, choices: Array.isArray(r.choices) ? r.choices : [], re: r.re, reMe: r.reMe, edited: r.edited, media: [], audio: [], via: r.via }));
   const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, src: x, text: x.text || x.title || '', area: x.area || 'general', ts: ts(x), date: x.date, status: x.status === 'seen' ? 'done' : (x.status || 'new'),
     answer: x.answer, answerTs: x.answerTs, choices: Array.isArray(x.choices) ? x.choices : [], re: x.re, reMe: x.reMe, link: x.link, media: x.media || [], frames: x.frames, audio: x.audio || [], names: x.names || [],
-    fetching: linkPending(x), fetchErr: x.status !== 'seen' ? x.fetchErr : null, source: x.source, caption: x.caption, failed: x.failed, via: x.via }));
+    fetching: linkPending(x), fetchErr: x.status !== 'seen' ? x.fetchErr : null, source: x.source, caption: x.caption, failed: x.failed, via: x.via,
+    voice: x.voice, dur: x.dur, transcript: x.voice ? x.transcript : null, voiceErr: x.voiceErr }));
   return rq.concat(id);
 }
 function clSnippet(x) {
+  if (x.voice) return '🎙 ' + (x.transcript ? x.transcript : 'Голосовое ' + mmss(x.dur || 0));
   if (x.text) return x.text;
   if (x.frames) return 'Видео';
   if (x.media && x.media.length) return x.media.length > 1 ? 'Фото · ' + x.media.length : 'Фото';
@@ -5313,12 +5323,13 @@ function clMeHtml(x, byId) {
   const p = x.re && byId.get(x.re);
   const q = p ? (x.reMe ? `<span class="cl-q" data-action="cl-goto" data-to="cl-m-${esc(p.id)}"><b>Ты</b><span>${esc(clSnip(clSnippet(p)))}</span></span>`
     : `<span class="cl-q" data-action="cl-goto" data-to="cl-a-${esc(p.id)}"><b>Claude</b><span>${esc(clSnip(p.answer || clSnippet(p)))}</span></span>`) : '';
-  const tick = x.fetching ? '<i class="cl-tk">⏳</i>' : x.answer ? '<i class="cl-tk read">✓✓</i>' : '<i class="cl-tk">✓</i>';
+  const tick = x.fetching || voicePending(x) ? '<i class="cl-tk">⏳</i>' : x.answer ? '<i class="cl-tk read">✓✓</i>' : '<i class="cl-tk">✓</i>';
   const tag = x.area && AREA_SHORT[x.area] ? `<span class="cl-tag">#${esc(AREA_SHORT[x.area])}</span>` : '';
-  const empty = !x.text && !(x.media || []).length && !x.link && !(x.audio || []).length;
-  const body = q + clMediaHtml(x) + (x.link ? clLinkHtml(x) : '') + (x.text || empty ? `<div class="cl-t">${x.text ? clFmt(x.text) : '…'}</div>` : '');
+  const empty = !x.text && !(x.media || []).length && !x.link && !(x.audio || []).length && !x.voice;
+  const via = x.via === 'alice' ? '<span class="cl-via">🎙 через Алису</span>' : '';
+  const body = q + via + (x.voice ? clVoiceHtml(x) : '') + clMediaHtml(x) + (x.link ? clLinkHtml(x) : '') + (x.text || empty ? `<div class="cl-t">${x.text ? clFmt(x.text) : '…'}</div>` : '');
   const canDel = !x.answer && x.status === 'new';
-  const acts = sel ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="cl-reply" data-id="${esc(x.id)}" data-me="1">Дополнить</button>${x.text ? `<button type="button" class="btn sm" data-action="cl-copy" data-id="${esc(x.id)}">Копировать</button>` : ''}${x.kind === 'rq' && canDel ? `<button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(x.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(x.id)}">Удалить</button>` : ''}${x.kind === 'idea' && canDel ? `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>` : ''}</div>` : '';
+  const acts = sel ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="cl-reply" data-id="${esc(x.id)}" data-me="1">Дополнить</button>${x.text || x.transcript ? `<button type="button" class="btn sm" data-action="cl-copy" data-id="${esc(x.id)}">Копировать</button>` : ''}${x.kind === 'rq' && canDel ? `<button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(x.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(x.id)}">Удалить</button>` : ''}${x.kind === 'idea' && canDel ? `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>` : ''}</div>` : '';
   return `<div class="cl-row me${sel ? ' sel' : ''}" id="cl-m-${esc(x.id)}"><div class="cl-b me" role="button" tabindex="0" data-action="cl-tap" data-id="${esc(x.id)}">${body}<span class="cl-meta">${tag}${x.edited ? 'изм. ' : ''}${hhmm(new Date(x.ts))}${tick}</span></div>${acts}</div>`;
 }
 function clAsked(x, replies) {
@@ -5335,7 +5346,8 @@ function clClHtml(x, replies) {
 }
 function clOutHtml(j) {
   const err = j.st === 'err', n = j.files.length + j.audio.length;
-  return `<div class="cl-row me"><div class="cl-b me out${err ? ' err' : ''}" data-out="${esc(j.id)}">${j.text ? `<div class="cl-t">${clFmt(j.text)}</div>` : ''}<div class="cl-up">${ico('clip')} ${n} ${plural(n, 'файл', 'файла', 'файлов')} · <span data-od>${esc(outLabel(j))}</span></div>${err ? '' : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}<span class="cl-meta">${hhmm(new Date(j.ts))}<i class="cl-tk">${err ? '!' : '🕓'}</i></span></div>${err ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">Повторить</button></div>` : ''}</div>`;
+  const what = j.voice ? `${ico('mic')} голосовое ${mmss(j.voice.dur)}` : `${ico('clip')} ${n} ${plural(n, 'файл', 'файла', 'файлов')}`;
+  return `<div class="cl-row me"><div class="cl-b me out${err ? ' err' : ''}" data-out="${esc(j.id)}">${j.text ? `<div class="cl-t">${clFmt(j.text)}</div>` : ''}<div class="cl-up">${what} · <span data-od>${esc(outLabel(j))}</span></div>${err ? '' : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}<span class="cl-meta">${hhmm(new Date(j.ts))}<i class="cl-tk">${err ? '!' : '🕓'}</i></span></div>${err ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">Повторить</button></div>` : ''}</div>`;
 }
 function clChatHtml() {
   const items = clItems(), byId = new Map(items.map(x => [x.id, x])), replies = new Map();
@@ -5389,13 +5401,107 @@ function openRequests(tab, keepScroll, area) {
   openSheet(`<div class="cl-head"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span><span class="cl-hn"><b>Claude</b><small>${esc(sub)}</small></span></div>
     <div class="cl-chat" id="cl-chat" aria-live="polite">${clChatHtml()}</div>
     <div class="cl-in"><div id="cl-ctx">${clCtxHtml()}</div>
-      <div class="cl-bar"><label class="cl-att file-btn" aria-label="Прикрепить фото, видео или аудио">${ico('clip')}<input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label><textarea id="msg-text" rows="1" placeholder="Сообщение" aria-label="Сообщение для Claude" autocapitalize="sentences">${esc(S.cur.draft)}</textarea><button type="button" class="cl-send" data-action="msg-send" aria-label="Отправить">${ico('send')}</button></div>
+      <div class="cl-bar"><label class="cl-att file-btn" aria-label="Прикрепить фото, видео или аудио">${ico('clip')}<input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label><textarea id="msg-text" rows="1" placeholder="Сообщение" aria-label="Сообщение для Claude" autocapitalize="sentences">${esc(S.cur.draft)}</textarea><button type="button" class="cl-send" data-action="msg-send" aria-label="Отправить">${ico('send')}</button><button type="button" class="cl-mic" data-action="cl-rec" aria-label="Записать голосовое">${ico('mic')}</button></div>
+      <div class="cl-recbar"><button type="button" class="cl-x" data-action="cl-rec-x" aria-label="Удалить запись">${ico('trash')}</button><span class="cl-rec-dot" aria-hidden="true"></span><span id="cl-rec-t">0:00</span><span class="cl-rec-h">Идёт запись</span><button type="button" class="cl-send" data-action="cl-rec-send" aria-label="Отправить голосовое">${ico('send')}</button></div>
     </div>`, false, 'chat');
-  clScrollEnd(); clLazy(); clGrow();
+  clScrollEnd(); clLazy(); clGrow(); clBarState();
   markAnswersSeen();
   chatPoll();
 }
-function clGrow() { const t = $('#msg-text'); if (!t) return; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 140) + 'px'; }
+function clGrow() { const t = $('#msg-text'); if (!t) return; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 140) + 'px'; clBarState(); }
+// пустое поле — микрофон, есть текст или файлы — стрелка «отправить» (как в Telegram)
+function clBarState() {
+  const bar = document.querySelector('.cl-bar'), t = $('#msg-text'), f = $('#msg-files'); if (!bar) return;
+  bar.classList.toggle('has-text', !!((t && t.value.trim()) || (f && f.files && f.files.length)));
+  const inp = document.querySelector('.cl-in'); if (inp) inp.classList.toggle('rec', !!REC.mr);
+}
+
+/* ---------- голосовые в чате ----------
+   Микрофон включается только по кнопке и выключается сразу после записи (дорожка останавливается) — ничего не слушает в фоне.
+   Запись → inbox/voice/<id>.m4a (iPhone) или .webm → GitHub Actions расшифровывает (whisper) → transcript в идее. */
+const REC = { mr: null, stream: null, chunks: [], t0: 0, tm: 0, mime: '', max: 300 };
+const recOk = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+async function recStart() {
+  if (REC.mr || REC.starting) return;
+  if (!recOk()) { toast('Здесь запись голоса не работает — надиктуй текст микрофоном на клавиатуре'); return; }
+  REC.starting = true;
+  try { REC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+  catch (e) { REC.starting = false; toast(e && e.name === 'NotAllowedError' ? 'Нет доступа к микрофону — разреши его журналу в настройках' : 'Микрофон не включился'); return; }
+  REC.starting = false;
+  if (!(S.cur && S.cur.type === 'req')) { REC.stream.getTracks().forEach(t => t.stop()); REC.stream = null; return; }
+  const types = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+  REC.mime = (MediaRecorder.isTypeSupported ? types.find(t => MediaRecorder.isTypeSupported(t)) : '') || '';
+  REC.chunks = [];
+  try { REC.mr = new MediaRecorder(REC.stream, REC.mime ? { mimeType: REC.mime, audioBitsPerSecond: 48000 } : {}); }
+  catch (_) { REC.mr = new MediaRecorder(REC.stream); }
+  REC.mr.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
+  REC.mr.start(1000);
+  REC.t0 = Date.now();
+  REC.tm = setInterval(recTick, 250);
+  recTick(); clBarState();
+}
+function recTick() { const sec = (Date.now() - REC.t0) / 1000, el = $('#cl-rec-t'); if (el) el.textContent = mmss(sec); if (sec >= REC.max) recStop(true); }
+function recStop(send) {
+  const mr = REC.mr; if (!mr) return;
+  clearInterval(REC.tm);
+  const dur = Math.round((Date.now() - REC.t0) / 100) / 10;
+  let fired = false;
+  const done = () => {
+    if (fired) return; fired = true;
+    try { REC.stream.getTracks().forEach(t => t.stop()); } catch (_) {}  // микрофон выключен
+    const type = (mr.mimeType || REC.mime || 'audio/mp4').split(';')[0];
+    const blob = new Blob(REC.chunks, { type });
+    REC.mr = null; REC.stream = null; REC.chunks = [];
+    clBarState();
+    if (!send) return;
+    if (dur < 1 || blob.size < 800) { toast('Слишком коротко — говори хотя бы секунду'); return; }
+    voiceSend(blob, type, dur);
+  };
+  mr.onstop = done;
+  try { if (mr.state !== 'inactive') mr.stop(); else done(); } catch (_) { done(); }
+  setTimeout(done, 1500);
+}
+function voiceSend(blob, type, dur) {
+  const c = S.cur && S.cur.type === 'req' ? S.cur : null;
+  const ext = /mp4|m4a|aac/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : 'webm';
+  const job = { id: 'i' + rid().slice(0, 10), area: c && c.area && AREA_SHORT[c.area] ? c.area : 'general', text: '', link: '', files: [], audio: [], voice: { blob, ext, type, dur }, st: 'wait', pct: 0, ts: Date.now(), re: (c && c.re) || null, reMe: !!(c && c.reMe) };
+  OUT.jobs.push(job);
+  if (c) { c.re = null; c.reMe = false; }
+  clCtxRefresh(); refreshFeed(); clScrollEnd();
+  outRun();
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && REC.mr) { recStop(false); toast('Запись остановлена: журнал свернули'); } });
+const voicePending = x => !!(x && x.voice && !x.transcript && !x.voiceErr && Date.now() - (x.ts || 0) < 30 * 60000);
+const voiceType = p => /\.webm$/i.test(p) ? 'audio/webm' : /\.ogg$/i.test(p) ? 'audio/ogg' : 'audio/mp4';
+const VOICE = { a: null, path: '' };
+function clVoiceHtml(x) {
+  const on = VOICE.path === x.voice && VOICE.a && !VOICE.a.paused;
+  const tr = x.transcript ? `<div class="cl-tr">${clFmt(x.transcript)}</div>` : x.voiceErr ? `<div class="cl-tr err">${esc(x.voiceErr)}</div>` : '<div class="cl-tr wait">расшифровываю…</div>';
+  return `<div class="cl-voice"><button type="button" class="cl-play" data-action="cl-play" data-path="${esc(x.voice)}" aria-label="${on ? 'Пауза' : 'Послушать'}">${on ? '❚❚' : '▶'}</button><span class="cl-vbar"><i data-vp="${esc(x.voice)}"></i></span><span class="cl-vd">${mmss(x.dur || 0)}</span></div>${tr}`;
+}
+async function voicePlay(path, btn) {
+  if (!VOICE.a) {
+    VOICE.a = new Audio();
+    ['play', 'pause', 'ended', 'timeupdate'].forEach(e => VOICE.a.addEventListener(e, voiceUi));
+  }
+  if (VOICE.path === path && !VOICE.a.paused) { VOICE.a.pause(); return; }
+  if (VOICE.path !== path) {
+    S.voiceUrl = S.voiceUrl || {};
+    if (!S.voiceUrl[path]) {
+      busy(btn, true);
+      try { S.voiceUrl[path] = await GH.blob(path, voiceType(path)); }
+      catch (_) { busy(btn, false); toast('Голосовое не загрузилось'); return; }
+      busy(btn, false);
+    }
+    VOICE.a.src = S.voiceUrl[path]; VOICE.path = path;
+  }
+  try { await VOICE.a.play(); } catch (_) { toast('Не получилось воспроизвести'); }
+}
+function voiceUi() {
+  const a = VOICE.a; if (!a) return;
+  document.querySelectorAll('[data-action="cl-play"]').forEach(b => { const on = b.dataset.path === VOICE.path && !a.paused; b.textContent = on ? '❚❚' : '▶'; });
+  document.querySelectorAll('[data-vp]').forEach(el => { el.style.width = el.dataset.vp === VOICE.path && a.duration && isFinite(a.duration) ? (a.currentTime / a.duration * 100).toFixed(1) + '%' : '0'; });
+}
 async function sendMsg(btn) {
   const c = S.cur && S.cur.type === 'req' ? S.cur : {};
   const ta = $('#msg-text');
@@ -5458,7 +5564,7 @@ function outRec(j, up, au) {
    Файлы идут по очереди, по одной отправке за раз; прогресс — в ленте чата и тонкой полоской сверху.
    Пока журнал открыт (на любой вкладке), загрузка идёт; если свернуть — продолжит, когда вернёшься. */
 const OUT = { jobs: [], busy: false, cur: null };
-const outName = j => j.text || j.link || (j.files.length + j.audio.length > 1 ? (j.files.length + j.audio.length) + ' ' + plural(j.files.length + j.audio.length, 'файл', 'файла', 'файлов') : ((j.files[0] || j.audio[0] || {}).name || 'файл'));
+const outName = j => j.voice ? 'голосовое ' + mmss(j.voice.dur) : j.text || j.link || (j.files.length + j.audio.length > 1 ? (j.files.length + j.audio.length) + ' ' + plural(j.files.length + j.audio.length, 'файл', 'файла', 'файлов') : ((j.files[0] || j.audio[0] || {}).name || 'файл'));
 function outLabel(j) {
   if (j.st === 'err') return 'не отправилось' + (j.err ? ' · ' + j.err : '');
   if (j.st === 'wait') return 'в очереди';
@@ -5491,6 +5597,18 @@ async function outRun() {
 }
 async function outSend(j) {
   PROG.mini = true;
+  if (j.voice) {
+    const path = `inbox/voice/${j.id}.${j.voice.ext}`;
+    PROG.start('Голосовое');
+    try {
+      const b64 = await fileToBase64(j.voice.blob);
+      await GH.commitFiles([{ path, b64 }], 'Голосовое: ' + mmss(j.voice.dur), (i, n, bd, bt) => PROG.step('up', bt ? bd / bt : 0, 'отправляю'));
+    } catch (e) { PROG.done(false, 'не отправилось'); j.err = errText(e); return false; }
+    PROG.done(true);
+    S.voiceUrl = S.voiceUrl || {}; S.voiceUrl[path] = URL.createObjectURL(j.voice.blob);  // своё можно слушать сразу
+    const rec = outRec(j); rec.voice = path; rec.dur = j.voice.dur;
+    return !!(await writeIdeas(list => { const i = list.findIndex(x => x.id === j.id); if (i >= 0) list[i] = rec; else list.push(rec); }, `Идея (голос): ${mmss(j.voice.dur)}`));
+  }
   const up = j.files.length ? await uploadFiles(j.files, `inbox/ideas/${j.id}`, 'Идея') : { media: [], photos: [], frames: 0, failed: [] };
   const au = j.audio.length ? await uploadAudio(j.audio, j.id) : { media: [], names: [], failed: [] };
   if (!up.media.length && !au.media.length) { j.err = up.failed.length ? 'файлы не прочитались или нет связи' : 'нет связи'; return false; }
@@ -5517,7 +5635,7 @@ let chatPollT = 0;
 function chatPoll() {
   clearTimeout(chatPollT); chatPollT = 0;
   if (!(S.cur && S.cur.type === 'req')) return;
-  const fast = S.ideas.some(linkPending);
+  const fast = S.ideas.some(x => linkPending(x) || voicePending(x));
   if (!fast && !clItems().some(x => !x.answer && x.status !== 'done')) return;
   chatPollT = setTimeout(async () => {
     chatPollT = 0;
