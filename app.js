@@ -2166,7 +2166,190 @@ function budgetHtml() {
   const pct = Math.max(0, Math.min(100, b.spent / b.living * 100)), cn = canteenInfo();
   return `<details class="budget${b.left < 0 ? ' over' : ''}" data-k="budget"${openAttr('budget')}><summary><span class="gt"><b>На жизнь до ${dm(b.end)}</b><span class="gv">${b.left < 0 ? '−' + fmt(Math.round(-b.left)) : fmt(Math.max(0, Math.floor(b.perDay))) + '<small> ₽/день</small>'}</span></span><span class="bar"><i style="width:${pct.toFixed(1)}%"></i></span></summary><div class="gd"><span class="gm">потрачено ${fmt(Math.round(b.spent))} из ${fmt(b.living)} · осталось ${fmt(Math.round(b.left))} ${cur} на ${b.daysLeft} ${plural(b.daysLeft, 'день', 'дня', 'дней')}</span>${cn ? `<span class="gm">столовая до ${dm(cn.end)}: ${cn.meals} ${plural(cn.meals, 'обед', 'обеда', 'обедов')} ≈ ${fmt(cn.need)} ${cur} наличными${cn.cashLeft ? ` · на руках ~${fmt(cn.cashLeft)}` : ''}</span>` : ''}<button type="button" class="btn sm" data-action="budget">Настроить</button></div></details>`;
 }
-function moneyPlanHtml() { return budgetHtml() + anomHtml(S.ready ? (S.anom = anomalies()) : []); }
+/* ---------- до зарплаты: хватит ли денег при нынешнем темпе ---------- */
+const median = a => { const b = a.slice().sort((x, y) => x - y), n = b.length; return n ? (n % 2 ? b[(n - 1) / 2] : (b[n / 2 - 1] + b[n / 2]) / 2) : 0; };
+const bigLim = () => Math.max(2000, ((moneyPlan() || {}).living || 30000) * 0.07);
+// Обычный темп «на жизнь» по карте (без наличных и без крупных разовых покупок) за последние ~2 недели.
+function livingPace() {
+  const t = today(), start = periodOf(t), from = daysBetween(start, t) >= 7 ? (addDays(t, -14) < start ? start : addDays(t, -14)) : addDays(t, -14);
+  const to = addDays(t, -1), days = daysBetween(from, to) + 1;
+  const mks = Array.from(new Set([monthKey(from), monthKey(to)]));
+  if (days < 5 || !mks.every(mk => S.money[mk])) return null;
+  const list = mks.flatMap(mk => (S.money[mk].items || [])).filter(x => x.date >= from && x.date <= to && kindOf(x) === 'spend' && isLiving(x));
+  const big = purchases(list).filter(q => q.amount >= bigLim());
+  const bigSum = sumAmt(big);
+  return { perDay: Math.max(0, (sumAmt(list) - bigSum) / days), days, big: big.length, bigSum };
+}
+function paydayForecast() {
+  const av = availableNow(), b = budgetNow();
+  if (!b || !av.cards.length || av.missing.length) return null;
+  const t = today(), end = b.end, days = b.daysLeft, have = av.sum + av.delta;
+  const regs = regulars().filter(r => !r.cash && !regularPaid(r)).map(r => ({ r, d: nextDue(r) })).filter(o => o.d && o.d <= end);
+  const buys = plannedBuys().filter(x => !x.done && Number(x.amount) > 0 && x.date && x.date >= t && x.date <= end);
+  const cn = canteenInfo(), cashNeed = cn ? Math.max(0, cn.need - cn.cashLeft) : 0;
+  const pace = livingPace(), perDay = pace ? pace.perDay : b.living / (daysBetween(b.start, end) + 1);
+  const regSum = regs.reduce((a, o) => a + (Number(o.r.amount) || 0), 0), buySum = sumAmt(buys);
+  const free = have - regSum - buySum - cashNeed;
+  const stale = av.known.some(a => a.asOf && daysBetween(a.asOf, t) > 5);
+  return { have, regs, regSum, buys, buySum, cashNeed, cn, pace, perDay, days, end, payday: addDays(end, 1), free, projected: free - perDay * days, safe: free / days, stale };
+}
+function forecastHtml() {
+  if (!S.ready || !S.config) return '';
+  const f = paydayForecast(); if (!f) return '';
+  const bad = f.projected < 0, cur = esc(curSym());
+  const head = bad ? `не хватит ~${fmt(Math.round(-f.projected / 100) * 100)} ${cur}` : `хватит, останется ~${fmt(Math.round(f.projected / 100) * 100)} ${cur}`;
+  const sub = f.free <= 0 ? 'денег на картах уже меньше, чем нужно на платежи до зарплаты'
+    : bad ? `чтобы дотянуть без кредитки — не больше ${fmt(Math.floor(f.safe / 10) * 10)} ${cur}/день (сейчас ~${fmt(Math.round(f.perDay / 10) * 10)})`
+    : `при темпе ~${fmt(Math.round(f.perDay / 10) * 10)} ${cur}/день`;
+  return `<button type="button" class="budget fc${bad ? ' over' : ''}" data-action="fc"><span class="gt"><b>До зарплаты ${f.days} ${plural(f.days, 'день', 'дня', 'дней')}</b><span class="gv">${esc(head)}</span></span><span class="gm">${esc(sub)}${f.stale ? ' · остатки на картах давно не обновлялись' : ''}</span></button>`;
+}
+function openForecast() {
+  const f = paydayForecast(); if (!f) return;
+  const cur = esc(curSym()), sig = v => (v < 0 ? '−' : '') + fmt(Math.abs(Math.round(v)));
+  S.cur = { type: 'fc' };
+  openSheet(`<h2 class="sh-title">До зарплаты ${dm(f.payday)}</h2>
+    <div class="big-num">${f.projected < 0 ? '−' + fmt(Math.round(-f.projected)) : fmt(Math.round(f.projected))}<small> ${cur} ${f.projected < 0 ? 'не хватит' : 'останется'}</small></div>
+    <div class="kv"><span>Сейчас на картах</span><span class="v">${fmt(Math.round(f.have))}</span>
+    ${f.regs.map(o => `<span>${esc(o.r.name)} · ${dm(o.d)}</span><span class="v">−${fmt(o.r.amount)}</span>`).join('')}
+    ${f.buys.map(x => `<span>${esc(x.name)} · ${dm(x.date)}</span><span class="v">−${fmt(x.amount)}</span>`).join('')}
+    ${f.cashNeed ? `<span>Наличные на столовую (${f.cn.meals} ${plural(f.cn.meals, 'обед', 'обеда', 'обедов')})</span><span class="v">−${fmt(Math.round(f.cashNeed))}</span>` : ''}
+    <span>Обычные траты: ${f.days} ${plural(f.days, 'день', 'дня', 'дней')} × ~${fmt(Math.round(f.perDay))}</span><span class="v">−${fmt(Math.round(f.perDay * f.days))}</span>
+    <span class="sum">К зарплате</span><span class="v sum${f.projected >= 0 ? ' pos' : ''}">${sig(f.projected)}</span></div>
+    <p class="note">${f.free > 0 ? `Чтобы дотянуть до ${dm(f.payday)} без кредитки, тратить на жизнь по карте не больше <b>${fmt(Math.floor(f.safe))} ${cur} в день</b>.` : 'Денег на картах не хватает даже на платежи до зарплаты: что-то из них придётся перенести или закрыть из накоплений, а не кредиткой.'}
+    ${f.pace ? ` Темп посчитан по последним ${f.pace.days} ${plural(f.pace.days, 'дню', 'дням', 'дням')}${f.pace.big ? `, без ${f.pace.big} ${plural(f.pace.big, 'крупной покупки', 'крупных покупок', 'крупных покупок')} на ${fmt(Math.round(f.pace.bigSum))} ${cur}` : ''}.` : ' Темп пока взят из бюджета на жизнь: данных за последние дни мало.'}
+    ${f.stale ? ' Остатки на картах давно не обновлялись — прогноз точнее, если вписать их заново.' : ''}</p>
+    <div class="sh-acts"><button type="button" class="btn block" data-action="acct-cards">Обновить остатки на картах</button></div>`);
+}
+
+/* ---------- лимиты по категориям (бюджетный месяц, только траты «на жизнь») ---------- */
+function limits() { const L = moneyCfg().limits || {}; const o = {}; Object.keys(L).forEach(c => { if (Number(L[c]) > 0) o[c] = Number(L[c]); }); return o; }
+function livingByCat(start) {
+  const out = {};
+  periodItems(start).filter(x => kindOf(x) === 'spend' && isLiving(x)).forEach(x => { const c = x.cat || otherCat(); out[c] = (out[c] || 0) + (Number(x.amount) || 0); });
+  return out;
+}
+function limitsNow() {
+  const L = limits(); if (!Object.keys(L).length) return null;
+  const t = today(), start = periodOf(t), end = periodEnd(start);
+  if (!periodMonths(start).every(mk => S.money[mk])) return null;
+  const by = livingByCat(start), len = daysBetween(start, end) + 1, k = daysBetween(start, t) + 1;
+  const rows = Object.entries(L).map(([c, lim]) => {
+    const v = by[c] || 0, pace = lim * k / len;
+    return { c, lim, v, st: v > lim ? 'over' : v > lim * 0.4 && v > pace * 1.15 ? 'fast' : 'ok' };
+  }).sort((a, b) => b.v / b.lim - a.v / a.lim);
+  const loose = Object.entries(by).filter(([c]) => !(c in L)).sort((a, b) => b[1] - a[1]);
+  return { rows, loose, k, len, end };
+}
+function limitsHtml() {
+  if (!S.ready || !S.config || !moneyPlan()) return '';
+  const ln = limitsNow(), cur = esc(curSym());
+  if (!ln) return Object.keys(limits()).length ? '' : `<button type="button" class="anom lim-ask" data-action="lim"><span class="an-ic">${ico('warn')}</span><span class="an-t">Задай лимиты по категориям — увидишь, где уходят деньги</span><span class="an-go">›</span></button>`;
+  const over = ln.rows.filter(r => r.st === 'over').length, fast = ln.rows.filter(r => r.st === 'fast').length;
+  const note = over || fast ? [over ? `${over} ${plural(over, 'превышен', 'превышено', 'превышено')}` : '', fast ? `${fast} быстрее плана` : ''].filter(Boolean).join(' · ') : 'всё в пределах';
+  const row = r => `<button type="button" class="reg lim ${r.st}" data-action="lim"><span class="rn">${esc(r.c)}</span><span class="ra">${fmt(Math.round(r.v))} <small>из ${fmt(r.lim)}</small></span><span class="bar"><i style="width:${Math.max(2, Math.min(100, r.v / r.lim * 100)).toFixed(1)}%"></i></span><span class="rw">${r.st === 'over' ? `перерасход ${fmt(Math.round(r.v - r.lim))} ${cur}` : `осталось ${fmt(Math.round(r.lim - r.v))} ${cur}` + (r.st === 'fast' ? ' · тратится быстрее, чем идёт месяц' : '')}</span></button>`;
+  return `<details class="regs lims${over ? ' bad' : ''}" data-k="lims"${openAttr('lims')}><summary><span class="rs-t">Лимиты по категориям</span><span class="sec-note">${esc(note)}</span></summary><div class="stack">${ln.rows.map(row).join('')}</div>${ln.loose.length ? `<p class="note">Без лимита: ${esc(ln.loose.map(([c, v]) => c + ' ' + fmt(Math.round(v))).join(', '))} ${cur}</p>` : ''}<button type="button" class="link-btn" data-action="lim">Изменить лимиты</button></details>`;
+}
+function fullPeriodsBefore(start, n) {
+  const since = moneyCfg().since, out = [];
+  for (let p = periodShift(start, -1), k = 0; k < n; p = periodShift(p, -1), k++) {
+    if (since && p < periodOf(since)) break;
+    if (!periodMonths(p).every(mk => S.money[mk])) break;
+    out.push(p);
+  }
+  return out;
+}
+// Подсказка: средние траты по категориям за прошлые месяцы, ужатые до бюджета «на жизнь» минус обычные наличные.
+// Крупные разовые покупки в подсказку не идут: лимит — про обычные траты, а не про разовый телефон.
+function livingByCatUsual(start, to) {
+  const list = periodItems(start).filter(x => kindOf(x) === 'spend' && isLiving(x) && (!to || x.date <= to)), out = {};
+  purchases(list).filter(q => q.amount < bigLim()).forEach(q => { out[q.cat] = (out[q.cat] || 0) + q.amount; });
+  return out;
+}
+function suggestLimits() {
+  const p = moneyPlan() || {}, t = today(), cur = periodOf(t), ps = fullPeriodsBefore(cur, 3);
+  const k = daysBetween(cur, t), len = daysBetween(cur, periodEnd(cur)) + 1;
+  const src = ps.map(q => ({ by: livingByCatUsual(q), w: 1, cash: sumAmt(periodItems(q).filter(x => kindOf(x) === 'cash')) }));
+  if (k >= 7) src.push({ by: Object.fromEntries(Object.entries(livingByCatUsual(cur, addDays(t, -1))).map(([c, v]) => [c, v * len / k])), w: 1, cash: null });
+  if (!src.length) return null;
+  const avg = {};
+  src.forEach(o => Object.entries(o.by).forEach(([c, v]) => { avg[c] = (avg[c] || 0) + v / src.length; }));
+  const cs = src.filter(o => o.cash != null), cashAvg = cs.length ? cs.reduce((a, o) => a + o.cash, 0) / cs.length : 0;
+  const target = Math.max(0, (Number(p.living) || 0) - cashAvg), total = Object.values(avg).reduce((a, v) => a + v, 0);
+  const sc = total > target && total > 0 ? target / total : 1, out = {};
+  Object.entries(avg).forEach(([c, v]) => { const x = Math.floor(v * sc / 100) * 100; if (x >= 300) out[c] = x; });
+  return { limits: out, cashAvg: Math.round(cashAvg), target: Math.round(target), total: Math.round(total), periods: src.length };
+}
+async function openLimits() {
+  const start = periodOf(today()), since = moneyCfg().since;
+  const need = Array.from(new Set([1, 2, 3].flatMap(k => periodMonths(periodShift(start, -k))))).filter(mk => !since || mk >= monthKey(since));
+  try { await ensureMoney(need); } catch (_) {}
+  const L = limits(), sug = suggestLimits(), p = moneyPlan() || {}, cur = esc(curSym());
+  const list = cats().filter(c => !(p.fixedCats || []).includes(c));
+  S.cur = { type: 'limits', sug };
+  openSheet(`<h2 class="sh-title">Лимиты на месяц</h2>
+    <p class="sh-meta">Сколько можно потратить по категории за бюджетный месяц (с ${pStartDay()}-го). Аренда, связь и регулярные платежи сюда не входят. Пусто — без лимита.</p>
+    ${sug ? `<button type="button" class="btn block" data-action="lim-suggest">Подставить по прошлым тратам</button><p class="note">Обычные траты на жизнь по карте (без крупных разовых покупок) — ~${fmt(sug.total)} ${cur} в месяц. Бюджет ${fmt(p.living || 0)} минус наличные ~${fmt(sug.cashAvg)} — на лимиты остаётся ${fmt(sug.target)} ${cur}${sug.total > sug.target ? ', поэтому подсказка урезана пропорционально' : ''}.</p>` : ''}
+    <div class="lim-form">${list.map((c, i) => `<label class="lim-in" for="lm-${i}"><span>${esc(c)}</span><input id="lm-${i}" data-lim="${esc(c)}" inputmode="numeric" value="${esc(L[c] || '')}" placeholder="—"></label>`).join('')}</div>
+    <p class="note" id="lim-sum"></p>
+    <div class="sh-acts"><button type="button" class="btn money block" data-action="lim-save">Сохранить</button></div>`);
+  limSum();
+}
+function limSum() {
+  const el = document.getElementById('lim-sum'); if (!el) return;
+  const p = moneyPlan() || {}, sug = S.cur && S.cur.sug, cur = curSym();
+  let s = 0; document.querySelectorAll('[data-lim]').forEach(i => { s += numOrNull(i.value) || 0; });
+  const room = (Number(p.living) || 0) - (sug ? sug.cashAvg : 0);
+  el.textContent = `Сумма лимитов: ${fmt(Math.round(s))} ${cur}` + (p.living ? ` из ${fmt(Math.round(room))} ${cur} (бюджет на жизнь${sug ? ' минус наличные' : ''})` + (s > room ? ' — больше бюджета' : '') : '');
+  el.classList.toggle('err', !!p.living && s > room);
+}
+document.addEventListener('input', e => { if (e.target && e.target.dataset && 'lim' in e.target.dataset) limSum(); });
+function limSuggestFill() { const sug = S.cur && S.cur.sug; if (!sug) return; document.querySelectorAll('[data-lim]').forEach(i => { i.value = sug.limits[i.dataset.lim] || ''; }); limSum(); }
+async function limitsSave() {
+  const L = {}; document.querySelectorAll('[data-lim]').forEach(i => { const v = numOrNull(i.value); if (v > 0) L[i.dataset.lim] = Math.round(v); });
+  const ok = await writeConfig(c => { c.money = c.money || {}; if (Object.keys(L).length) c.money.limits = L; else delete c.money.limits; }, `Деньги: лимиты по категориям (${Object.keys(L).length})`);
+  if (ok) { closeSheet(); toast(Object.keys(L).length ? 'Лимиты сохранены' : 'Лимиты убраны'); }
+}
+
+/* ---------- похожее на регулярные платежи: повторы с той же суммой примерно в тот же день ---------- */
+const recKey = x => norm(x.name).replace(/[0-9№#*•.,:;!?()«»"'\/\\+\-–—]+/g, ' ').replace(/\s+/g, ' ').trim();
+function recurringGuess() {
+  const since = moneyCfg().since || '0000', no = new Set(moneyCfg().notRegular || []);
+  const list = Object.values(S.money).flatMap(m => (m && m.items) || []).filter(x => x.date >= since
+    && (kindOf(x) === 'spend' || (kindOf(x) === 'transfer' && x.dir !== 'in' && !['Свои счета', 'Накопления', 'Долги'].includes(x.cat)))
+    && !x.group && !regularOf(x));
+  const by = {};
+  list.forEach(x => { const k = recKey(x); if (k.length >= 3) (by[k] = by[k] || []).push(x); });
+  const out = [];
+  for (const [k, xs] of Object.entries(by)) {
+    if (no.has(k) || xs.length < 2) continue;
+    const per = {}; xs.forEach(x => { const p = periodOf(x.date); per[p] = (per[p] || 0) + 1; });
+    const ps = Object.keys(per);
+    if (ps.length < 2 || Object.values(per).some(n => n > 2)) continue;
+    const amts = xs.map(x => Number(x.amount) || 0), med = median(amts);
+    if (!(med >= 50) || amts.some(a => Math.abs(a - med) > Math.max(50, med * 0.15))) continue;
+    const days = xs.map(x => pd(x.date).getDate()), dmed = Math.round(median(days));
+    if (days.some(d => Math.min(Math.abs(d - dmed), 31 - Math.abs(d - dmed)) > 6)) continue;
+    const last = xs.slice().sort((a, b) => a.date < b.date ? 1 : -1)[0];
+    out.push({ k, name: last.name, amount: Math.round(med), day: dmed, cat: last.cat || otherCat(), n: xs.length, last: last.date });
+  }
+  return out.sort((a, b) => b.amount - a.amount).slice(0, 8);
+}
+function recurringHtml() {
+  if (!S.ready || !S.config) return '';
+  const l = S.recur = recurringGuess(); if (!l.length) return '';
+  return `<button type="button" class="anom" data-action="rec"><span class="an-ic">${ico('warn')}</span><span class="an-t">${l.length} ${plural(l.length, 'платёж похож', 'платежа похожи', 'платежей похожи')} на подписку</span><span class="an-go">›</span></button>`;
+}
+function openRecurring() {
+  const l = recurringGuess(), cur = esc(curSym());
+  S.cur = { type: 'rec' };
+  openSheet(`<h2 class="sh-title">Похоже на регулярные платежи</h2><p class="sh-meta">Одна и та же сумма примерно в один и тот же день в разные месяцы. Если это подписка — добавь в регулярные: она перестанет съедать бюджет на жизнь и появится в прогнозе. Если ненужная — самое время отменить.</p>
+    <div class="stack" style="margin-top:12px">${l.length ? l.map(o => `<div class="an-row"><b>${esc(o.name)} — ~${fmt(o.amount)} ${cur}</b><span>около ${o.day}-го · ${o.n} ${plural(o.n, 'раз', 'раза', 'раз')}, последний ${esc(short(o.last))} · ${esc(o.cat)}</span><span class="acct-links"><button type="button" class="link-btn" data-action="rec-add" data-k="${esc(o.k)}">В регулярные</button><button type="button" class="link-btn" data-action="rec-no" data-k="${esc(o.k)}">Не регулярный</button></span></div>`).join('') : '<p class="note">Ничего похожего не нашёл.</p>'}</div>`);
+}
+async function recurringNo(k) {
+  const ok = await writeConfig(c => { c.money = c.money || {}; const l = c.money.notRegular = c.money.notRegular || []; if (!l.includes(k)) l.push(k); }, 'Деньги: не регулярный платёж');
+  if (ok) { const l = recurringGuess(); if (l.length) openRecurring(); else { closeSheet(); toast('Готово'); } }
+}
+function moneyPlanHtml() { return forecastHtml() + budgetHtml() + limitsHtml() + anomHtml(S.ready ? (S.anom = anomalies()) : []) + recurringHtml(); }
 function goalsBlockHtml() {
   if (!S.ready || !S.config) return '';
   const sim = simulatePlan(), cur = esc(curSym());
@@ -2205,8 +2388,8 @@ async function budgetSave() {
   const ok = await writeConfig(c => { c.money = c.money || {}; c.money.plan = Object.assign({ fixedCats: ['Жильё и связь'] }, c.money.plan || {}, { living: Math.round(living) }, salary > 0 ? { salary: Math.round(salary) } : {}); }, `Деньги: бюджет на жизнь ${Math.round(living)}`);
   if (ok) { closeSheet(); toast('Бюджет сохранён'); }
 }
-function openRegular(id) {
-  const r = id ? regulars().find(x => x.id === id) : { id: null, name: '', amount: '', day: '', cat: otherCat() };
+function openRegular(id, preset) {
+  const r = id ? regulars().find(x => x.id === id) : Object.assign({ id: null, name: '', amount: '', day: '', cat: otherCat() }, preset || {});
   if (!r) return;
   S.cur = { type: 'reg', r };
   openSheet(`<h2 class="sh-title">${id ? esc(r.name) : 'Новый регулярный платёж'}</h2>
@@ -4315,6 +4498,13 @@ document.addEventListener('click', async ev => {
     case 'ready': openReadiness(); break;
     case 'streak': openStreak(); break;
     case 'anom': openAnomalies(); break;
+    case 'fc': openForecast(); break;
+    case 'lim': await openLimits(); break;
+    case 'lim-suggest': limSuggestFill(); break;
+    case 'lim-save': busy(b, true); await limitsSave(); busy(b, false); break;
+    case 'rec': openRecurring(); break;
+    case 'rec-add': { const o = (S.recur || recurringGuess()).find(x => x.k === b.dataset.k); if (o) openRegular(null, { name: o.name, amount: o.amount, day: o.day, cat: cats().includes(o.cat) ? o.cat : otherCat(), match: [o.k] }); break; }
+    case 'rec-no': busy(b, true); await recurringNo(b.dataset.k); busy(b, false); break;
     case 'en-open': openEnglish(); break;
     case 'en-start': enStart(); break;
     case 'en-ans': enAnswer(Number(b.dataset.k)); break;
