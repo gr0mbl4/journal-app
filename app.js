@@ -4078,6 +4078,7 @@ function openRecipe(id) {
   const macro = [r.portions ? r.portions + ' ' + plural(Number(r.portions) || 0, 'порция', 'порции', 'порций') : '', r.time || '', r.kcal ? '≈ ' + r.kcal + ' ккал' : '', r.protein ? 'белок ' + r.protein + ' г' : '', r.fat ? 'жиры ' + r.fat + ' г' : '', r.carbs ? 'углеводы ' + r.carbs + ' г' : ''].filter(Boolean);
   openSheet(`<h2 class="sh-title">${esc(r.title)}</h2>
     ${Array.isArray(r.meals) && r.meals.length ? `<p class="sh-meta">${esc(r.meals.map(k => MEAL_NAME[k] || k).join(', '))}</p>` : ''}
+    ${r.video ? `<div class="ex-media rc-vid" id="rc-vid">${r.videoPoster ? `<img data-gh="${esc(r.videoPoster)}" alt="">` : ''}<button type="button" class="rc-play" data-action="rc-play">${ico('play')}<span>Видео рецепта${r.videoDur ? ' · ' + (r.videoDur >= 60 ? Math.floor(r.videoDur / 60) + ' мин ' + pad(r.videoDur % 60) + ' с' : r.videoDur + ' с') : ''}</span></button></div>` : safeUrl(r.link) && !r.videoErr ? '<p class="note">Видео из источника подтянется после ближайшего разбора.</p>' : ''}
     ${photos.length ? `<div class="rc-photos">${photos.map(p => `<img data-gh="${esc(p)}" alt="">`).join('')}</div>` : ''}
     ${macro.length ? `<div class="macro">${macro.map(m => `<span class="chip">${esc(m)}</span>`).join('')}</div>${r.kcal || r.protein ? '<p class="note">КБЖУ — примерная оценка на порцию.</p>' : ''}` : ''}
     ${r.draft ? '<div class="callout">Ждёт разбора: ингредиенты и шаги заполню, когда позовёшь.</div>' : ''}
@@ -4330,6 +4331,17 @@ function cxInProgram(c) {
   return 'в программе' + (days.length ? ': ' + days.join(', ') : '');
 }
 // видео из приватного репозитория: Cache Storage, чтобы второй раз открывалось сразу и без сети
+async function rcPlay() {
+  const r = S.cur && S.cur.type === 'recipe' ? S.cur.r : null, box = document.getElementById('rc-vid');
+  if (!r || !r.video || !box) return;
+  const b = box.querySelector('.rc-play'); if (b) { b.disabled = true; const t = b.querySelector('span'); if (t) t.textContent = 'загружаю видео…'; }
+  try {
+    const url = await mediaUrl(r.video);
+    if (!S.cur || S.cur.r !== r) return;
+    box.innerHTML = `<video controls playsinline autoplay preload="auto" class="on"></video>`;
+    const v = box.querySelector('video'); v.src = url; v.play().catch(() => {});
+  } catch (_) { if (b) { b.disabled = false; const t = b.querySelector('span'); if (t) t.textContent = 'не загрузилось — нажми ещё раз'; } }
+}
 async function mediaUrl(path) {
   if (S.media[path]) return S.media[path];
   const key = 'https://media.local/' + path;
@@ -4594,6 +4606,7 @@ document.addEventListener('click', async ev => {
     case 'ready': openReadiness(); break;
     case 'streak': openStreak(); break;
     case 'anom': openAnomalies(); break;
+    case 'rc-play': await rcPlay(); break;
     case 'fc': openForecast(); break;
     case 'lim': await openLimits(); break;
     case 'lim-suggest': limSuggestFill(); break;
