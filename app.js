@@ -4369,12 +4369,6 @@ function exFiltered() {
   return exItems().filter(x => (cat === 'all' || x.cat === cat || (cat === 'prog' && exInProgram(x).length)) &&
     (!q || exNorm([x.name, (x.aka || []).join(' '), exCatName(x.cat), x.eq, (x.how || []).join(' ')].join(' ')).includes(q)));
 }
-function renderExGrid() {
-  const g = $('#ex-grid'); if (!g) return;
-  const l = exFiltered();
-  g.innerHTML = l.length ? l.map(exCard).join('') : `<p class="note">${exItems().length ? 'Ничего не нашлось.' : 'База пока пустая — шли ролики через «Поделиться» → Claude, разберу и разложу по категориям.'}</p>`;
-  hydrateImages(g);
-}
 /* ---------- графики прогресса: спорт и учёба ---------- */
 const wkLabel = f => pd(f).getDate() + ' ' + MON_S[pd(f).getMonth()];
 function lastWeeks(n, start) {
@@ -4427,33 +4421,62 @@ function studyProgressHtml() {
   if (!data.some(x => x.v > 0)) return '';
   return barChart(data, { title: 'Часов учёбы в неделю (по таймеру и отметкам)', fmt: v => String(v).replace('.', ','), cls: 'study-bars' });
 }
+// Спорт — «домино»: сверху одна строка «сегодня / дальше», всё остальное свёрнуто и раскрывается по шагу
+function sportRowHtml(i, t) {
+  let chip = '';
+  if (i.state === 'done') chip = '<span class="chip good">✓</span>';
+  else if (i.state === 'other') chip = '<span class="chip good">✓ другое</span>';
+  else if (i.state === 'skipped') chip = '<span class="chip">пропуск</span>';
+  else if (i.eff === t) chip = '<span class="chip warn">сегодня</span>';
+  else if (i.eff !== i.orig) chip = `<span class="chip warn">с ${short(i.orig)}</span>`;
+  return `<button type="button" class="row${i.state === 'done' || i.state === 'other' ? ' is-done' : i.state === 'skipped' ? ' is-skipped' : ''}" data-action="sport" data-id="${esc(i.id)}"><span class="tag sport">${DOW_S[pd(i.eff).getDay()]} ${pd(i.eff).getDate()}</span><span class="rb"><span class="t">${esc(i.title)}</span><span class="m">${esc(i.state === 'other' ? (i.note || 'сделал другое') : i.sub)}</span></span><span class="s">${chip}</span></button>`;
+}
+function exRow(it) {
+  const m = [it.dose, exInProgram(it).length ? 'в программе' : ''].filter(Boolean).join(' · ');
+  return `<button type="button" class="row ex-row" data-action="ex-open" data-id="${esc(it.id)}"><span class="thumb">${it.poster ? `<img data-gh="${esc(it.poster)}" alt="" loading="lazy">` : ''}</span><span class="rb"><span class="t">${esc(it.name)}</span><span class="m">${esc(m)}</span></span><span class="s">›</span></button>`;
+}
+function cxRow(c) {
+  const first = exById((c.items[0] || {}).ex) || {};
+  const meta = ['комплекс', c.items.length + ' ' + plural(c.items.length, 'упражнение', 'упражнения', 'упражнений'), c.rounds ? c.rounds + ' ' + plural(c.rounds, 'круг', 'круга', 'кругов') : '', cxInProgram(c) ? 'в программе' : ''].filter(Boolean).join(' · ');
+  return `<button type="button" class="row ex-row" data-action="cx-open" data-id="${esc(c.id)}"><span class="thumb cx">${first.poster ? `<img data-gh="${esc(first.poster)}" alt="" loading="lazy">` : ''}</span><span class="rb"><span class="t">${esc(c.title)}</span><span class="m">${esc(meta)}</span></span><span class="s">›</span></button>`;
+}
+function exListHtml() {
+  const q = exNorm(S.exQ);
+  if (q) {
+    const l = exFiltered();
+    return l.length ? `<div class="stack">${l.map(exRow).join('')}</div>` : '<p class="note">Ничего не нашлось.</p>';
+  }
+  if (!exItems().length) return '<p class="note">База пока пустая — шли ролики через «Поделиться» → Claude.</p>';
+  const cats = ((S.ex || {}).cats || []).filter(c => exItems().some(x => x.cat === c.id) || exCx().some(x => x.cat === c.id));
+  return cats.map(c => {
+    const its = exItems().filter(x => x.cat === c.id), cxs = exCx().filter(x => x.cat === c.id), k = 'sp-cat-' + c.id;
+    return `<details class="fold sub" data-k="${k}"${openAttr(k)}><summary><span>${esc(c.title)}</span><span class="sec-note">${its.length}${cxs.length ? ' · ' + cxs.length + ' ' + plural(cxs.length, 'комплекс', 'комплекса', 'комплексов') : ''}</span></summary>
+      <div class="stack">${cxs.map(cxRow).join('')}${its.map(exRow).join('')}</div></details>`;
+  }).join('');
+}
+function renderExGrid() {
+  const g = $('#ex-list'); if (!g) return;
+  g.innerHTML = exListHtml();
+  hydrateImages(g);
+}
 function renderSportTab() {
   const box = $('#tab-sport'); if (!box) return;
   if (!S.ready) { box.innerHTML = bannerHtml(); return; }
   const t = today(), from = mondayOf(t), to = addDays(from, 6);
   const week = buildSport(addDays(from, -7), addDays(to, 7)).filter(i => i.eff >= from && i.eff <= to).sort((a, b) => a.eff < b.eff ? -1 : a.eff > b.eff ? 1 : 0);
   const done = week.filter(i => i.state === 'done' || i.state === 'other').length, planned = week.filter(i => i.state !== 'skipped').length;
-  const rows = week.map(i => {
-    let chip = '';
-    if (i.state === 'done') chip = '<span class="chip good">✓</span>';
-    else if (i.state === 'other') chip = '<span class="chip good">✓ другое</span>';
-    else if (i.state === 'skipped') chip = '<span class="chip">пропуск</span>';
-    else if (i.eff === t) chip = '<span class="chip warn">сегодня</span>';
-    else if (i.eff !== i.orig) chip = `<span class="chip warn">с ${short(i.orig)}</span>`;
-    return `<button type="button" class="row${i.state === 'done' || i.state === 'other' ? ' is-done' : i.state === 'skipped' ? ' is-skipped' : ''}" data-action="sport" data-id="${esc(i.id)}"><span class="tag sport">${DOW_S[pd(i.eff).getDay()]} ${pd(i.eff).getDate()}</span><span class="rb"><span class="t">${esc(i.title)}</span><span class="m">${esc(i.state === 'other' ? (i.note || 'сделал другое') : i.sub)}</span></span><span class="s">${chip}</span></button>`;
-  }).join('');
-  const cats = ((S.ex || {}).cats || []).filter(c => exItems().some(x => x.cat === c.id));
-  const chips = [['all', 'Все', exItems().length], ['prog', 'В программе', exItems().filter(x => exInProgram(x).length).length]].concat(cats.map(c => [c.id, c.title, exItems().filter(x => x.cat === c.id).length]));
-  box.innerHTML = `<div class="sec-row"><h2 class="sec">Неделя</h2><span class="sec-n">${done} из ${planned}</span></div>
-    <div class="stack">${rows || '<p class="note">На этой неделе тренировок нет.</p>'}</div>
+  const now = week.filter(i => i.eff === t), next = week.find(i => i.eff > t && i.state !== 'skipped' && i.state !== 'done' && i.state !== 'other');
+  const top = now.length ? now : next ? [next] : [];
+  const nCx = exCx().length, nEx = exItems().length;
+  box.innerHTML = `<div class="sec-row"><h2 class="sec">${now.length ? 'Сегодня' : next ? 'Дальше' : 'Неделя'}</h2><span class="sec-n">${done} из ${planned} за неделю</span></div>
+    <div class="stack">${top.length ? top.map(i => sportRowHtml(i, t)).join('') : '<p class="note">До конца недели тренировок нет.</p>'}</div>
+    ${week.length ? `<details class="fold" data-k="sp-week"${openAttr('sp-week')}><summary><span>Неделя</span><span class="sec-note">${done} из ${planned}</span></summary><div class="stack">${week.map(i => sportRowHtml(i, t)).join('')}</div></details>` : ''}
+    <details class="fold" data-k="sp-base"${openAttr('sp-base')}><summary><span>Упражнения</span><span class="sec-note">${nEx}${nCx ? ' · ' + nCx + ' ' + plural(nCx, 'комплекс', 'комплекса', 'комплексов') : ''}</span></summary>
+      <input id="ex-q" type="search" class="notes-q" placeholder="Поиск: рывок, запястья, кор…" value="${esc(S.exQ || '')}" autocomplete="off" autocapitalize="off">
+      <div id="ex-list"></div>
+    </details>
     ${sportProgressHtml()}
-    ${exCx().length ? `<h2 class="sec">Комплексы</h2><div class="cx-row">${exCx().map(cxCard).join('')}</div>` : ''}
-    <div class="sec-row"><h2 class="sec">Упражнения</h2><span class="sec-n">${exItems().length}</span></div>
-    <input id="ex-q" type="search" class="notes-q" placeholder="Поиск: рывок, резина, кор…" value="${esc(S.exQ || '')}" autocomplete="off" autocapitalize="off">
-    <div class="chips ex-cats" role="group" aria-label="Категория">${chips.map(([k, l, n]) => `<button type="button" class="chip-btn" data-action="ex-cat" data-cat="${k}" aria-pressed="${k === (S.exCat || 'all')}">${esc(l)} <small>${n}</small></button>`).join('')}</div>
-    <div id="ex-grid" class="ex-grid"></div>
-    <p class="note">Новые упражнения: в Instagram «Поделиться» → Claude, добавь слово «в базу» или «в ударку» — разберу, разложу по категориям и вырежу кусок ролика с техникой.</p>
-    <p class="note"><button type="button" class="link-btn" data-action="ideas" data-area="sport">+ Идея по спорту для Claude</button></p>`;
+    <p class="note sp-foot"><button type="button" class="link-btn" data-action="ideas" data-area="sport">+ Идея или ролик для Claude</button></p>`;
   renderExGrid();
   hydrateImages(box);
 }

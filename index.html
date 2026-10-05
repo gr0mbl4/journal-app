@@ -952,6 +952,14 @@ details.blk-f[open]{padding-bottom:10px}
 .ex-cats::-webkit-scrollbar{display:none}
 .ex-cats .chip-btn{white-space:nowrap;flex:none}
 .ex-cats .chip-btn small{opacity:.6;font-weight:500;margin-left:2px}
+.ex-row .thumb{width:44px;height:44px;border-radius:12px;overflow:hidden;flex:none;background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.ex-row .thumb img{width:100%;height:100%;object-fit:cover}
+.ex-row .thumb.cx{box-shadow:0 0 0 2px var(--sport,#E8743B)}
+details.fold.sub{margin-top:8px;background:transparent}
+details.fold.sub>summary{padding:10px 12px;font-size:14px}
+details.fold.sub>:not(summary){margin-inline:8px}
+#tab-sport details.fold #ex-q{margin:2px 0 4px;width:100%}
+.sp-foot{margin-top:14px;text-align:center}
 .ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ex-card{display:flex;flex-direction:column;text-align:left;padding:0;border-radius:18px;overflow:hidden;background:var(--glass-2);border:1px solid var(--glass-line);color:var(--ink);cursor:pointer;min-width:0}
 .ex-card .ph,.cx-card .ph{position:relative;display:block;aspect-ratio:4/5;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow:hidden}
@@ -1372,6 +1380,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261004k"></script>
+<script src="app.js?v=20261005a"></script>
 </body>
 </html>
