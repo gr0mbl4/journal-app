@@ -1079,6 +1079,17 @@ details.fold.sub>:not(summary){margin-inline:8px}
 .cxo-tip{font-size:12px;color:var(--muted);margin:2px 2px 0;line-height:1.35}
 .wk-list.sorting .cxo>:not(.cxo-h){display:none}
 .cxo-list.sorting .cxo-par{opacity:.85}
+.cu{border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:10px 12px 8px;margin:4px 0 14px}
+.cu-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+.cu-h b{font-size:14.5px}.cu-h .m{font-size:12px;color:var(--muted)}
+.cu-r{display:grid;grid-template-columns:52px minmax(0,1fr);grid-template-areas:'n b' '. v';gap:2px 8px;align-items:center;margin:6px 0}
+.cu-n{grid-area:n;font-weight:600;font-size:13.5px}
+.cu-bar{grid-area:b;height:10px;border-radius:6px;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow:hidden}
+.cu-bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#E0855F,#A8472A)}
+.cu-r:nth-of-type(3) .cu-bar i{background:linear-gradient(90deg,#4D8DFF,#2F6FE0)}
+.cu-r.off{opacity:.55}
+.cu-v{grid-area:v;font-size:12px;color:var(--muted)}
+.cu-note{font-size:11.5px;color:var(--muted);margin:6px 0 0;line-height:1.35}
 .vs-prev{position:fixed;right:12px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:64px;max-height:110px;object-fit:cover;border-radius:12px;z-index:70;box-shadow:0 6px 20px rgba(0,0,0,.35);pointer-events:none;background:#000}
 /* чат с Claude */
 .sheet-panel.chat-mode{height:94%;max-height:none;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
@@ -1431,6 +1442,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261005c"></script>
+<script src="app.js?v=20261005d"></script>
 </body>
 </html>

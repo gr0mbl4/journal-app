@@ -4883,7 +4883,16 @@ document.addEventListener('click', async ev => {
     case 'shop-menu': shopFromMenu(); break;
     case 'msg-area': if (S.cur && S.cur.type === 'req') { const was = S.cur.area; S.cur.area = b.dataset.area; if ((was === 'books') !== (S.cur.area === 'books')) { S.cur.draft = ($('#msg-text') || {}).value || ''; openRequests('new', true); } else document.querySelectorAll('[data-action="msg-area"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.area === S.cur.area))); } break;
     case 'msg-send': await sendMsg(b); break;
-    case 'menu': openMenu(); break;
+    case 'menu': openMenu(); usageLoad(); break;
+    case 'cu-cal': openUsageCal(); break;
+    case 'cu-cal-save': {
+      const pct = numOrNull(($('#cu-pct') || {}).value), total = Object.values(cuSums(7)).reduce((a, x) => a + x, 0);
+      if (!pct || pct <= 0 || pct > 100) { toast('Впиши процент от 1 до 100'); break; }
+      if (!total) { toast('За неделю расход ещё не записан — сверим позже'); break; }
+      busy(b, true);
+      if (await writeConfig(c => { c.claude = c.claude || {}; c.claude.weekMax = Math.round(total / (pct / 100)); }, `Расход Claude: сверка — неделя ${pct}%`)) { toast('Сверил: теперь полоски — в % от лимита'); openMenu(); usageLoad(); }
+      busy(b, false); break;
+    }
     case 'ready': openReadiness(); break;
     case 'streak': openStreak(); break;
     case 'anom': openAnomalies(); break;
@@ -5574,6 +5583,43 @@ function enStats() {
   const seen = WORDS.filter(w => cards[w[0]]);
   return { total: WORDS.length, learned: seen.filter(w => cards[w[0]].b >= 4).length, due: seen.filter(w => cards[w[0]].due <= t).length, fresh: WORDS.length - seen.length };
 }
+/* ---------- расход Claude: кто сколько «ест» из общего лимита подписки ----------
+   usage.json пишет сам Claude в конце каждой сессии с журналом (tools/usage_log.py): по дням, кто (oleg / friend),
+   «условные токены» w. Процент от максимума — после сверки: Олег вписывает недельный % со страницы claude.ai. */
+function cuPeople() { const c = (S.config || {}).claude || {}; return Array.isArray(c.people) && c.people.length ? c.people : [{ id: 'oleg', name: 'Я' }, { id: 'friend', name: 'Друг' }]; }
+function cuSums(days) {
+  const from = addDays(today(), -(days - 1)), log = (S.usage && Array.isArray(S.usage.log)) ? S.usage.log : [];
+  const out = {}; log.filter(x => x.d >= from).forEach(x => { out[x.who] = (out[x.who] || 0) + (Number(x.w) || 0); });
+  return out;
+}
+const cuFmt = w => w >= 1e6 ? (Math.round(w / 1e5) / 10).toString().replace('.', ',') + ' млн' : Math.round(w / 1e3) + ' тыс.';
+function usageHtml() {
+  if (!S.usage) return '<div class="cu"><div class="cu-h"><b>Расход Claude</b><span class="m">загружаю…</span></div></div>';
+  const max = Number(((S.config || {}).claude || {}).weekMax) || 0, wk = cuSums(7), td = cuSums(1);
+  const total = Object.values(wk).reduce((a, b) => a + b, 0);
+  const rows = cuPeople().map(p => {
+    const v = wk[p.id] || 0, has = (S.usage.log || []).some(x => x.who === p.id);
+    const pct = max ? Math.min(100, v / max * 100) : total ? v / total * 100 : 0;
+    const lab = !has ? 'ещё не подключён' : max ? `${Math.round(v / max * 100)}% от недели · ${cuFmt(v)}` : `${Math.round(pct)}% расхода · ${cuFmt(v)}`;
+    return `<div class="cu-r${has ? '' : ' off'}"><span class="cu-n">${esc(p.name)}</span><span class="cu-bar"><i style="width:${pct.toFixed(1)}%"></i></span><span class="cu-v">${esc(lab)}${td[p.id] ? ` · сегодня ${cuFmt(td[p.id])}` : ''}</span></div>`;
+  }).join('');
+  return `<div class="cu"><div class="cu-h"><b>Расход Claude · 7 дней</b><button type="button" class="link-btn" data-action="cu-cal">${max ? 'сверить' : '% от лимита'}</button></div>${rows}
+    <p class="cu-note">${max ? 'Полоса — доля недельного лимита подписки (по последней сверке).' : 'Пока видно, кто сколько съел из общего. Чтобы видеть % от лимита — сверь один раз с claude.ai.'} Считаются разборы журналов и разговоры о журнале; другие чаты с Claude — нет.</p></div>`;
+}
+async function usageLoad() {
+  try { const d = await readDoc('usage.json'); S.usage = d && Array.isArray(d.log) ? d : { log: [] }; }
+  catch (_) { S.usage = S.usage || { log: [] }; }
+  const box = document.getElementById('cu-box'); if (box) box.innerHTML = usageHtml();
+}
+function openUsageCal() {
+  const total = Object.values(cuSums(7)).reduce((a, b) => a + b, 0);
+  S.cur = { type: 'cucal' };
+  openSheet(`<h2 class="sh-title">Сверить с лимитом</h2>
+    <p class="note">Открой <b>claude.ai/settings/usage</b> (или «Настройки → Использование» в приложении Claude) и впиши, сколько процентов <b>недельного</b> лимита уже израсходовано. Журнал посчитает, сколько условных токенов — это 100%.</p>
+    <label class="fld" for="cu-pct">Неделя израсходована, %</label><input id="cu-pct" inputmode="decimal" placeholder="например, 35">
+    <p class="note">У журнала за 7 дней записано ${esc(cuFmt(total))}. Если ты много сидишь в Claude помимо журнала, сверка завысит долю журнала — сверяй в обычную неделю. Недельный счётчик Claude обнуляется по своему расписанию, а журнал считает последние 7 дней, так что это оценка.</p>
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="cu-cal-save">Сохранить</button></div>`);
+}
 function openMenu() {
   const e = enStats(), bs = benStats(), rd = S.ready && isReady() ? readiness() : null;
   const items = [
@@ -5591,7 +5637,7 @@ function openMenu() {
     ['demo-toggle', 'film', demo() ? 'Демо: вкл' : 'Демо-режим', demo() ? 'нажми, чтобы выключить' : 'скрыть долги', demo() ? 'c-red' : 'c-gray'],
     ['settings', 'gear', 'GitHub', S.lastLoad ? 'обновлено ' + hhmm(new Date(S.lastLoad)) : 'подключение', 'c-gray']
   ];
-  openSheet(`<h2 class="sh-title">Меню</h2><div class="menu-grid">${items.map(([a, i, t, sub, c, extra]) => `<button type="button" class="mi ${c}" data-action="${a}" ${extra || ''}><span class="mi-ic">${ico(i)}</span><span class="mi-t">${esc(t)}</span>${sub ? `<span class="mi-s">${esc(sub)}</span>` : ''}</button>`).join('')}</div>`);
+  openSheet(`<h2 class="sh-title">Меню</h2><div id="cu-box">${usageHtml()}</div><div class="menu-grid">${items.map(([a, i, t, sub, c, extra]) => `<button type="button" class="mi ${c}" data-action="${a}" ${extra || ''}><span class="mi-ic">${ico(i)}</span><span class="mi-t">${esc(t)}</span>${sub ? `<span class="mi-s">${esc(sub)}</span>` : ''}</button>`).join('')}</div>`);
 }
 
 /* ---------- аномалии в тратах ---------- */
