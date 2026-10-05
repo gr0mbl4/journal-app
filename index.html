@@ -372,7 +372,7 @@ details.more-box[open] summary::after{content:"▴"}
 
 /* nav + toast */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
-.tabs-in{display:grid;grid-template-columns:repeat(6,1fr);width:100%;max-width:560px}
+.tabs-in{display:grid;grid-template-columns:repeat(5,1fr);width:100%;max-width:560px}
 .tab-btn{display:grid;justify-items:center;gap:3px;background:none;border:0;color:var(--muted);font-weight:500;font-size:11px;padding:4px 1px;cursor:pointer;min-width:0}
 .tab-btn .ic{display:grid;place-items:center;padding:3px 8px;border-radius:12px}
 .tab-btn svg{width:22px;height:22px}
@@ -1027,6 +1027,59 @@ details.fold.sub>:not(summary){margin-inline:8px}
 .wk-list.sorting details.blk>:not(summary),.wk-list.sorting div.blk>.sets,.wk-list.sorting .swap-form{display:none}
 .wk-list>.blk.lifted{background:var(--bg)}
 .no-anchor{overflow-anchor:none}
+/* мини-неделя на «Плане» */
+.wk-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;width:100%;margin:12px 0 0;padding:7px 5px 6px;border-radius:18px;border:1px solid var(--line);background:#FFFFFF;cursor:pointer;color:var(--ink);font:inherit;-webkit-tap-highlight-color:transparent}
+@media (prefers-color-scheme: dark){.wk-strip{background:rgba(255,255,255,.07)}}
+.wk-c{display:grid;justify-items:center;gap:2px;padding:4px 0 3px;border-radius:12px;min-width:0}
+.wk-c.today{background:var(--study-soft);box-shadow:inset 0 0 0 1.5px var(--study)}
+.wk-dw{font-size:11px;color:var(--muted);text-transform:lowercase}
+.wk-n{position:relative;font:700 16px/1.15 var(--f-body)}
+.wk-c.past .wk-n{opacity:.5}
+.wk-c.hol .wk-n,.wk-c.hol .wk-dw{color:#D9443A}
+.wk-c .cal-duty{position:absolute;top:-6px;right:-12px}
+.wk-c .marks{min-height:14px;justify-content:center;gap:1px}
+.wk-c .mk{width:12px;height:12px;font-size:8px}
+.wk-c .mk.ev{width:6px;height:6px}
+.cal-back{display:inline-block;margin-top:6px;font-weight:600}
+/* Спорт: разделы, превью комплекса, база картинками */
+.sp-seg{margin:6px 0 14px}
+.ex-grid>.note{grid-column:1/-1}
+.ex-card .ex-add{position:absolute;right:8px;top:8px;width:36px;height:36px;border-radius:50%;background:var(--sport);color:#fff;font:700 24px/36px var(--f-body);text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.3);cursor:pointer}
+.ex-card .ex-add.on{background:rgba(0,0,0,.55);font-size:17px;cursor:default}
+.ex-cx-add{margin:10px 0 4px}
+.cxv{display:grid;gap:8px;width:100%;margin-top:12px;padding:12px 12px 10px;border-radius:22px;border:2px solid var(--sport);background:var(--surface);text-align:left;color:var(--ink);cursor:pointer;font:inherit}
+.cxv-h{display:grid;gap:1px}.cxv-h small{color:var(--muted);font-size:12.5px}
+.cxv-row{display:flex;gap:6px;overflow:hidden}
+.cxv-ph{width:46px;height:46px;border-radius:11px;overflow:hidden;flex:0 0 auto;background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.cxv-ph img{width:100%;height:100%;object-fit:cover;display:block}
+/* комплекс в тренировке: «овал» + разовые под ним */
+.blk.cxo{padding:12px 10px 10px}
+.cxo-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 2px 8px;cursor:grab}
+.cxo-h b{font-size:15.5px}
+.cxo-n{font-size:12px;color:var(--muted);white-space:nowrap}
+.cxo-list{display:grid}
+.cxi{display:grid;grid-template-columns:54px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 10px;background:var(--surface);cursor:pointer;-webkit-tap-highlight-color:transparent;min-width:0}
+.cxi.perm{border-left:2px solid var(--sport);border-right:2px solid var(--sport)}
+.cxi.perm:first-child{border-top:2px solid var(--sport);border-radius:24px 24px 0 0;padding-top:10px}
+.cxi.once{margin-top:7px;border:1.5px dashed color-mix(in srgb,var(--sport) 55%,var(--line));border-radius:16px;background:transparent}
+.cxi-ph{width:54px;height:54px;border-radius:11px;overflow:hidden;background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.cxi-ph img{width:100%;height:100%;object-fit:cover;display:block}
+.cxi-b{min-width:0}
+.cxi-t{display:block;font-weight:600;font-size:14.5px;line-height:1.25}
+.cxi-h{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.3}
+.cxi.once .cxi-h{color:var(--sport)}
+.cxi-x{color:var(--muted)}
+.cxo-par{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 8px;padding:10px 10px 12px;border:2px solid var(--sport);border-top:1px dashed color-mix(in srgb,var(--sport) 45%,transparent);border-radius:0 0 24px 24px;background:var(--sport-soft)}
+.cxo-par:first-child{border-top:2px solid var(--sport);border-radius:24px}
+.cxp{display:grid;gap:3px;min-width:0}
+.cxp-l{font-size:11.5px;color:var(--muted);text-align:center;white-space:nowrap}
+.cxp-c input{font-weight:700;font-size:15px}
+.cxo-note{margin-top:10px}
+.cxo-acts{margin-top:6px}
+.cxo-tip{font-size:12px;color:var(--muted);margin:2px 2px 0;line-height:1.35}
+.wk-list.sorting .cxo>:not(.cxo-h){display:none}
+.cxo-list.sorting .cxo-par{opacity:.85}
+.vs-prev{position:fixed;right:12px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:64px;max-height:110px;object-fit:cover;border-radius:12px;z-index:70;box-shadow:0 6px 20px rgba(0,0,0,.35);pointer-events:none;background:#000}
 /* чат с Claude */
 .sheet-panel.chat-mode{height:94%;max-height:none;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
 .sheet-panel.chat-mode #sheet-body{flex:1;min-height:0;display:flex;flex-direction:column}
@@ -1077,7 +1130,7 @@ img.bad{opacity:.3}
 .cl-link{display:grid;gap:1px;padding:5px 9px;margin:2px 0 6px;border-radius:8px;background:rgba(255,255,255,.16);border-left:3px solid rgba(255,255,255,.85);color:inherit;text-decoration:none!important;font-size:13px;line-height:1.3}
 .cl-link span{opacity:.92;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .cl-link i{font-style:normal;font-weight:600;opacity:.95}
-.cl-up{display:flex;gap:6px;align-items:center;font-size:13px;opacity:.92}
+.cl-up{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font-size:13px;opacity:.92}
 .cl-up svg{width:16px;height:16px;flex:0 0 auto}
 .cl-b.out .upp-bar{margin-top:7px;background:rgba(255,255,255,.3)}
 .cl-b.out .upp-bar i{background:#fff}
@@ -1121,7 +1174,7 @@ img.bad{opacity:.3}
 .cl-tr{font-size:14.5px;line-height:1.35;margin-top:4px;padding-top:5px;border-top:1px solid rgba(255,255,255,.22)}
 .cl-tr.wait,.cl-tr.err{font-style:italic;opacity:.85;font-size:13px}
 .cl-via{display:block;font-size:12px;opacity:.85;margin-bottom:2px}
-.td-i{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;column-gap:6px;padding:11px 12px 11px 10px;border-radius:16px;background:#FFFFFF;border:1px solid var(--line);--acc:var(--muted)}
+.td-i{display:grid;grid-template-columns:minmax(0,1fr) 34px;align-items:center;column-gap:6px;padding:11px 8px 11px 14px;border-radius:16px;background:#FFFFFF;border:1px solid var(--line);--acc:var(--muted)}
 @media (prefers-color-scheme: dark){.td-i{background:rgba(255,255,255,.09)}}
 .td-i.k-sport{background:var(--sport-soft);border-color:color-mix(in srgb,var(--sport) 35%,transparent);--acc:var(--sport)}
 .td-i.k-study{background:var(--study-soft);border-color:color-mix(in srgb,var(--study) 35%,transparent);--acc:var(--study)}
@@ -1138,7 +1191,7 @@ img.bad{opacity:.3}
 .td-i.open .td-s{white-space:normal}
 .td-i.done .td-t,.td-i.skipped .td-t{text-decoration:line-through;opacity:.6}
 .td-i.done{opacity:.85}
-.td-more{grid-column:2;margin-top:8px;font-size:14px;color:var(--ink)}
+.td-more{grid-column:1/-1;margin-top:8px;font-size:14px;color:var(--ink)}
 .td-more p{margin:0 0 6px}
 .td-more ul{margin:0 0 8px;padding-left:18px;color:var(--muted)}
 .td-more li{margin:2px 0}
@@ -1234,6 +1287,7 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
     </section>
 
     <section id="tab-cal" class="tab" aria-label="Календарь" hidden>
+      <button type="button" class="link-btn cal-back" data-action="tab" data-tab="plan">← План</button>
       <div class="cal-bar">
         <button type="button" class="btn sm" data-action="cal-prev" aria-label="Предыдущий месяц">‹</button>
         <div class="ml" id="cal-label"></div>
@@ -1345,9 +1399,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
     <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="plan" aria-selected="true">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></span>План
     </button>
-    <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="cal" aria-selected="false">
-      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></svg></span>Календарь
-    </button>
     <button type="button" class="tab-btn" role="tab" data-action="tab" data-tab="lessons" aria-selected="false">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5"/></svg></span>Учёба
     </button>
@@ -1380,6 +1431,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261005a"></script>
+<script src="app.js?v=20261005c"></script>
 </body>
 </html>

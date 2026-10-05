@@ -1282,6 +1282,7 @@ function workoutForm(i, ses) {
   const ord = wkOrder(i, ses), moved = ord.some((x, k) => x !== k);
   const html = ord.map((bi, pos) => {
     const b = ses.blocks[bi];
+    if (b.type === 'Круг' && ses.replaced !== 'custom') return cxBlockHtml(i, ses, b, bi, ord.slice(0, pos + 1).filter(z => ses.blocks[z].type === 'Круг').length, src);
     const ex = b.ex || [];
     const wrAll = ex.map((x, ei) => ({ x, ei, n: 0 })).filter(o => o.x.log === 'wr' || o.x.log === 'r');
     wrAll.forEach(o => { o.n = exRows(c, o.x, b, bi, o.ei, val(bi, o.ei)); });
@@ -1359,7 +1360,15 @@ function collectLog(ses) {
   let any = false;
   const c = S.cur && S.cur.type === 'sport' ? S.cur : { times: {} };
   const num = id => { const el = document.getElementById(id); return el ? numOrNull(el.value) : null; };
-  const blocks = ses.blocks.map((b, bi) => ({ type: b.type || '', ex: (b.ex || []).map((x, ei) => {
+  const inst = c.id ? findInst(c.id) : null;
+  const blocks = ses.blocks.map((b, bi) => b.type === 'Круг' && document.getElementById(`cxp-${bi}-reps`) ? (() => {
+    const cx = {}; CXP.forEach(([f]) => { const v = num(`cxp-${bi}-${f}`); if (v != null) cx[f] = v; });
+    const noteEl = document.getElementById(`cxn-${bi}`), note = noteEl ? noteEl.value.trim() : '';
+    if (Object.keys(cx).length || note) any = true;
+    const ex = (b.ex || []).map(x => ({ name: x.name, log: 'cx' })).concat(cxOnce(inst).filter(o => o.bi === bi).map(o => ({ name: o.name, log: 'cx', once: true })));
+    const o = { type: 'Круг', ex, cx }; if (b.title) o.title = b.title; if (note) o.note = note;
+    return o;
+  })() : ({ type: b.type || '', ex: (b.ex || []).map((x, ei) => {
     const o = { name: x.name, log: x.log || 'check' };
     if (o.log === 'wr' || o.log === 'r') {
       const sets = [];
@@ -2812,8 +2821,8 @@ function renderPlan() {
     rest += dayHtml(d, k);
   }
   const end = addDays(t, HORIZON);
-  // главное — дела на сегодня; всё остальное ниже и свёрнуто
-  st.innerHTML += todayCardHtml(t, study, sport, true);
+  // главное — дела на сегодня; над ними неделя в одну строку (нажал — открылся календарь)
+  st.innerHTML += weekStripHtml(study, sport) + todayCardHtml(t, study, sport, true);
   dy.innerHTML = banners + todayCardHtml(addDays(t, 1), study, sport, false)
     + `<div class="sec-row plan-acts"><span class="acts">${shopBtnHtml()}<button type="button" class="btn sm" data-action="ev-new">+ Событие</button></span></div>`
     + `<details class="fold days-more" data-k="plan-more"${openAttr('plan-more')}><summary><span>Дальше</span><span class="sec-note">до ${dm(end)} · ${HORIZON - 1} ${plural(HORIZON - 1, 'день', 'дня', 'дней')}</span></summary>${rest}</details>`
@@ -2821,7 +2830,17 @@ function renderPlan() {
 }
 
 
-/* ---------- главный экран: короткие показатели в ряд + дела на день крупно ---------- */
+/* ---------- главный экран: короткие показатели в ряд + неделя + дела на день крупно ---------- */
+function weekStripHtml(study, sport) {
+  const t = today(), mon = mondayOf(t);
+  let cells = '';
+  for (let k = 0; k < 7; k++) {
+    const d = addDays(mon, k), evs = eventsOn(d).length;
+    const marks = sportMark(d, sport) + studyMark(d, study) + (evs ? '<span class="mk ev"></span>'.repeat(Math.min(evs, 2)) : '');
+    cells += `<span class="wk-c${d === t ? ' today' : ''}${d < t ? ' past' : ''}${holiday(d) ? ' hol' : ''}${restDay(d) ? ' rest' : ''}"><span class="wk-dw">${DOW_S[dow(d)]}</span><span class="wk-n">${pd(d).getDate()}${dutyOn(d) ? '<i class="cal-duty">Н</i>' : ''}</span><span class="marks">${marks}</span></span>`;
+  }
+  return `<button type="button" class="wk-strip" data-action="cal-open" aria-label="Неделя — открыть календарь">${cells}</button>`;
+}
 function statsRowHtml(sport) {
   const t = today(), s = (S.sleep.days || {})[t], m = sleepMin(s);
   const r = readiness(t), st = streakInfo() || { cur: 0 }, w = weekProgress(sport);
@@ -2887,7 +2906,7 @@ function todayCardHtml(d, study, sport, big) {
   const list = items.map(x => {
     const id = key + '-' + x.key, open = S.open.has(id);
     const chk = x.done ? '<span class="td-c on">✓</span>' : x.skipped ? '<span class="td-c x">–</span>' : x.chk ? `<button type="button" class="td-c" ${x.chk} aria-label="Отметить: ${esc(x.title)}"></button>` : `<button type="button" class="td-c" ${x.open} aria-label="${esc(x.title)}"></button>`;
-    return `<div class="td-i k-${x.k}${x.done ? ' done' : ''}${x.skipped ? ' skipped' : ''}${open ? ' open' : ''}" data-sort-item data-ok="${esc(x.ok)}">${chk}<button type="button" class="td-m" data-action="td-x" data-k="${esc(id)}" aria-expanded="${open}"><span class="td-t">${esc(x.title)}</span>${x.sub ? `<span class="td-s">${esc(x.sub)}</span>` : ''}</button>
+    return `<div class="td-i k-${x.k}${x.done ? ' done' : ''}${x.skipped ? ' skipped' : ''}${open ? ' open' : ''}" data-sort-item data-ok="${esc(x.ok)}"><button type="button" class="td-m" data-action="td-x" data-k="${esc(id)}" aria-expanded="${open}"><span class="td-t">${esc(x.title)}</span>${x.sub ? `<span class="td-s">${esc(x.sub)}</span>` : ''}</button>${chk}
       <div class="td-more"${open ? '' : ' hidden'}>${x.more || ''}<button type="button" class="btn sm${x.k === 'sport' ? ' sport' : x.k === 'study' ? ' study' : ''}" ${x.open}>${esc(x.openLabel || 'Открыть')}</button></div></div>`;
   }).join('');
   const empty = !items.length ? `<p class="td-empty">${rest ? 'Чистый день — без учёбы и спорта. Обнулиться.' : 'Дел нет.'}</p>` : '';
@@ -2911,7 +2930,7 @@ async function tdAdd(d, title) {
 const DRAG = { st: null, lift: false, tm: 0, until: 0 };
 function dragFind(t) {
   if (!t || !t.closest || t.closest('input, textarea, select, .sb, .td-c, .icon-btn, .btn, a, .swap-form')) return null;
-  const item = t.closest('[data-sort-item]'); if (!item) return null;
+  const item = t.closest('[data-sort-item]'); if (!item || item.hasAttribute('data-sort-fixed')) return null;
   const list = item.parentElement; if (!list || !list.hasAttribute('data-sort')) return null;
   if (item.querySelector('[data-sort-handle]') && !t.closest('[data-sort-handle]')) return null;
   return { item, list };
@@ -2985,6 +3004,7 @@ function dragDone(list, items) {
   const kind = list.dataset.sort;
   setTimeout(() => document.querySelectorAll('.no-anchor').forEach(x => x.classList.remove('no-anchor')), 600);
   if (kind === 'td') saveDayOrder(list.dataset.date, items.map(el => el.dataset.ok));
+  else if (kind === 'cx') cxReorder(Number(list.dataset.bi), items);
   else if (kind === 'wk') {
     const c = S.cur; if (!c || c.type !== 'sport') return;
     clearTimeout(draftT); const lg = collectLog(c.ses); if (lg.any) LS.set('bj-draft-' + c.id, { blocks: lg.blocks });
@@ -3443,9 +3463,46 @@ function videoFrames(file, max, onFrame) {
   });
 }
 const isVideo = f => /^video\//.test(f.type || '') || /\.(mov|mp4|m4v|3gp)$/i.test(f.name || '');
+// Видео целиком, но маленькое: перекодируем на телефоне в 480p без звука (MediaRecorder с холста), чтобы Claude вырезал
+// из него плавный клип техники вместо анимации из кадров. Видео в это время играет в маленьком окошке (iOS не даёт
+// крутить невидимое видео). Не вышло или видео длиннее 2 минут — null, остаются только кадры.
+async function videoSmall(file, onProg) {
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return null;
+  const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  const type = (MediaRecorder.isTypeSupported ? types.find(t => MediaRecorder.isTypeSupported(t)) : '') || '';
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file), v = document.createElement('video');
+    let done = false, mr = null, raf = 0, wd = 0, last = -1, lastT = Date.now();
+    const finish = res => { if (done) return; done = true; cancelAnimationFrame(raf); clearInterval(wd); try { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); } catch (_) {} URL.revokeObjectURL(url); resolve(res); };
+    v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = 'auto';
+    v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
+    v.className = 'vs-prev';
+    v.addEventListener('error', () => finish(null));
+    v.addEventListener('loadedmetadata', async () => {
+      const d = v.duration;
+      if (!isFinite(d) || d <= 0 || d > 120 || !v.videoWidth) return finish(null);
+      const sc = Math.min(1, 480 / Math.max(v.videoWidth, v.videoHeight));
+      const W = Math.max(2, Math.round(v.videoWidth * sc / 2) * 2), H = Math.max(2, Math.round(v.videoHeight * sc / 2) * 2);
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const ctx = c.getContext('2d'), chunks = [];
+      try { mr = new MediaRecorder(c.captureStream(25), type ? { mimeType: type, videoBitsPerSecond: 700000 } : { videoBitsPerSecond: 700000 }); } catch (_) { return finish(null); }
+      mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      mr.onstop = () => { const mt = (mr.mimeType || type || 'video/webm').split(';')[0]; const blob = new Blob(chunks, { type: mt }); finish(blob.size > 20000 ? { blob, ext: /mp4/.test(mt) ? 'mp4' : 'webm' } : null); };
+      const draw = () => { if (done) return; try { ctx.drawImage(v, 0, 0, W, H); } catch (_) {} if (onProg) onProg(Math.min(1, v.currentTime / d)); raf = requestAnimationFrame(draw); };
+      v.addEventListener('ended', () => { try { mr.stop(); } catch (_) { finish(null); } }, { once: true });
+      try { ctx.drawImage(v, 0, 0, W, H); mr.start(1000); await v.play(); draw(); }
+      catch (_) { try { mr.stop(); } catch (__) {} return finish(null); }
+      // видео встало (свернули журнал и т. п.) — бросаем, хватит кадров
+      wd = setInterval(() => { if (v.currentTime !== last) { last = v.currentTime; lastT = Date.now(); } else if (Date.now() - lastT > 6000) { done = true; try { mr.onstop = null; mr.stop(); } catch (_) {} done = false; finish(null); } }, 1000);
+    }, { once: true });
+    document.body.appendChild(v);
+    v.src = url; v.load();
+  });
+}
 // Все файлы уходят одной фиксацией (Git Data API). failed — номера файлов, которые не получилось подготовить или отправить.
-async function uploadFiles(files, prefix, label) {
-  const out = { media: [], photos: [], frames: 0, failed: [] };
+// opts.small — у видео ещё и маленькая копия целиком (для клипов упражнений), пути — в out.video.
+async function uploadFiles(files, prefix, label, opts) {
+  const out = { media: [], photos: [], frames: 0, failed: [], video: [] };
   const batch = [], N = files.length, vids = files.filter(isVideo).length;
   PROG.start(vids ? (N > 1 ? `Отправляю ${N} ${plural(N, 'файл', 'файла', 'файлов')}` : 'Отправляю видео') : (N > 1 ? `Отправляю ${N} фото` : 'Отправляю фото'));
   for (let k = 0; k < files.length; k++) {
@@ -3458,6 +3515,10 @@ async function uploadFiles(files, prefix, label) {
         if (!fr.length) { out.failed.push(k + 1); continue; }
         fr.forEach((x, i) => batch.push({ path: `${prefix}_${k + 1}_f${pad(i + 1)}.jpg`, b64: x.b64, photo: true }));
         out.frames += fr.length;
+        if (opts && opts.small) {
+          const sm = await videoSmall(f, q => PROG.step('prep', (k + 0.5 + q * 0.5) / N, `сжимаю видео${N > 1 ? ' ' + (k + 1) + ' из ' + N : ''}`));
+          if (sm) batch.push({ path: `${prefix}_${k + 1}.${sm.ext}`, b64: await fileToBase64(sm.blob), video: true });
+        }
       } else {
         batch.push({ path: `${prefix}_${k + 1}.jpg`, b64: await resizeImage(f), photo: true, k: k + 1 });
       }
@@ -3466,12 +3527,12 @@ async function uploadFiles(files, prefix, label) {
   if (!batch.length) { PROG.done(false, 'файлы не прочитались'); return out; }
   try {
     await GH.commitFiles(batch, `${label}: ${batch.length} ${plural(batch.length, 'файл', 'файла', 'файлов')}`, (i, n, bd, bt) => { setSync(`отправляю ${i} из ${n}…`); PROG.step('up', bd / bt, `отправляю ${i} из ${n}`); });
-    batch.forEach(b => { out.media.push(b.path); if (b.photo) out.photos.push(b.path); });
+    batch.forEach(b => { if (b.video) { out.video.push(b.path); return; } out.media.push(b.path); if (b.photo) out.photos.push(b.path); });
   } catch (e) {
     console.warn(e);
     // запасной путь — по одному файлу через Contents API
     for (const b of batch) {
-      try { await GH.putRaw(b.path, b.b64, `${label}: ${b.path.split('/').pop()}`); out.media.push(b.path); if (b.photo) out.photos.push(b.path); }
+      try { await GH.putRaw(b.path, b.b64, `${label}: ${b.path.split('/').pop()}`); if (b.video) out.video.push(b.path); else { out.media.push(b.path); if (b.photo) out.photos.push(b.path); } }
       catch (e2) { setSync(errText(e2), true); if (b.k && !out.failed.includes(b.k)) out.failed.push(b.k); }
     }
   }
@@ -3527,6 +3588,7 @@ function closeSheet() {
   const p = document.querySelector('.sheet-panel'); if (p && p.style) { p.style.transform = ''; p.classList.remove('drag', 'snap', 'chat-mode'); }
   clearTimeout(chatPollT); chatPollT = 0;
   if (REC.mr) recStop(false);
+  if (CXCFG.key) cxCfgFlush();
   vvFit();
 }
 // чат: шторка подстраивается под экранную клавиатуру (iOS сдвигает только видимую область)
@@ -4355,9 +4417,11 @@ async function mediaUrl(path) {
   }
   return (S.media[path] = URL.createObjectURL(blob));
 }
-function exCard(it) {
+// add: 'add' — кнопка «+» (в ближайший комплекс), 'in' — уже там, 'pick' — карточка целиком добавляет в выбранный комплекс
+function exCard(it, add) {
   const prog = exInProgram(it).length;
-  return `<button type="button" class="ex-card" data-action="ex-open" data-id="${esc(it.id)}"><span class="ph">${it.poster ? `<img data-gh="${esc(it.poster)}" alt="" loading="lazy">` : ''}${it.clip ? `<span class="pl">${ico('play')}</span>` : ''}${prog ? '<span class="in-prog">в программе</span>' : ''}</span><span class="t">${esc(it.name)}</span><span class="m">${esc([exCatName(it.cat), it.dose].filter(Boolean).join(' · '))}</span></button>`;
+  const plus = add === 'add' ? `<span class="ex-add" role="button" data-action="cx-add" data-id="${esc(it.id)}" aria-label="В комплекс: ${esc(it.name)}">+</span>` : add === 'in' ? '<span class="ex-add on" aria-label="Уже в комплексе">✓</span>' : '';
+  return `<button type="button" class="ex-card" data-action="${add === 'pick' ? 'cx-pick-add' : 'ex-open'}" data-id="${esc(it.id)}"><span class="ph">${it.poster ? `<img data-gh="${esc(it.poster)}" alt="" loading="lazy">` : ''}${it.clip && add !== 'pick' ? `<span class="pl">${ico('play')}</span>` : ''}${prog ? '<span class="in-prog">в программе</span>' : ''}${plus}</span><span class="t">${esc(it.name)}</span><span class="m">${esc([exCatName(it.cat), it.dose].filter(Boolean).join(' · '))}</span></button>`;
 }
 function cxCard(c) {
   const first = exById((c.items[0] || {}).ex) || {}, pr = cxInProgram(c);
@@ -4402,7 +4466,7 @@ function exChartHtml(name, o) {
   const delta = o.kg ? last.w - first.w : last.r - first.r;
   return lineChart(o.pts.map(p => ({ label: dm(p.d), v: o.kg ? p.w : p.r })), { title: cap + (delta ? ` · ${delta > 0 ? '+' : '−'}${n(Math.abs(Math.round(delta * 10) / 10))} с ${dm(first.d)}` : ''), fmt: v => n(v), cls: 'sport' });
 }
-function sportProgressHtml() {
+function sportProgressHtml(flat) {
   const st = (S.config.sport || {}).start, weeks = lastWeeks(8, st); if (!weeks.length) return '';
   const all = buildSport(weeks[0], addDays(weeks[weeks.length - 1], 6)), mon = mondayOf(today());
   const per = weeks.map(f => ({ label: wkLabel(f), v: all.filter(i => i.eff >= f && i.eff <= addDays(f, 6) && (i.state === 'done' || i.state === 'other')).length, hi: f === mon }));
@@ -4412,6 +4476,7 @@ function sportProgressHtml() {
   let h = per.length >= 2 ? barChart(per, { title: 'Тренировок в неделю' + (per.some(x => x.hi) ? ' · последняя — текущая' : ''), fmt: v => String(v), cls: 'sport-bars' }) : '';
   if (wpts.length >= 2) h += lineChart(wpts.slice(-30), { title: 'Вес тела, кг', fmt: v => String(v).replace('.', ','), cls: 'sport' });
   if (names.length) h += `<label class="fld" for="pg-ex">Упражнение</label><select id="pg-ex">${names.map(nm => `<option value="${esc(nm)}"${nm === sel ? ' selected' : ''}>${esc(nm)} (${ex[nm].pts.length})</option>`).join('')}</select><div id="pg-chart">${exChartHtml(sel, ex[sel])}</div>`;
+  if (flat) return h;
   return h ? `<details class="fold" data-k="sp-prog"${openAttr('sp-prog')}><summary><span>Прогресс</span><span class="sec-note">графики</span></summary>${h}</details>` : '';
 }
 function studyProgressHtml() {
@@ -4454,31 +4519,67 @@ function exListHtml() {
       <div class="stack">${cxs.map(cxRow).join('')}${its.map(exRow).join('')}</div></details>`;
   }).join('');
 }
-function renderExGrid() {
-  const g = $('#ex-list'); if (!g) return;
-  g.innerHTML = exListHtml();
+function renderExGrid(pick) {
+  const g = $(pick ? '#exp-list' : '#ex-list'); if (!g) return;
+  const cat = (pick ? S.expCat : S.exCat) || 'all', q = exNorm(pick ? S.expQ : S.exQ);
+  const tg = pick ? null : cxTarget();
+  const inCx = new Set();
+  if (tg) cxBlocks(tg.ses).forEach(({ b, bi }) => { (b.ex || []).forEach(x => inCx.add(x.name)); cxOnce(tg.i).filter(o => o.bi === bi).forEach(o => inCx.add(o.name)); });
+  const cxs = !pick && (cat === 'cx' || (cat === 'all' && q)) ? exCx().filter(c => !q || exNorm(c.title + ' ' + c.items.map(x => (exById(x.ex) || {}).name || '').join(' ')).includes(q)) : [];
+  const its = cat === 'cx' ? [] : exItems().filter(x => (cat === 'all' || x.cat === cat || (cat === 'prog' && exInProgram(x).length)) &&
+    (!q || exNorm([x.name, (x.aka || []).join(' '), exCatName(x.cat), x.eq, (x.how || []).join(' ')].join(' ')).includes(q)));
+  const html = cxs.map(cxCard).join('') + its.map(it => exCard(it, pick ? 'pick' : tg ? (inCx.has(it.name) ? 'in' : 'add') : '')).join('');
+  g.innerHTML = html || `<p class="note">${exItems().length ? 'Ничего не нашлось.' : 'База пока пустая — шли ролики через «Поделиться» → Claude.'}</p>`;
   hydrateImages(g);
 }
+// Спорт: три раздела сверху — тренировки недели, база упражнений (узнавать по картинке), прогресс
+const SP_SEG = [['train', 'Тренировки'], ['ex', 'Упражнения'], ['prog', 'Прогресс']];
 function renderSportTab() {
   const box = $('#tab-sport'); if (!box) return;
   if (!S.ready) { box.innerHTML = bannerHtml(); return; }
+  if (!SP_SEG.some(x => x[0] === S.spSeg)) S.spSeg = SP_SEG.some(x => x[0] === LS.get('bj-sp-seg')) ? LS.get('bj-sp-seg') : 'train';
+  const seg = S.spSeg;
+  const head = `<div class="seg sp-seg" role="group" aria-label="Спорт">${SP_SEG.map(([k, l]) => `<button type="button" data-action="sp-seg" data-seg="${k}" aria-pressed="${k === seg}">${l}</button>`).join('')}</div>`;
+  const body = seg === 'ex' ? spExHtml('ex') : seg === 'prog' ? spProgHtml() : spTrainHtml();
+  box.innerHTML = head + body + `<p class="note sp-foot"><button type="button" class="link-btn" data-action="ideas" data-area="sport">+ Идея или ролик для Claude</button></p>`;
+  if (seg === 'ex') renderExGrid();
+  hydrateImages(box);
+}
+function spTrainHtml() {
   const t = today(), from = mondayOf(t), to = addDays(from, 6);
   const week = buildSport(addDays(from, -7), addDays(to, 7)).filter(i => i.eff >= from && i.eff <= to).sort((a, b) => a.eff < b.eff ? -1 : a.eff > b.eff ? 1 : 0);
   const done = week.filter(i => i.state === 'done' || i.state === 'other').length, planned = week.filter(i => i.state !== 'skipped').length;
-  const now = week.filter(i => i.eff === t), next = week.find(i => i.eff > t && i.state !== 'skipped' && i.state !== 'done' && i.state !== 'other');
+  const now = week.filter(i => i.eff === t), next = week.find(i => i.eff > t && !i.state);
   const top = now.length ? now : next ? [next] : [];
-  const nCx = exCx().length, nEx = exItems().length;
-  box.innerHTML = `<div class="sec-row"><h2 class="sec">${now.length ? 'Сегодня' : next ? 'Дальше' : 'Неделя'}</h2><span class="sec-n">${done} из ${planned} за неделю</span></div>
+  const tg = cxTarget();
+  return `<div class="sec-row"><h2 class="sec">${now.length ? 'Сегодня' : next ? 'Дальше' : 'Неделя'}</h2><span class="sec-n">${done} из ${planned} за неделю</span></div>
     <div class="stack">${top.length ? top.map(i => sportRowHtml(i, t)).join('') : '<p class="note">До конца недели тренировок нет.</p>'}</div>
-    ${week.length ? `<details class="fold" data-k="sp-week"${openAttr('sp-week')}><summary><span>Неделя</span><span class="sec-note">${done} из ${planned}</span></summary><div class="stack">${week.map(i => sportRowHtml(i, t)).join('')}</div></details>` : ''}
-    <details class="fold" data-k="sp-base"${openAttr('sp-base')}><summary><span>Упражнения</span><span class="sec-note">${nEx}${nCx ? ' · ' + nCx + ' ' + plural(nCx, 'комплекс', 'комплекса', 'комплексов') : ''}</span></summary>
-      <input id="ex-q" type="search" class="notes-q" placeholder="Поиск: рывок, запястья, кор…" value="${esc(S.exQ || '')}" autocomplete="off" autocapitalize="off">
-      <div id="ex-list"></div>
-    </details>
-    ${sportProgressHtml()}
-    <p class="note sp-foot"><button type="button" class="link-btn" data-action="ideas" data-area="sport">+ Идея или ролик для Claude</button></p>`;
-  renderExGrid();
-  hydrateImages(box);
+    ${tg ? cxPreviewHtml(tg) : ''}
+    ${week.length ? `<h2 class="sec">Неделя · ${dm(from)} – ${dm(to)}</h2><div class="stack">${week.map(i => sportRowHtml(i, t)).join('')}</div>` : ''}`;
+}
+// ближайший комплекс: что в рамке и что добавлено разово
+function cxPreviewHtml(tg) {
+  const once = cxOnce(tg.i);
+  return cxBlocks(tg.ses).map(({ b, bi }, n) => {
+    const add = once.filter(o => o.bi === bi);
+    const thumbs = (b.ex || []).map(x => x.name).concat(add.map(o => o.name)).slice(0, 7).map(nm => { const it = exFind(nm); return `<span class="cxv-ph">${it && it.poster ? `<img data-gh="${esc(it.poster)}" alt="">` : ''}</span>`; }).join('');
+    return `<button type="button" class="cxv" data-action="sport" data-id="${esc(tg.i.id)}"><span class="cxv-h"><b>${esc(b.title || 'Комплекс ' + (n + 1))}</b><small>${esc(short(tg.i.eff))} · ${(b.ex || []).length} в комплексе${add.length ? ' + ' + add.length + ' разово' : ''}</small></span><span class="cxv-row">${thumbs}</span></button>`;
+  }).join('');
+}
+function spProgHtml() {
+  const h = sportProgressHtml(true);
+  return h || '<p class="note">Графики появятся, когда будет хотя бы две недели тренировок с записанными подходами.</p>';
+}
+// база упражнений: поиск, категории, сетка картинок. mode 'ex' — вкладка, 'pick' — выбор упражнения в комплекс тренировки
+function spExHtml(mode) {
+  const pick = mode === 'pick', cats = ((S.ex || {}).cats || []).filter(c => exItems().some(x => x.cat === c.id));
+  const cat = (pick ? S.expCat : S.exCat) || 'all', q = pick ? S.expQ : S.exQ;
+  const chips = [['all', 'Все']].concat(pick ? [] : [['cx', 'Комплексы']], cats.map(c => [c.id, c.title]), [['prog', 'В программе']]);
+  const tg = pick ? null : cxTarget();
+  return `<input id="${pick ? 'exp-q' : 'ex-q'}" type="search" class="notes-q" placeholder="Поиск: название или как делается" value="${esc(q || '')}" autocomplete="off" autocapitalize="off">
+    <div class="chips ex-cats" role="group" aria-label="Категории">${chips.map(([k, l]) => `<button type="button" class="chip-btn" data-action="${pick ? 'exp-cat' : 'ex-cat'}" data-cat="${k}" aria-pressed="${k === cat}">${esc(l)}</button>`).join('')}</div>
+    ${pick ? '<p class="note">Нажми на картинку — упражнение встанет в комплекс на эту тренировку.</p>' : tg ? `<p class="note">«+» на картинке — в ближайший комплекс (${esc(short(tg.i.eff))}).</p>` : ''}
+    <div id="${pick ? 'exp-list' : 'ex-list'}" class="ex-grid"></div>`;
 }
 function exMediaHtml(it) {
   if (!it.poster && !it.clip) return '';
@@ -4511,6 +4612,7 @@ function openExercise(id, back) {
     <h2 class="sh-title ex-title">${esc(it.name)}</h2>
     <div class="chips ex-tags"><span class="chip">${esc(exCatName(it.cat))}</span>${it.eq ? `<span class="chip">${esc(it.eq)}</span>` : ''}${prog.map(p => `<span class="chip good">${esc(p)}</span>`).join('')}</div>
     ${it.dose ? `<div class="ex-dose"><span>Сколько</span><b>${esc(it.dose)}</b></div>` : ''}
+    ${cxAddBtnHtml(it)}
     ${(it.how || []).length ? `<h3 class="sec">Техника</h3><ol class="ing">${it.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
     ${(it.tips || []).length ? `<h3 class="sec">Важно</h3><ul class="ing">${it.tips.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
     ${cxs.length ? `<h3 class="sec">В комплексах</h3><div class="stack">${cxs.map(c => `<button type="button" class="row cx-in" data-action="cx-open" data-id="${esc(c.id)}"><span class="rb"><span class="t">${esc(c.title)}</span><span class="m">${esc((c.items.find(x => x.ex === it.id) || {}).dose || '')}</span></span><span class="s">›</span></button>`).join('')}</div>` : ''}
@@ -4538,6 +4640,141 @@ function exBack() {
   else closeSheet();
 }
 
+/* ---------- комплексы (кардио с гирей) ----------
+   «Овал» — постоянный комплекс: блок type "Круг" в config.sport.sessions (ex — упражнения, параметры на весь комплекс:
+   reps — повторы, kg — гиря, time — общее время, мин, rest — отдых между кругами, с, sets — круги).
+   Разовые упражнения — plan.sportMoves[id].cxAdd = [{bi, name, ex}]: стоят под овалом этой тренировки и
+   относятся к нему; на следующей неделе их нет. Перетащил в овал — упражнение остаётся в комплексе навсегда. */
+const CXP = [['reps', 'повторы', '', 1], ['kg', 'гиря', 'кг', 2], ['time', 'время', 'мин', 1], ['rest', 'отдых', 'с', 15], ['rounds', 'круги', '', 1]];
+function cxBlocks(ses) { return ((ses && ses.blocks) || []).map((b, bi) => ({ b, bi })).filter(o => o.b.type === 'Круг'); }
+function cxOnce(i) { const a = i && i.ov && Array.isArray(i.ov.cxAdd) ? i.ov.cxAdd : []; return a; }
+// ближайшая тренировка с комплексом (сегодня тоже, если ещё не отмечена)
+function cxTarget() {
+  if (!isReady()) return null;
+  const t = today();
+  const list = buildSport(addDays(t, -7), addDays(t, 21)).filter(i => i.eff >= t && !i.state).sort((a, b) => a.eff < b.eff ? -1 : a.eff > b.eff ? 1 : 0);
+  for (const i of list) { const ses = sessionFor(i); if (cxBlocks(ses).length) return { i, ses }; }
+  return null;
+}
+function cxAddBtnHtml(it) {
+  const tg = cxTarget(); if (!tg) return '';
+  const there = cxBlocks(tg.ses).some(({ b, bi }) => (b.ex || []).some(x => x.name === it.name) || cxOnce(tg.i).some(o => o.bi === bi && o.name === it.name));
+  return there ? `<p class="note">✓ Уже в комплексе на ${esc(short(tg.i.eff))}.</p>` : `<button type="button" class="btn sport block ex-cx-add" data-action="cx-add" data-id="${esc(it.id)}">+ В комплекс · ${esc(short(tg.i.eff))}</button>`;
+}
+async function cxAddTo(i, bi, it) {
+  const ses = sessionFor(i), b = ses.blocks[bi]; if (!b) return false;
+  if ((b.ex || []).some(x => x.name === it.name) || cxOnce(i).some(o => o.bi === bi && o.name === it.name)) { toast('«' + it.name + '» уже в этом комплексе'); return false; }
+  const ok = await writePlan(p => { const cur = ((p.sportMoves[i.id] || {}).cxAdd || []).slice(); cur.push({ bi, name: it.name, ex: it.id }); setMove(p, i.id, { cxAdd: cur }); }, `Спорт: ${i.id} — в комплекс «${it.name}»`);
+  if (ok) toast(`В комплекс на ${short(i.eff)}: ${it.name}`);
+  return ok;
+}
+async function cxAddNearest(exId, bi) {
+  const it = exById(exId); if (!it) return;
+  const tg = cxTarget(); if (!tg) { toast('Ближайших тренировок с комплексом нет'); return; }
+  const cxs = cxBlocks(tg.ses);
+  if (bi == null && cxs.length > 1) {
+    openSheet(`<h2 class="sh-title">В какой комплекс?</h2><p class="sh-meta">${esc(it.name)} · ${esc(cap1(longDate(tg.i.eff)))}</p><div class="stack">${cxs.map(({ b, bi: k }, n) => `<button type="button" class="row" data-action="cx-add" data-id="${esc(it.id)}" data-bi="${k}"><span class="rb"><span class="t">${esc(b.title || 'Комплекс ' + (n + 1))}</span><span class="m">${(b.ex || []).map(x => x.name).slice(0, 4).map(esc).join(' · ')}</span></span><span class="s">›</span></button>`).join('')}</div>`);
+    return;
+  }
+  const ok = await cxAddTo(tg.i, bi == null ? cxs[0].bi : bi, it);
+  if (!ok) return;
+  if (S.cur && S.cur.type === 'ex' && S.cur.exId === it.id) openExercise(it.id);
+  else if (!S.cur && !$('#sheet').hidden) closeSheet();
+  if (S.tab === 'sport') renderSportTab();
+}
+function cxParams(ses, bi, src) {
+  const b = ses.blocks[bi] || {}, lg = src && src[bi] && src[bi].cx;
+  return Object.assign({ reps: b.reps, kg: b.kg, time: b.time, rest: b.rest, rounds: b.sets }, lg || {});
+}
+function cxBlockHtml(i, ses, b, bi, n, src) {
+  const pv = cxParams(ses, bi, src), once = cxOnce(i).map((o, oi) => ({ o, oi })).filter(z => z.o.bi === bi);
+  const sb = (src && src[bi]) || {};
+  const oldNote = sb.note || (Array.isArray(sb.ex) ? sb.ex.map(x => x && x.note).filter(Boolean).join('; ') : '');
+  const item = (name, hint, exId, attrs, cls, extra) => {
+    const it = (exId && exById(exId)) || exFind(name);
+    return `<div class="cxi ${cls}" data-sort-item ${attrs}${it ? ` data-action="ex-open" data-id="${esc(it.id)}" data-from="sport:${esc(i.id)}"` : ''}><span class="cxi-ph">${it && it.poster ? `<img data-gh="${esc(it.poster)}" alt="">` : ''}</span><span class="cxi-b"><span class="cxi-t">${esc(name)}</span>${hint ? `<span class="cxi-h">${esc(hint)}</span>` : ''}</span>${extra || ''}</div>`;
+  };
+  const hintOf = x => String(x.hint || '').replace(/^\s*\d+\s*(·\s*)?/, '').trim();  // повторы — в параметрах комплекса
+  const perm = (b.ex || []).map((x, ei) => item(x.name, hintOf(x), null, `data-kind="p" data-ei="${ei}"`, 'perm', '')).join('');
+  const par = `<div class="cxo-par" data-sort-item data-sort-fixed>${CXP.map(([f, l, u]) => `<div class="cxp"><span class="cxp-l">${l}${u ? ', ' + u : ''}</span><span class="cxp-c stp"><button type="button" class="sb" data-action="cxp" data-bi="${bi}" data-f="${f}" data-d="-1" aria-label="${l}: меньше">−</button><input id="cxp-${bi}-${f}" inputmode="numeric" value="${pv[f] != null ? esc(pv[f]) : ''}" placeholder="—" aria-label="${l}"><button type="button" class="sb" data-action="cxp" data-bi="${bi}" data-f="${f}" data-d="1" aria-label="${l}: больше">+</button></span></div>`).join('')}</div>`;
+  const ones = once.map(({ o, oi }) => item(o.name, 'на этот раз', o.ex, `data-kind="o" data-oi="${oi}"`, 'once', `<button type="button" class="icon-btn sm cxi-x" data-action="cx-once-del" data-oi="${oi}" aria-label="Убрать «${esc(o.name)}»">×</button>`)).join('');
+  return `<div class="blk cxo" data-bi="${bi}" data-sort-item><div class="cxo-h" data-sort-handle><b>${esc(b.title || 'Комплекс ' + n)}</b><span class="cxo-n">${(b.ex || []).length}${once.length ? ' + ' + once.length + ' разово' : ''}</span></div>
+    <div class="cxo-list" data-sort="cx" data-bi="${bi}">${perm}${par}${ones}</div>
+    <input class="note-in cxo-note" id="cxn-${bi}" value="${esc(oldNote)}" placeholder="Заметка: сколько кругов сделал, что было тяжело" aria-label="Заметка к комплексу">
+    <div class="cxo-acts"><button type="button" class="link-btn" data-action="cx-pick" data-bi="${bi}">+ упражнение из базы</button></div>
+    <p class="cxo-tip">В рамке — комплекс. Ниже — только на эту тренировку; перетащи в рамку, чтобы осталось. Порядок — удержанием.</p></div>`;
+}
+// параметры комплекса: черновик тренировки сразу, программа (config) — через 1,5 с после последнего нажатия
+const CXCFG = { key: '', vals: {}, t: 0 };
+function cxParamChanged(bi) {
+  clearTimeout(draftT); draftT = setTimeout(saveDraftNow, 300);
+  const c = S.cur; if (!c || c.type !== 'sport' || !c.ses) return;
+  if (CXCFG.key && CXCFG.key !== c.ses.key) cxCfgFlush();
+  CXCFG.key = c.ses.key;
+  const v = {}; CXP.forEach(([f]) => { const el = document.getElementById(`cxp-${bi}-${f}`); if (el) v[f] = numOrNull(el.value); });
+  CXCFG.vals[bi] = v;
+  clearTimeout(CXCFG.t); CXCFG.t = setTimeout(cxCfgFlush, 1500);
+}
+function cxCfgFlush() {
+  clearTimeout(CXCFG.t);
+  const key = CXCFG.key, vals = CXCFG.vals; CXCFG.key = ''; CXCFG.vals = {};
+  if (!key || !Object.keys(vals).length) return;
+  writeConfig(cfg => {
+    const s = cfg.sport && cfg.sport.sessions && cfg.sport.sessions[key]; if (!s) return;
+    Object.keys(vals).forEach(bi => {
+      const b = (s.blocks || [])[bi]; if (!b || b.type !== 'Круг') return;
+      const v = vals[bi];
+      ['reps', 'kg', 'time', 'rest'].forEach(f => { if (v[f] == null) delete b[f]; else b[f] = v[f]; });
+      if (v.rounds != null) b.sets = v.rounds;
+    });
+  }, `Спорт: параметры комплекса (${key})`);
+}
+function cxStep(bi, f, d) {
+  const el = document.getElementById(`cxp-${bi}-${f}`); if (!el) return;
+  const st = (CXP.find(x => x[0] === f) || [0, 0, 0, 1])[3];
+  let v = numOrNull(el.value);
+  const start = { reps: 10, kg: 8, time: 10, rest: 30, rounds: 3 };  // с пустого поля «+» ставит разумное начало
+  if (v == null) v = d > 0 ? start[f] : 0; else v = Math.max(0, Math.round((v + d * st) * 100) / 100);
+  el.value = String(v);
+  cxParamChanged(bi);
+}
+// перетащил в овале / из овала / под овалом
+async function cxReorder(bi, items) {
+  const c = S.cur; if (!c || c.type !== 'sport') return;
+  const i = findInst(c.id); if (!i) return;
+  const key = c.ses.key, cfgB = ((((S.config.sport || {}).sessions || {})[key] || {}).blocks || [])[bi];
+  if (!cfgB || c.ses.replaced === 'custom') return;
+  const once = cxOnce(i), pi = items.findIndex(el => el.classList.contains('cxo-par'));
+  const exOf = el => el.dataset.kind === 'p' ? clone(cfgB.ex[Number(el.dataset.ei)]) : { name: once[Number(el.dataset.oi)].name, log: 'r' };
+  const onceOf = el => el.dataset.kind === 'o' ? Object.assign({}, once[Number(el.dataset.oi)], { bi }) : (x => ({ bi, name: x.name, ex: (exFind(x.name) || {}).id }))(cfgB.ex[Number(el.dataset.ei)]);
+  const perm = items.slice(0, pi).map(exOf), ones = items.slice(pi + 1).map(onceOf);
+  ones.forEach(o => { if (!o.ex) delete o.ex; });
+  const names = a => JSON.stringify(a.map(x => x.name));
+  const permCh = names(perm) !== names(cfgB.ex || []), onceCh = names(ones) !== names(once.filter(o => o.bi === bi));
+  if (!permCh && !onceCh) return;
+  const lg = collectLog(c.ses); if (lg.any) LS.set('bj-draft-' + i.id, { blocks: lg.blocks });
+  const up = perm.length > (cfgB.ex || []).length, down = perm.length < (cfgB.ex || []).length;
+  let ok = true;
+  if (permCh) ok = await writeConfig(cfg => { const b = (((cfg.sport || {}).sessions || {})[key] || {}).blocks; if (b && b[bi]) b[bi].ex = perm; }, `Спорт: комплекс ${key} — ${up ? 'добавил в комплекс' : down ? 'убрал из комплекса' : 'порядок'}`);
+  if (ok && onceCh) ok = await writePlan(p => { const cur = ((p.sportMoves[i.id] || {}).cxAdd || []).filter(o => o.bi !== bi); setMove(p, i.id, { cxAdd: cur.concat(ones) }); }, `Спорт: ${i.id} — разовые упражнения в комплексе`);
+  if (ok) toast(up ? 'Упражнение теперь в комплексе — каждую неделю' : down ? 'Убрал из комплекса — осталось только на этот раз' : 'Порядок сохранён');
+  const ni = findInst(i.id); if (ni && S.cur && S.cur.type === 'sport' && S.cur.id === i.id) openSport(i.id, true);
+}
+async function cxOnceDel(oi) {
+  const c = S.cur; if (!c || c.type !== 'sport') return;
+  const i = findInst(c.id); if (!i) return;
+  const o = cxOnce(i)[oi]; if (!o) return;
+  const lg = collectLog(c.ses); if (lg.any) LS.set('bj-draft-' + i.id, { blocks: lg.blocks });
+  if (await writePlan(p => { const cur = ((p.sportMoves[i.id] || {}).cxAdd || []).filter((x, k) => !(k === oi && x.name === o.name)); setMove(p, i.id, { cxAdd: cur }); }, `Спорт: ${i.id} — убрал «${o.name}» из комплекса`)) openSport(i.id, true);
+}
+function openExPicker(instId, bi) {
+  const c = S.cur && S.cur.type === 'sport' ? S.cur : null;
+  if (c) saveDraftNow();
+  S.cur = { type: 'expick', inst: instId, bi };
+  openSheet(`<button type="button" class="link-btn ex-back" data-action="sport" data-id="${esc(instId)}">← К тренировке</button><h2 class="sh-title">Упражнение в комплекс</h2>${spExHtml('pick')}`);
+  renderExGrid(true);
+}
+
 /* ---------- events wiring ---------- */
 const TABS = ['plan', 'cal', 'lessons', 'sport', 'food', 'money'];
 function setTab(t) {
@@ -4546,7 +4783,8 @@ function setTab(t) {
   document.body.dataset.tab = t;
   if (S.dirty.has(t)) renderTab(t);
   TABS.forEach(x => { $('#tab-' + x).hidden = x !== t; });
-  document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  const nav = t === 'cal' ? 'plan' : t;  // календарь открывается из «Плана» — в меню горит «План»
+  document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === nav)));
   LS.set('bj-tab', t);
   window.scrollTo(0, 0);
   if (t === 'lessons' && S.ready) loadNotes();
@@ -4564,6 +4802,24 @@ document.addEventListener('click', async ev => {
   if (a === 'day' && S.swipedAt && Date.now() - S.swipedAt < 400) return;
   switch (a) {
     case 'tab': setTab(b.dataset.tab); break;
+    case 'cal-open': S.calMonth = monthKey(today()); S.dirty.add('cal'); setTab('cal'); break;
+    case 'sp-seg': S.spSeg = b.dataset.seg; LS.set('bj-sp-seg', S.spSeg); renderSportTab(); window.scrollTo(0, 0); break;
+    case 'cx-add': {
+      busy(b, true);
+      await cxAddNearest(id, b.dataset.bi != null && b.dataset.bi !== '' ? Number(b.dataset.bi) : null);
+      busy(b, false); break;
+    }
+    case 'cxp': cxStep(Number(b.dataset.bi), b.dataset.f, Number(b.dataset.d)); break;
+    case 'cx-once-del': cxOnceDel(Number(b.dataset.oi)); break;
+    case 'cx-pick': { const c = S.cur; if (c && c.type === 'sport') openExPicker(c.id, Number(b.dataset.bi)); break; }
+    case 'cx-pick-add': {
+      const c = S.cur; if (!c || c.type !== 'expick') break;
+      const i = findInst(c.inst), it = exById(id); if (!i || !it) break;
+      busy(b, true);
+      if (await cxAddTo(i, c.bi, it)) openSport(c.inst, true);
+      busy(b, false); break;
+    }
+    case 'exp-cat': S.expCat = b.dataset.cat; document.querySelectorAll('[data-action="exp-cat"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.cat === S.expCat))); renderExGrid(true); break;
     case 'td-x': {
       const k = b.dataset.k, box = b.closest('.td-i'), more = box && box.querySelector('.td-more');
       if (!more) break;
@@ -5070,6 +5326,9 @@ let draftT;
 $('#notes-q').addEventListener('input', ev => notesSearch(ev.target.value));
 document.addEventListener('input', ev => {
   if (ev.target && ev.target.id === 'ex-q') { S.exQ = ev.target.value; renderExGrid(); }
+  if (ev.target && ev.target.id === 'exp-q') { S.expQ = ev.target.value; renderExGrid(true); }
+  const cxm = ev.target && ev.target.id && /^cxp-(\d+)-/.exec(ev.target.id); if (cxm) cxParamChanged(Number(cxm[1]));
+  if (ev.target && ev.target.id && /^cxn-\d+$/.test(ev.target.id)) { clearTimeout(draftT); draftT = setTimeout(saveDraftNow, 500); }
   if (ev.target && ev.target.id === 'msg-text') { clGrow(); if (S.cur && S.cur.type === 'req') S.cur.draft = ev.target.value; }
 });
 $('#sheet').addEventListener('input', ev => {
@@ -5951,6 +6210,7 @@ function outRec(j, up, au) {
   if (up && up.media.length) rec.media = up.media;
   if (au && au.media.length) { rec.audio = au.media; rec.names = au.names; rec.repo = booksRepo(); }
   if (up && up.frames) rec.frames = up.frames;
+  if (up && up.video && up.video.length) rec.video = up.video;
   const failed = ((up && up.failed.length) || 0) + ((au && au.failed.length) || 0);
   if (failed) rec.failed = failed;
   return rec;
@@ -6005,7 +6265,8 @@ async function outSend(j) {
     const rec = outRec(j); rec.voice = path; rec.dur = j.voice.dur;
     return !!(await writeIdeas(list => { const i = list.findIndex(x => x.id === j.id); if (i >= 0) list[i] = rec; else list.push(rec); }, `Идея (голос): ${mmss(j.voice.dur)}`));
   }
-  const up = j.files.length ? await uploadFiles(j.files, `inbox/ideas/${j.id}`, 'Идея') : { media: [], photos: [], frames: 0, failed: [] };
+  const small = j.area === 'sport' || /баз|клип|плавн|упражн|техник/i.test(j.text || '');
+  const up = j.files.length ? await uploadFiles(j.files, `inbox/ideas/${j.id}`, 'Идея', { small }) : { media: [], photos: [], frames: 0, failed: [], video: [] };
   const au = j.audio.length ? await uploadAudio(j.audio, j.id) : { media: [], names: [], failed: [] };
   if (!up.media.length && !au.media.length) { j.err = up.failed.length ? 'файлы не прочитались или нет связи' : 'нет связи'; return false; }
   const rec = outRec(j, up, au);
