@@ -5076,7 +5076,7 @@ document.addEventListener('click', async ev => {
     case 'cl-play': voicePlay(b.dataset.path, b); break;
     case 'cl-strip': if (S.cur && S.cur.type === 'req') { S.cur.strip = S.cur.strip === id ? null : id; refreshFeed(); } break;
     case 'out-retry': { const j = OUT.jobs.find(x => x.id === b.dataset.id); if (j) { j.st = 'wait'; j.err = ''; refreshFeed(); outRun(); } break; }
-    case 'out-drop': { OUT.jobs = OUT.jobs.filter(x => x.id !== b.dataset.id); refreshFeed(); break; }
+    case 'out-drop': { const j = OUT.jobs.find(x => x.id === b.dataset.id); if (j && j.voice && !confirm('Удалить это голосовое? Оно ещё не отправлено.')) break; OUT.jobs = OUT.jobs.filter(x => x.id !== b.dataset.id); if (j && j.voice) VQ.del(j.id); refreshFeed(); break; }
     case 'idea-save': await ideaSave(b, b.dataset.area); break;
     case 'idea-del': {
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Точно?'; return; }
@@ -6156,9 +6156,9 @@ function clClHtml(x, replies) {
   return `<div class="cl-row cl${sel ? ' sel' : ''}" id="cl-a-${esc(x.id)}"><div class="cl-b cl" role="button" tabindex="0" data-action="cl-tap" data-id="a:${esc(x.id)}">${q}<div class="cl-t">${clFmt(x.answer)}</div><span class="cl-meta">${open ? '<span class="cl-wait">ждёт твоего ответа</span>' : ''}${time}</span></div>${kb}${acts}</div>`;
 }
 function clOutHtml(j) {
-  const err = j.st === 'err', n = j.files.length + j.audio.length;
+  const err = j.st === 'err' || j.st === 'net', n = j.files.length + j.audio.length;
   const what = j.voice ? `${ico('mic')} голосовое ${mmss(j.voice.dur)}` : `${ico('clip')} ${n} ${plural(n, 'файл', 'файла', 'файлов')}`;
-  return `<div class="cl-row me"><div class="cl-b me out${err ? ' err' : ''}" data-out="${esc(j.id)}">${j.text ? `<div class="cl-t">${clFmt(j.text)}</div>` : ''}<div class="cl-up">${what} · <span data-od>${esc(outLabel(j))}</span></div>${err ? '' : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}<span class="cl-meta">${hhmm(new Date(j.ts))}<i class="cl-tk">${err ? '!' : '🕓'}</i></span></div>${err ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">Повторить</button></div>` : ''}</div>`;
+  return `<div class="cl-row me"><div class="cl-b me out${err ? ' err' : ''}" data-out="${esc(j.id)}">${j.text ? `<div class="cl-t">${clFmt(j.text)}</div>` : ''}<div class="cl-up">${what} · <span data-od>${esc(outLabel(j))}</span></div>${err ? '' : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}<span class="cl-meta">${hhmm(new Date(j.ts))}<i class="cl-tk">${j.st === 'net' ? '🕓' : err ? '!' : '🕓'}</i></span></div>${err ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">${j.st === 'net' ? 'Отправить' : 'Повторить'}</button></div>` : ''}</div>`;
 }
 function clChatHtml() {
   const items = clItems(), byId = new Map(items.map(x => [x.id, x])), replies = new Map();
@@ -6236,14 +6236,14 @@ async function recStart() {
   if (REC.mr || REC.starting) return;
   if (!recOk()) { toast('Здесь запись голоса не работает — надиктуй текст микрофоном на клавиатуре'); return; }
   REC.starting = true;
-  try { REC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+  try { REC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true, channelCount: 1 } }); }
   catch (e) { REC.starting = false; toast(e && e.name === 'NotAllowedError' ? 'Нет доступа к микрофону — разреши его журналу в настройках' : 'Микрофон не включился'); return; }
   REC.starting = false;
   if (!(S.cur && S.cur.type === 'req')) { REC.stream.getTracks().forEach(t => t.stop()); REC.stream = null; return; }
   const types = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
   REC.mime = (MediaRecorder.isTypeSupported ? types.find(t => MediaRecorder.isTypeSupported(t)) : '') || '';
   REC.chunks = [];
-  try { REC.mr = new MediaRecorder(REC.stream, REC.mime ? { mimeType: REC.mime, audioBitsPerSecond: 48000 } : {}); }
+  try { REC.mr = new MediaRecorder(REC.stream, REC.mime ? { mimeType: REC.mime, audioBitsPerSecond: 96000 } : {}); }
   catch (_) { REC.mr = new MediaRecorder(REC.stream); }
   REC.mr.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
   REC.mr.start(1000);
@@ -6279,9 +6279,49 @@ function voiceSend(blob, type, dur) {
   OUT.jobs.push(job);
   if (c) { c.re = null; c.reMe = false; }
   clCtxRefresh(); refreshFeed(); clScrollEnd();
-  outRun();
+  VQ.put(job).catch(() => {}).then(() => outRun());
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden && REC.mr) { recStop(false); toast('Запись остановлена: журнал свернули'); } });
+/* Голосовые без сети: запись сначала сохраняется на телефоне (IndexedDB) и лежит там, пока не уйдёт на GitHub.
+   Нет сети — ждёт; появилась сеть, или журнал снова открыли — уходит сама. Закрыть журнал можно, запись не пропадёт. */
+const VQ = {
+  db: null,
+  open() {
+    if (!this.db) {
+      this.db = new Promise((res, rej) => {
+        if (!window.indexedDB) return rej(new Error('no idb'));
+        const r = indexedDB.open('bj-voice', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('v', { keyPath: 'id' });
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      });
+      this.db.catch(() => { this.db = null; });
+    }
+    return this.db;
+  },
+  async run(mode, fn) {
+    const db = await this.open();
+    return new Promise((res, rej) => { const t = db.transaction('v', mode), r = fn(t.objectStore('v')); t.oncomplete = () => res(r && r.result); t.onerror = t.onabort = () => rej(t.error); });
+  },
+  async put(j) {
+    const buf = await (j.voice.blob.arrayBuffer ? j.voice.blob.arrayBuffer() : new Response(j.voice.blob).arrayBuffer());
+    const v = j.voice;
+    return this.run('readwrite', s => s.put({ id: j.id, area: j.area, ts: j.ts, re: j.re || null, reMe: !!j.reMe, ext: v.ext, type: v.type, dur: v.dur, buf }));
+  },
+  del(id) { return this.run('readwrite', s => s.delete(id)).catch(() => {}); },
+  all() { return this.run('readonly', s => s.getAll()).catch(() => []); }
+};
+// у голосового любая ошибка, кроме ключа и прав, — «ждёт сеть» (в «белых списках» сеть вроде есть, а GitHub не пускает)
+const offlineErr = e => !navigator.onLine || !(e && /^(auth|forbidden|notfound)$/.test(e.code || ''));
+setInterval(() => { if (!document.hidden && !OUT.busy && OUT.jobs.some(j => j.st === 'net')) vqResume(); }, 60000);
+async function vqResume() {
+  const list = await VQ.all();
+  (list || []).forEach(r => {
+    if (OUT.jobs.some(x => x.id === r.id)) return;
+    OUT.jobs.push({ id: r.id, area: r.area || 'general', text: '', link: '', files: [], audio: [], voice: { blob: new Blob([r.buf], { type: r.type }), ext: r.ext, type: r.type, dur: r.dur }, st: 'wait', pct: 0, ts: r.ts, re: r.re, reMe: r.reMe });
+  });
+  OUT.jobs.forEach(j => { if (j.st === 'net') j.st = 'wait'; });
+  if (OUT.jobs.some(j => j.st === 'wait')) { refreshFeed(); if (GH.cred && navigator.onLine !== false) outRun(); }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && REC.mr) { recStop(true); toast('Журнал свернули — запись сохранена'); } });
 const voicePending = x => !!(x && x.voice && !x.transcript && !x.voiceErr && Date.now() - (x.ts || 0) < 30 * 60000);
 const voiceType = p => /\.webm$/i.test(p) ? 'audio/webm' : /\.ogg$/i.test(p) ? 'audio/ogg' : 'audio/mp4';
 const VOICE = { a: null, path: '' };
@@ -6379,6 +6419,7 @@ const OUT = { jobs: [], busy: false, cur: null };
 const outName = j => j.voice ? 'голосовое ' + mmss(j.voice.dur) : j.text || j.link || (j.files.length + j.audio.length > 1 ? (j.files.length + j.audio.length) + ' ' + plural(j.files.length + j.audio.length, 'файл', 'файла', 'файлов') : ((j.files[0] || j.audio[0] || {}).name || 'файл'));
 function outLabel(j) {
   if (j.st === 'err') return 'не отправилось' + (j.err ? ' · ' + j.err : '');
+  if (j.st === 'net') return 'нет сети · сохранено на телефоне, уйдёт само';
   if (j.st === 'wait') return 'в очереди';
   return (j.detail ? j.detail + ' · ' : '') + Math.round(j.pct || 0) + '%' + (j.eta ? ' · ' + j.eta : '');
 }
@@ -6396,12 +6437,14 @@ async function outRun() {
   try {
     for (let j; (j = OUT.jobs.find(x => x.st === 'wait'));) {
       j.st = 'up'; j.pct = 0; j.err = ''; OUT.cur = j; refreshFeed();
-      let ok = false;
-      try { ok = await outSend(j); } catch (e) { j.err = errText(e); }
+      let ok = false, ex = null;
+      try { ok = await outSend(j); } catch (e) { ex = e; j.err = errText(e); }
       OUT.cur = null;
       if (ok) {
         OUT.jobs = OUT.jobs.filter(x => x !== j);
+        if (j.voice) VQ.del(j.id);
         toast('Отправил: ' + outName(j).slice(0, 40) + (j.rep ? ' · ' + j.rep : ''));
+      } else if (j.voice && offlineErr(ex || j.ex)) { j.st = 'net'; PROG.mini = false; toast('Нет сети — голосовое сохранено, уйдёт само');
       } else { j.st = 'err'; toast('Не отправилось: ' + outName(j).slice(0, 40) + ' — в чате кнопка «Повторить»'); }
       refreshFeed();
     }
@@ -6411,11 +6454,12 @@ async function outSend(j) {
   PROG.mini = true;
   if (j.voice) {
     const path = `inbox/voice/${j.id}.${j.voice.ext}`;
+    if ((S.ideas || []).some(x => x.id === j.id && x.voice)) return true;  // уже ушло (журнал закрыли до того, как стёрли копию)
     PROG.start('Голосовое');
     try {
       const b64 = await fileToBase64(j.voice.blob);
       await GH.commitFiles([{ path, b64 }], 'Голосовое: ' + mmss(j.voice.dur), (i, n, bd, bt) => PROG.step('up', bt ? bd / bt : 0, 'отправляю'));
-    } catch (e) { PROG.done(false, 'не отправилось'); j.err = errText(e); return false; }
+    } catch (e) { PROG.done(false, 'не отправилось'); j.err = errText(e); j.ex = e; return false; }
     PROG.done(true);
     S.voiceUrl = S.voiceUrl || {}; S.voiceUrl[path] = URL.createObjectURL(j.voice.blob);  // своё можно слушать сразу
     const rec = outRec(j); rec.voice = path; rec.dur = j.voice.dur;
@@ -6719,13 +6763,15 @@ function boot() {
   }
   render();
   loadAll(!!cache);
+  setTimeout(vqResume, 2000);
 }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   renderTimerChip();
   if (GH.cred && Date.now() - S.lastLoad > 120000) loadAll(true);
+  vqResume();
 });
-window.addEventListener('online', () => { if (GH.cred) { S.offline = false; if (queueCount()) runFlush(); loadAll(true); } });
+window.addEventListener('online', () => { if (GH.cred) { S.offline = false; if (queueCount()) runFlush(); loadAll(true); vqResume(); } });
 window.addEventListener('offline', () => setSync(queueNote() || 'нет сети · показаны сохранённые данные'));
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 // Новая версия журнала: сверяем app.js?v=… из свежего index.html с текущим и предлагаем перезайти.
