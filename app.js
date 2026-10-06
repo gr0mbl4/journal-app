@@ -4912,6 +4912,20 @@ document.addEventListener('click', async ev => {
     case 'qz-next': if (S.cur && S.cur.type === 'qz') { S.cur.i++; qzShow(); } break;
     case 'en-next': if (S.cur && S.cur.type === 'en') { S.cur.i++; enShow(); } break;
     case 'ben-open': openBenefits(); break;
+    case 'upd-open': await updLoad(); openUpd(); break;
+    case 'upd-st': busy(b, true); await updSet(id, { st: b.dataset.st }); busy(b, false); break;
+    case 'upd-add': {
+      const t = (($('#upd-t') || {}).value || '').trim();
+      if (!t) { toast('Впиши, что сделать'); break; }
+      const it = { id: rid(), title: t, size: ($('#upd-size') || {}).value || 'm', who: ($('#upd-who') || {}).value || 'oleg', st: 'todo', added: today() };
+      const n = (($('#upd-n') || {}).value || '').trim(); if (n) it.note = n;
+      busy(b, true);
+      const next = await write('upd.json', d => { d.items = Array.isArray(d.items) ? d.items : []; d.items.push(it); return d; }, 'УПД: ' + t, { items: [] });
+      busy(b, false);
+      if (next) { S.upd = next; S.updAdd = false; openUpd(); }
+      break;
+    }
+    case 'upd-new': S.updAdd = !S.updAdd; openUpd(); break;
     case 'ben-st': busy(b, true); await benSet(id, b.dataset.st); busy(b, false); break;
     case 'close': closeSheet(); break;
     case 'refresh': closeSheet(); loadAll(); break;
@@ -5435,6 +5449,7 @@ $('#money-add').addEventListener('submit', async ev => {
 
 /* ---------- v2: иконки, раскрытие, плитки ---------- */
 const ICP = {
+  rocket: '<path d="M12 15c-1.5-1.5-2.5-3-3-5 1.5-4 4.5-6.5 9-7-.5 4.5-3 7.5-7 9"/><path d="M9 10H5.5L4 13l3.5 1M14 15v3.5L11 20l-1-3.5"/><path d="M6 18c-1 .5-1.5 1.5-2 2 .5-.5 1.5-1 2-2"/><circle cx="14.5" cy="9.5" r="1.3"/>',
   menu: '<rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/>',
   bolt: '<path d="M13 3 5 14h6l-1 7 8-11h-6z"/>',
   flame: '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 .3 1.7 1.2 2.6 2.5 3 .4-3-.4-5.4 0-8z"/>',
@@ -5629,6 +5644,7 @@ function openMenu() {
     ['en-open', 'chat', 'English', e.due ? e.due + ' к повторению' : e.learned + ' из ' + e.total, 'c-indigo'],
     ['ready', 'bolt', 'Готовность', rd ? rd.score + ' · ' + rd.label.toLowerCase() : '', 'c-green'],
     ['q-edit', 'target', 'Цели квартала', '', 'c-orange'],
+    ['upd-open', 'rocket', 'УПД', 'фичи и задачи на будущее', 'c-violet'],
     ['ben-open', 'shield', 'Льготы', bs.done + ' из ' + bs.total + ' оформлено', 'c-teal'],
     ['weight', 'scale', 'Вес', (() => { const w = lastWeight(); return w ? String(w.kg).replace('.', ',') + ' кг' : ''; })(), 'c-pink'],
     ['dates', 'gift', 'Важные даты', '', 'c-rose'],
@@ -5880,6 +5896,31 @@ function openBenefits() {
 async function benSet(id, st) {
   const next = await write('benefits.json', d => { d.items = d.items || {}; d.items[id] = Object.assign({}, d.items[id], { st, at: today() }); return d; }, `Льготы: ${BENEFITS.find(b => b.id === id).t} — ${BEN_ST[st]}`, { items: {} });
   if (next) { S.benefits = next; cacheNow(); openBenefits(); }
+}
+
+/* ---------- УПД: фичи журнала и задачи на будущее (upd.json) ---------- */
+const UPD_SIZE = [['s', 'Мелочи'], ['m', 'Фичи журнала'], ['l', 'Проекты'], ['xl', 'Большое']];
+const UPD_ST = { todo: 'идея', doing: 'в работе', done: 'сделано', na: 'отложено' };
+const updPeople = () => { const l = ((S.config || {}).claude || {}).people; const fr = Array.isArray(l) && l.find(p => p.id === 'friend'); return [['oleg', 'Я'], ['misha', (fr && fr.name) || 'Миша']]; };
+async function updLoad() {
+  try { const d = await readDoc('upd.json'); S.upd = d && Array.isArray(d.items) ? d : { items: [] }; }
+  catch (_) { S.upd = S.upd || { items: [] }; }
+}
+function openUpd() {
+  const items = (S.upd && S.upd.items) || [], who = Object.fromEntries(updPeople());
+  const row = x => { const st = UPD_ST[x.st] ? x.st : 'todo'; return `<details class="ben st-${st}" data-k="upd-${esc(x.id)}"${openAttr('upd-' + x.id)}><summary><span class="ben-h"><b>${esc(x.title)}</b><span class="ben-v">${esc([x.who && x.who !== 'oleg' ? 'от: ' + (who[x.who] || x.who) : '', x.when ? dm(x.when) : ''].filter(Boolean).join(' · ') || 'добавлено ' + dm(x.added || today()))}</span></span><span class="chip ben-st">${UPD_ST[st]}</span></summary><div class="ben-d">${x.note ? `<p>${esc(x.note).replace(/\n/g, '<br>')}</p>` : ''}<div class="seg4 seg-4 ben-seg">${Object.keys(UPD_ST).map(k => `<button type="button" data-action="upd-st" data-id="${esc(x.id)}" data-st="${k}" aria-pressed="${st === k}">${UPD_ST[k]}</button>`).join('')}</div></div></details>`; };
+  const ord = { doing: 0, todo: 1, na: 2, done: 3 };
+  const groups = UPD_SIZE.map(([k, t]) => { const l = items.filter(x => (x.size || 'm') === k).sort((a, b) => (ord[a.st] ?? 1) - (ord[b.st] ?? 1)); return l.length ? `<h3 class="sec">${esc(t)} <span class="sec-note">${l.filter(x => x.st !== 'done').length}</span></h3><div class="stack">${l.map(row).join('')}</div>` : ''; }).join('');
+  const form = S.updAdd ? `<label class="fld" for="upd-t">Что сделать</label><input id="upd-t" placeholder="Например: мониторинг машин">
+    <label class="fld" for="upd-n">Подробности</label><textarea id="upd-n" rows="2" placeholder="необязательно"></textarea>
+    <div class="two"><div><label class="fld" for="upd-size">Масштаб</label><select id="upd-size">${UPD_SIZE.map(([k, t]) => `<option value="${k}"${k === 'm' ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+    <div><label class="fld" for="upd-who">Чья идея</label><select id="upd-who">${updPeople().map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select></div></div>
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="upd-add">Добавить</button></div>` : `<div class="sh-acts"><button type="button" class="btn block" data-action="upd-new">+ Идея</button></div>`;
+  openSheet(`<h2 class="sh-title">УПД</h2><p class="sh-meta">Фичи журнала и задачи на будущее — от мелочей к большому.</p>${form}${groups || '<p class="note">Пока пусто.</p>'}`, true);
+}
+async function updSet(id, patch) {
+  const next = await write('upd.json', d => { d.items = Array.isArray(d.items) ? d.items : []; const x = d.items.find(i => i.id === id); if (x) Object.assign(x, patch, patch.st === 'done' ? { doneAt: today() } : {}); return d; }, 'УПД: статус', { items: [] });
+  if (next) { S.upd = next; openUpd(); }
 }
 
 /* ---------- покупки: список как чат, сразу на телефоне, отправка в фоне ---------- */
