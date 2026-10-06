@@ -299,6 +299,10 @@ details.more-box[open] summary::after{content:"▴"}
 .grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto}
 .sheet-top{position:sticky;top:-6px;z-index:3;background:var(--surface);margin:-6px -16px 8px;padding:10px 56px 12px;display:flex;justify-content:center;align-items:center;min-height:44px;touch-action:none;cursor:grab}
 .sheet-x{position:absolute;right:10px;top:6px;width:36px;height:36px;border-radius:50%;border:0;background:var(--surface-2);color:var(--ink);font-size:20px;line-height:1;display:grid;place-items:center;cursor:pointer}
+.sheet-xall{position:absolute;right:54px;top:6px;width:36px;height:36px;border-radius:50%;border:0;background:#E5484D;color:#fff;font-size:20px;line-height:1;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px rgba(229,72,77,.35)}
+.sheet-xall[hidden]{display:none}
+.sheet[data-depth="1"] .sheet-panel{box-shadow:0 -11px 0 -5px color-mix(in srgb, var(--ink) 20%, var(--surface)),var(--shadow)}
+.sheet[data-depth="2"] .sheet-panel{box-shadow:0 -11px 0 -5px color-mix(in srgb, var(--ink) 20%, var(--surface)),0 -20px 0 -10px color-mix(in srgb, var(--ink) 11%, var(--surface)),var(--shadow)}
 .sheet-panel.drag{animation:none;transition:none}
 .sheet-panel.snap{transition:transform .2s ease-out}
 
@@ -490,6 +494,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 .sheet-panel.drag,.sheet-panel.snap{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--sheet-solid)}
 .sheet-panel .row,.sheet-panel .req-item,.sheet-panel .blk,.sheet-panel .dish.card-like{background:var(--glass-3)}
 .sheet-x{background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--hl)}
+.sheet[data-depth="1"] .sheet-panel{box-shadow:0 -11px 0 -5px color-mix(in srgb, var(--ink) 32%, transparent),var(--hl),0 -20px 50px -20px rgba(0,0,0,.45)}
+.sheet[data-depth="2"] .sheet-panel{box-shadow:0 -11px 0 -5px color-mix(in srgb, var(--ink) 32%, transparent),0 -20px 0 -10px color-mix(in srgb, var(--ink) 18%, transparent),var(--hl),0 -20px 50px -20px rgba(0,0,0,.45)}
 .toast{border-radius:999px;background:color-mix(in srgb, var(--ink) 92%, transparent);padding:11px 18px}
 
 /* numbers */
@@ -1430,9 +1436,9 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 </button>
 
 <div id="sheet" class="sheet" hidden>
-  <div class="sheet-backdrop" data-action="close"></div>
+  <div class="sheet-backdrop" data-action="back"></div>
   <div class="sheet-panel" role="dialog" aria-modal="true" tabindex="-1">
-    <div class="sheet-top" id="sheet-top"><div class="grip" aria-hidden="true"></div><button type="button" class="sheet-x" data-action="close" aria-label="Закрыть">×</button></div>
+    <div class="sheet-top" id="sheet-top"><div class="grip" aria-hidden="true"></div><button type="button" class="sheet-xall" data-action="close-all" aria-label="Закрыть все окна" hidden>×</button><button type="button" class="sheet-x" data-action="back" aria-label="Назад">×</button></div>
     <div id="sheet-body"></div>
   </div>
 </div>
@@ -1442,6 +1448,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261006a"></script>
+<script src="app.js?v=20261006b"></script>
 </body>
 </html>

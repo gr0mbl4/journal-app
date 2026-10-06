@@ -901,6 +901,7 @@ async function readDoc(path) {
 // Запись сразу применяется к копии файла на телефоне (экран обновляется без ожидания),
 // а на GitHub уходит в фоне — с тем же слиянием, что и офлайн-очередь.
 async function write(path, fn, msg, empty) {
+  NAV.ver++;
   if (GH.docs[path] || OQ.get()[path]) {
     const nx = writeLocal(path, fn, msg, empty);
     if (nx) { setSync(S.offline ? queueNote() : 'сохраняю…'); kickFlush(); return nx; }
@@ -3569,26 +3570,92 @@ async function ideaSave(btn, area) {
 }
 
 /* ---------- sheet + toast ---------- */
+/* Слои шторок: новая шторка поверх открытой кладётся в стек (NAV.stack), «×» / свайп / тап мимо — шаг назад,
+   красный «×» — закрыть все. Экран узнаём по типу S.cur и заголовку: перерисовка того же экрана слой не добавляет,
+   возврат к экрану, который уже есть в стеке, — снимает слои над ним. Известные экраны при возврате строятся заново
+   (NAV_REOPEN), остальные — из снимка; снимок, сделанный до записи данных, устарел — такой слой пропускаем. */
+const NAV = { stack: [], key: '', cur: null, ver: 0, noPush: false, top: null };
+const NAV_REOPEN = {
+  ex: c => openExercise(c.exId),
+  cx: c => openComplex(c.cxId),
+  sport: c => openSport(c.id, true),
+  recipe: c => c.r && openRecipe(c.r.id),
+  req: () => openRequests('', true)
+};
+function sheetKey(html) {
+  const m = /<h2 class="sh-title[^"]*">([\s\S]*?)<\/h2>/.exec(html || '');
+  return ((S.cur && S.cur.type) || '') + '|' + (m ? m[1].replace(/<[^>]*>/g, '').trim() : '');
+}
+function navSnap(panel) {
+  const body = $('#sheet-body');
+  const vals = Array.from(body.querySelectorAll('input,textarea,select')).map(el => el.type === 'file' ? null : el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value);
+  return { key: NAV.key, cur: NAV.cur, html: body.innerHTML, vals, top: panel.scrollTop, chat: panel.classList.contains('chat-mode'), exBack: S.exBack, ver: NAV.ver, menu: /\|Меню$/.test(NAV.key) };
+}
+function navUi() {
+  const sh = $('#sheet'); if (!sh) return;
+  const n = NAV.stack.length;
+  if (n) sh.dataset.depth = String(Math.min(n, 2)); else delete sh.dataset.depth;
+  const xa = sh.querySelector('.sheet-xall'); if (xa) xa.hidden = !n;
+}
 function openSheet(html, keepScroll, mode) {
   const sh = $('#sheet');
   const panel = sh.querySelector('.sheet-panel');
   const top = panel.scrollTop;
+  const wasHidden = sh.hidden, key = sheetKey(html), restoring = NAV.noPush;
+  NAV.noPush = false;
+  if (wasHidden) NAV.stack = [];
+  else if (key !== NAV.key) {
+    const at = NAV.stack.findIndex(e => e.key === key);
+    if (at >= 0) NAV.stack.length = at;
+    else if (!restoring) { NAV.stack.push(navSnap(panel)); if (NAV.stack.length > 8) NAV.stack.shift(); }
+  }
   panel.classList.toggle('chat-mode', mode === 'chat');
   $('#sheet-body').innerHTML = html;
-  const wasHidden = sh.hidden;
   sh.hidden = false;
   document.body.classList.add('locked');
-  panel.scrollTop = keepScroll && !wasHidden ? top : 0;
+  panel.scrollTop = restoring && NAV.top != null ? NAV.top : keepScroll && !wasHidden ? top : 0;
+  NAV.top = null;
   if (wasHidden && panel.style) { panel.style.transform = ''; panel.classList.remove('drag', 'snap'); }
   if (wasHidden) setTimeout(() => { try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }, 20);
+  NAV.key = key; NAV.cur = S.cur;
+  Promise.resolve().then(() => { if (NAV.key === key) NAV.cur = S.cur; });
+  navUi();
   vvFit();
 }
-function closeSheet() {
-  S.cur = null; $('#sheet').hidden = true; document.body.classList.remove('locked');
-  const p = document.querySelector('.sheet-panel'); if (p && p.style) { p.style.transform = ''; p.classList.remove('drag', 'snap', 'chat-mode'); }
+// уходим с текущего экрана шторки (не закрывая её)
+function sheetLeave() {
   clearTimeout(chatPollT); chatPollT = 0;
   if (REC.mr) recStop(false);
   if (CXCFG.key) cxCfgFlush();
+}
+function navBack() {
+  const sh = $('#sheet'), panel = sh.querySelector('.sheet-panel');
+  let e = null;
+  while (NAV.stack.length) {
+    const x = NAV.stack.pop();
+    const c = x.cur, re = c && NAV_REOPEN[c.type] && x.key.startsWith(c.type + '|');
+    if (re || x.menu || x.ver === NAV.ver) { e = x; break; }
+  }
+  if (!e) { closeSheet(); return; }
+  if (S.cur && S.cur.type === 'sport') { try { saveDraftNow(); } catch (_) {} }
+  sheetLeave();
+  if (panel && panel.style) { panel.style.transform = ''; panel.classList.remove('drag', 'snap'); }
+  S.cur = e.cur; S.exBack = e.exBack;
+  NAV.noPush = true; NAV.top = e.top;
+  const c = e.cur;
+  if (c && NAV_REOPEN[c.type] && e.key.startsWith(c.type + '|')) { NAV_REOPEN[c.type](c); return; }
+  if (e.menu) { openMenu(); return; }
+  openSheet(e.html, false, e.chat ? 'chat' : '');
+  const els = $('#sheet-body').querySelectorAll('input,textarea,select');
+  els.forEach((el, k) => { const v = e.vals[k]; if (v == null) return; if (el.type === 'checkbox' || el.type === 'radio') el.checked = v; else el.value = v; });
+  panel.scrollTop = e.top;
+  try { hydrateImages($('#sheet-body')); } catch (_) {}
+}
+function closeSheet() {
+  sheetLeave();
+  NAV.stack = []; NAV.key = ''; NAV.cur = null; NAV.noPush = false; NAV.top = null; navUi();
+  S.cur = null; $('#sheet').hidden = true; document.body.classList.remove('locked');
+  const p = document.querySelector('.sheet-panel'); if (p && p.style) { p.style.transform = ''; p.classList.remove('drag', 'snap', 'chat-mode'); }
   vvFit();
 }
 // чат: шторка подстраивается под экранную клавиатуру (iOS сдвигает только видимую область)
@@ -3626,7 +3693,7 @@ if (window.visualViewport) { window.visualViewport.addEventListener('resize', vv
   const end = () => {
     if (mode !== 'drag') { mode = null; return; }
     panel.classList.remove('drag'); panel.classList.add('snap');
-    if (dy > 110) { panel.style.transform = 'translateY(100%)'; setTimeout(closeSheet, 180); }
+    if (dy > 110) { panel.style.transform = 'translateY(100%)'; setTimeout(NAV.stack.length ? navBack : closeSheet, 180); }
     else panel.style.transform = '';
     mode = null;
   };
@@ -4633,6 +4700,7 @@ function openComplex(id, back) {
   hydrateImages($('#sheet-body'));
 }
 function exBack() {
+  if (NAV.stack.length) { navBack(); return; }
   const b = S.exBack; S.exBack = null;
   if (!b) { closeSheet(); return; }
   if (b.type === 'sport') openSport(b.id, true);
@@ -4927,7 +4995,8 @@ document.addEventListener('click', async ev => {
     }
     case 'upd-new': S.updAdd = !S.updAdd; openUpd(); break;
     case 'ben-st': busy(b, true); await benSet(id, b.dataset.st); busy(b, false); break;
-    case 'close': closeSheet(); break;
+    case 'close': case 'close-all': closeSheet(); break;
+    case 'back': navBack(); break;
     case 'refresh': closeSheet(); loadAll(); break;
     case 'settings': openSettings(); break;
     case 'logout': try { Object.keys(localStorage).filter(k => k.startsWith('bj-')).forEach(k => localStorage.removeItem(k)); } catch (_) {} GH.cred = null; closeSheet(); location.reload(); break;
@@ -5337,7 +5406,7 @@ function calShift(d) {
     if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - t0 < 800) { S.swipedAt = Date.now(); calShift(dx < 0 ? 1 : -1); }
   }, { passive: true });
 })();
-document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#sheet').hidden) navBack(); });
 document.addEventListener('submit', ev => {
   if (ev.target && ev.target.classList && ev.target.classList.contains('td-add')) {
     ev.preventDefault(); const inp = ev.target.querySelector('input'); const v = inp ? inp.value : ''; if (inp) inp.value = '';
