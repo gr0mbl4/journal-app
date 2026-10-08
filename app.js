@@ -3596,6 +3596,7 @@ function navUi() {
   const n = NAV.stack.length;
   if (n) sh.dataset.depth = String(Math.min(n, 2)); else delete sh.dataset.depth;
   const xa = sh.querySelector('.sheet-xall'); if (xa) xa.hidden = !n;
+  const bx = sh.querySelector('.sheet-x'); if (bx) { bx.textContent = n ? '←' : '×'; bx.setAttribute('aria-label', n ? 'Назад' : 'Закрыть'); }
 }
 function openSheet(html, keepScroll, mode) {
   const sh = $('#sheet');
@@ -5713,7 +5714,7 @@ function openMenu() {
     ['en-open', 'chat', 'English', e.due ? e.due + ' к повторению' : e.learned + ' из ' + e.total, 'c-indigo'],
     ['ready', 'bolt', 'Готовность', rd ? rd.score + ' · ' + rd.label.toLowerCase() : '', 'c-green'],
     ['q-edit', 'target', 'Цели квартала', '', 'c-orange'],
-    ['upd-open', 'rocket', 'УПД', 'фичи и задачи на будущее', 'c-violet'],
+    ['upd-open', 'rocket', 'УПД', '', 'c-green'],
     ['ben-open', 'shield', 'Льготы', bs.done + ' из ' + bs.total + ' оформлено', 'c-teal'],
     ['weight', 'scale', 'Вес', (() => { const w = lastWeight(); return w ? String(w.kg).replace('.', ',') + ' кг' : ''; })(), 'c-pink'],
     ['dates', 'gift', 'Важные даты', '', 'c-rose'],
@@ -5978,14 +5979,15 @@ async function updLoad() {
 function openUpd() {
   const items = (S.upd && S.upd.items) || [], who = Object.fromEntries(updPeople());
   const row = x => { const st = UPD_ST[x.st] ? x.st : 'todo'; return `<details class="ben st-${st}" data-k="upd-${esc(x.id)}"${openAttr('upd-' + x.id)}><summary><span class="ben-h"><b>${esc(x.title)}</b><span class="ben-v">${esc([x.who && x.who !== 'oleg' ? 'от: ' + (who[x.who] || x.who) : '', x.when ? dm(x.when) : ''].filter(Boolean).join(' · ') || 'добавлено ' + dm(x.added || today()))}</span></span><span class="chip ben-st">${UPD_ST[st]}</span></summary><div class="ben-d">${x.note ? `<p>${esc(x.note).replace(/\n/g, '<br>')}</p>` : ''}<div class="seg4 seg-4 ben-seg">${Object.keys(UPD_ST).map(k => `<button type="button" data-action="upd-st" data-id="${esc(x.id)}" data-st="${k}" aria-pressed="${st === k}">${UPD_ST[k]}</button>`).join('')}</div></div></details>`; };
-  const ord = { doing: 0, todo: 1, na: 2, done: 3 };
-  const groups = UPD_SIZE.map(([k, t]) => { const l = items.filter(x => (x.size || 'm') === k).sort((a, b) => (ord[a.st] ?? 1) - (ord[b.st] ?? 1)); return l.length ? `<h3 class="sec">${esc(t)} <span class="sec-note">${l.filter(x => x.st !== 'done').length}</span></h3><div class="stack">${l.map(row).join('')}</div>` : ''; }).join('');
+  const ord = { doing: 0, todo: 1, na: 2, done: 3 }, sz = { s: 0, m: 1, l: 2, xl: 3 };
+  const all = items.slice().sort((a, b) => (ord[a.st] ?? 1) - (ord[b.st] ?? 1) || (sz[a.size || 'm'] ?? 1) - (sz[b.size || 'm'] ?? 1));
+  const groups = all.length ? `<div class="stack">${all.map(row).join('')}</div>` : '';
   const form = S.updAdd ? `<label class="fld" for="upd-t">Что сделать</label><input id="upd-t" placeholder="Например: мониторинг машин">
     <label class="fld" for="upd-n">Подробности</label><textarea id="upd-n" rows="2" placeholder="необязательно"></textarea>
     <div class="two"><div><label class="fld" for="upd-size">Масштаб</label><select id="upd-size">${UPD_SIZE.map(([k, t]) => `<option value="${k}"${k === 'm' ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
     <div><label class="fld" for="upd-who">Чья идея</label><select id="upd-who">${updPeople().map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select></div></div>
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="upd-add">Добавить</button></div>` : `<div class="sh-acts"><button type="button" class="btn block" data-action="upd-new">+ Идея</button></div>`;
-  openSheet(`<h2 class="sh-title">УПД</h2><p class="sh-meta">Фичи журнала и задачи на будущее — от мелочей к большому.</p>${form}${groups || '<p class="note">Пока пусто.</p>'}`, true);
+  openSheet(`<h2 class="sh-title">УПД</h2>${groups || '<p class="note">Пока пусто.</p>'}${form}`, true);
 }
 async function updSet(id, patch) {
   const next = await write('upd.json', d => { d.items = Array.isArray(d.items) ? d.items : []; const x = d.items.find(i => i.id === id); if (x) Object.assign(x, patch, patch.st === 'done' ? { doneAt: today() } : {}); return d; }, 'УПД: статус', { items: [] });
