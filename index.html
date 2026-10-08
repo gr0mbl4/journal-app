@@ -861,6 +861,13 @@ details.ben>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8p
 .ben.st-doing .ben-st{background:var(--warn-soft);color:var(--warn)}
 .ben.st-na{opacity:.6}
 .ben-d{padding:0 14px 14px;font-size:14px}
+.upd-r{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px;align-items:start}
+.upd-r>details{min-width:0}
+.upd-c{width:30px;height:30px;margin-top:11px;border-radius:50%;border:2px solid #22A35E;background:transparent;display:grid;place-items:center;padding:0;cursor:pointer;color:#fff;font:700 15px/1 var(--f-mono);justify-self:center}
+.upd-c.on{background:#22A35E}
+.upd-r.done .ben-h b{color:var(--muted);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--muted) 60%,transparent)}
+.ben.next{border-color:color-mix(in srgb,#22A35E 55%,transparent);background:color-mix(in srgb,#22A35E 9%,var(--glass-3))}
+.upd-seg{display:grid;grid-template-columns:repeat(3,1fr)}
 .ben-d p{margin:0 0 8px}
 .ben-d ol{margin:0 0 12px;padding-left:20px;display:grid;gap:4px}
 .ben-seg button{font-size:12.5px;padding-inline:2px}
@@ -1489,6 +1496,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261008f"></script>
+<script src="app.js?v=20261008g"></script>
 </body>
 </html>

@@ -6633,19 +6633,28 @@ async function updLoad() {
 }
 function openUpd() {
   const items = (S.upd && S.upd.items) || [], who = Object.fromEntries(updPeople());
-  const row = x => { const st = UPD_ST[x.st] ? x.st : 'todo'; return `<details class="ben st-${st}" data-k="upd-${esc(x.id)}"${openAttr('upd-' + x.id)}><summary><span class="ben-h"><b>${esc(x.title)}</b><span class="ben-v">${esc([x.who && x.who !== 'oleg' ? 'от: ' + (who[x.who] || x.who) : '', x.when ? dm(x.when) : ''].filter(Boolean).join(' · ') || 'добавлено ' + dm(x.added || today()))}</span></span><span class="chip ben-st">${UPD_ST[st]}</span></summary><div class="ben-d">${x.note ? `<p>${esc(x.note).replace(/\n/g, '<br>')}</p>` : ''}<div class="seg4 seg-4 ben-seg">${Object.keys(UPD_ST).map(k => `<button type="button" data-action="upd-st" data-id="${esc(x.id)}" data-st="${k}" aria-pressed="${st === k}">${UPD_ST[k]}</button>`).join('')}</div></div></details>`; };
-  const ord = { doing: 0, todo: 1, na: 2, done: 3 }, sz = { s: 0, m: 1, l: 2, xl: 3 };
-  const all = items.slice().sort((a, b) => (ord[a.st] ?? 1) - (ord[b.st] ?? 1) || (sz[a.size || 'm'] ?? 1) - (sz[b.size || 'm'] ?? 1));
-  const groups = all.length ? `<div class="stack">${all.map(row).join('')}</div>` : '';
-  const form = S.updAdd ? `<label class="fld" for="upd-t">Что сделать</label><input id="upd-t" placeholder="Например: мониторинг машин">
+  const meta = x => [x.order ? 'следующая' : '', x.who && x.who !== 'oleg' ? 'от: ' + (who[x.who] || x.who) : '', x.st === 'done' && x.doneAt ? 'сделано ' + dm(x.doneAt) : ''].filter(Boolean).join(' · ');
+  const row = x => {
+    const st = UPD_ST[x.st] ? x.st : 'todo', done = st === 'done', m = meta(x);
+    return `<div class="upd-r${done ? ' done' : ''}"><details class="ben st-${st}${x.order ? ' next' : ''}" data-k="upd-${esc(x.id)}"${openAttr('upd-' + x.id)}><summary><span class="ben-h"><b>${esc(x.title)}</b>${m ? `<span class="ben-v">${esc(m)}</span>` : ''}</span>${st === 'doing' || st === 'na' ? `<span class="chip ben-st">${UPD_ST[st]}</span>` : ''}</summary>
+      <div class="ben-d">${x.note ? `<p>${esc(x.note).replace(/\n/g, '<br>')}</p>` : ''}${done ? '' : `<div class="seg4 ben-seg upd-seg">${['todo', 'doing', 'na'].map(k => `<button type="button" data-action="upd-st" data-id="${esc(x.id)}" data-st="${k}" aria-pressed="${st === k}">${UPD_ST[k]}</button>`).join('')}</div>`}</div></details>
+      <button type="button" class="upd-c${done ? ' on' : ''}" data-action="upd-st" data-id="${esc(x.id)}" data-st="${done ? 'todo' : 'done'}" aria-label="${done ? 'Вернуть в работу' : 'Сделано'}: ${esc(x.title)}">${done ? '✓' : ''}</button></div>`;
+  };
+  const ord = { doing: 1, todo: 2, na: 3 }, sz = { s: 0, m: 1, l: 2, xl: 3 };
+  const open = items.filter(x => x.st !== 'done').sort((a, b) => (a.order || 99) - (b.order || 99) || (ord[a.st] ?? 2) - (ord[b.st] ?? 2) || (sz[a.size || 'm'] ?? 1) - (sz[b.size || 'm'] ?? 1));
+  const done = items.filter(x => x.st === 'done').sort((a, b) => (b.doneAt || '') < (a.doneAt || '') ? -1 : 1);
+  const form = S.updAdd ? `<label class="fld" for="upd-t">Что доработать в журнале</label><input id="upd-t" placeholder="Например: мониторинг машин">
     <label class="fld" for="upd-n">Подробности</label><textarea id="upd-n" rows="2" placeholder="необязательно"></textarea>
-    <div class="two"><div><label class="fld" for="upd-size">Масштаб</label><select id="upd-size">${UPD_SIZE.map(([k, t]) => `<option value="${k}"${k === 'm' ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+    <div class="two"><div><label class="fld" for="upd-size">Масштаб</label><select id="upd-size">${UPD_SIZE.slice(0, 2).map(([k, t]) => `<option value="${k}"${k === 'm' ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
     <div><label class="fld" for="upd-who">Чья идея</label><select id="upd-who">${updPeople().map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select></div></div>
-    <div class="sh-acts"><button type="button" class="btn primary block" data-action="upd-add">Добавить</button></div>` : `<div class="sh-acts"><button type="button" class="btn block" data-action="upd-new">+ Идея</button></div>`;
-  openSheet(`<h2 class="sh-title">УПД</h2>${groups || '<p class="note">Пока пусто.</p>'}${form}`, true);
+    <div class="sh-acts"><button type="button" class="btn primary block" data-action="upd-add">Добавить</button></div>` : `<div class="sh-acts"><button type="button" class="btn block" data-action="upd-new">+ Доработка</button></div>`;
+  openSheet(`<h2 class="sh-title">УПД</h2><p class="sh-meta">Доработки журнала · ${open.length}</p>
+    ${open.length ? `<div class="stack">${open.map(row).join('')}</div>` : '<p class="note">Всё сделано.</p>'}
+    ${done.length ? `<details class="fold" data-k="upd-done"${openAttr('upd-done')}><summary><span>Сделано</span><span class="sec-note">${done.length}</span></summary><div class="stack">${done.map(row).join('')}</div></details>` : ''}
+    ${form}`, true);
 }
 async function updSet(id, patch) {
-  const next = await write('upd.json', d => { d.items = Array.isArray(d.items) ? d.items : []; const x = d.items.find(i => i.id === id); if (x) Object.assign(x, patch, patch.st === 'done' ? { doneAt: today() } : {}); return d; }, 'УПД: статус', { items: [] });
+  const next = await write('upd.json', d => { d.items = Array.isArray(d.items) ? d.items : []; const x = d.items.find(i => i.id === id); if (x) { Object.assign(x, patch); if (patch.st === 'done') { x.doneAt = today(); delete x.order; } else if (patch.st) delete x.doneAt; } return d; }, 'УПД: ' + (patch.st === 'done' ? 'сделано' : 'статус'), { items: [] });
   if (next) { S.upd = next; openUpd(); }
 }
 
