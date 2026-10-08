@@ -3674,7 +3674,7 @@ function openSheet(html, keepScroll, mode) {
   panel.scrollTop = restoring && NAV.top != null ? NAV.top : keepScroll && !wasHidden ? top : 0;
   NAV.top = null;
   if (wasHidden && panel.style) { panel.style.transform = ''; panel.classList.remove('drag', 'snap'); }
-  if (wasHidden) setTimeout(() => { try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }, 20);
+  if (wasHidden) setTimeout(() => { if (panel.contains(document.activeElement) && document.activeElement !== panel) return; try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }, 20);
   NAV.key = key; NAV.cur = S.cur;
   Promise.resolve().then(() => { if (NAV.key === key) NAV.cur = S.cur; });
   navUi();
@@ -6937,6 +6937,7 @@ function clLazy() {
 }
 function openRequests(tab, keepScroll, area) {
   const prev = S.cur && S.cur.type === 'req' ? S.cur : {};
+  const fresh = !keepScroll && !prev.type;
   if (['sport', 'study', 'food', 'books'].includes(tab)) area = tab;
   S.cur = { type: 'req', area: area || prev.area || '', limit: prev.limit || 60, sel: null, editId: null, re: prev.re || null, reMe: prev.reMe || false, strip: null, draft: prev.draft || '' };
   const sub = ((S.config || {}).claude || {}).hours || 'отвечает в течение часа, с 9 до 24';
@@ -6947,6 +6948,8 @@ function openRequests(tab, keepScroll, area) {
       <div class="cl-recbar"><button type="button" class="cl-x" data-action="cl-rec-x" aria-label="Удалить запись">${ico('trash')}</button><span class="cl-rec-dot" aria-hidden="true"></span><span id="cl-rec-t">0:00</span><span class="cl-rec-h">Идёт запись</span><button type="button" class="cl-send" data-action="cl-rec-send" aria-label="Отправить голосовое">${ico('send')}</button></div>
     </div>`, false, 'chat');
   clScrollEnd(); clLazy(); clGrow(); clBarState();
+  // открыли чат — сразу курсор в поле и клавиатура (фокус синхронно, в жесте нажатия — иначе iOS клавиатуру не покажет)
+  if (fresh) { const t = $('#msg-text'); if (t) { try { t.focus({ preventScroll: true }); } catch (_) { t.focus(); } const n = t.value.length; try { t.setSelectionRange(n, n); } catch (_) {} } }
   markAnswersSeen();
   chatPoll();
 }
