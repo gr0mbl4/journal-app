@@ -1264,6 +1264,25 @@ img.bad{opacity:.3}
 .td-add{margin-top:10px}
 .td-add-in{width:100%;border:1px dashed var(--glass-line);background:transparent;border-radius:14px;padding:11px 12px;font-size:15.5px;color:var(--ink);box-shadow:none}
 .td-extra{margin-top:10px}
+/* план: следующие 5 дней свёрнуты — только значки */
+.pd-list{display:grid;gap:8px;margin:0 0 14px}
+details.pd{border-radius:18px;background:var(--glass-2);border:1px solid var(--glass-line)}
+details.pd>summary{display:grid;grid-template-columns:116px minmax(0,1fr) 16px;align-items:center;gap:10px;padding:10px 14px;list-style:none;cursor:pointer;min-height:52px}
+details.pd>summary::-webkit-details-marker{display:none}
+.pd-d{display:grid;line-height:1.15}.pd-d b{font-size:15px;font-weight:700}.pd-d small{font-size:12px;color:var(--muted)}
+details.pd.hol .pd-d small{color:#C0392B}
+.pd-ics{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.pd-i{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;flex:none}
+.pd-i svg{width:16px;height:16px}
+.pd-i.k-study{background:var(--study)} .pd-i.k-sport{background:var(--sport)} .pd-i.k-upd{background:#22A35E}
+.pd-i.k-ev{width:14px;height:14px;margin:0 7px;background:var(--event)}
+.pd-i.done{opacity:.4} .pd-i.skipped{opacity:.3;filter:grayscale(1)}
+.pd-note{font-size:12px;color:var(--muted)}
+.pd-chev::before{content:"▾";color:var(--muted);font-size:13px}
+details.pd[open] .pd-chev::before{content:"▴"}
+.pd-body{padding:0 12px 12px}
+.pd-body .td-list{margin-top:0}
+.pd-acts{display:flex;justify-content:flex-end;margin-top:8px}
 .plan-acts{justify-content:flex-end;margin-top:-4px}
 .up-prog.mini{padding:6px 12px 7px;gap:4px;border-radius:14px;max-width:360px;pointer-events:none;opacity:.96}
 .up-prog.mini .upp-row{font-size:12.5px}
@@ -1496,6 +1515,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261008g"></script>
+<script src="app.js?v=20261008h"></script>
 </body>
 </html>

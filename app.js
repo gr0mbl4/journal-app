@@ -1559,9 +1559,15 @@ function occurrences(ev, from, to) {
   return out;
 }
 function nextOccurrence(ev, from) { const o = occurrences(ev, from, addDays(from, 3700)); return o[0] || null; }
+// Не сделанное разовое дело (серое или УПД) само переезжает на сегодня — до 30 дней назад; отметка ставится на исходную дату.
+const CARRY_DAYS = 30;
 function eventsOn(d) {
-  const out = [];
+  const out = [], t = today();
   for (const e of S.events) if (occurrences(e, d, d).length) out.push({ ev: e, date: d, done: Array.isArray(e.done) && e.done.includes(d) });
+  if (d === t) for (const e of S.events) {
+    if (e.repeat || !e.date || e.date >= t || e.date < addDays(t, -CARRY_DAYS)) continue;
+    if (!(Array.isArray(e.done) && e.done.includes(e.date))) out.push({ ev: e, date: e.date, done: false, carried: true });
+  }
   return out.sort((a, b) => (a.ev.time || '') < (b.ev.time || '') ? -1 : (a.ev.time || '') > (b.ev.time || '') ? 1 : 0);
 }
 // УПД (фичи журнала и задачи на будущее): событие «УПД: …» в плане — просто «УПД», в календаре — зелёным
@@ -2823,8 +2829,9 @@ function renderPlan() {
     const dd = k <= 1 ? short(d) : dm(d);
     return `<section class="day${k === 0 ? ' is-today' : ''}${holiday(d) ? ' hol' : ''}"><div class="day-h"><span class="dn">${dayName(d)}</span><span class="dd">${dd}</span><button type="button" class="more" data-action="day" data-date="${d}" aria-label="День ${short(d)}">${DOTS}</button></div>${rows.length ? `<div class="stack">${rows.join('')}</div>` : '<p class="empty-day">Свободный день</p>'}</section>`;
   };
-  let rest = '';
-  for (let k = 2; k <= HORIZON; k++) {
+  let rest = '', next = '';
+  for (let k = 1; k <= 5; k++) next += dayFoldHtml(addDays(t, k), study, sport, k);
+  for (let k = 6; k <= HORIZON; k++) {
     const d = addDays(t, k);
     if (dow(d) === 1) rest += `<div class="week-sep"><span>Неделя ${dm(d)} – ${dm(addDays(d, 6))}</span></div>`;
     rest += dayHtml(d, k);
@@ -2832,9 +2839,9 @@ function renderPlan() {
   const end = addDays(t, HORIZON);
   // главное — дела на сегодня; над ними неделя в одну строку (нажал — открылся календарь)
   st.innerHTML += weekStripHtml(study, sport) + todayCardHtml(t, study, sport, true);
-  dy.innerHTML = banners + todayCardHtml(addDays(t, 1), study, sport, false)
+  dy.innerHTML = banners + `<div class="pd-list">${next}</div>`
     + `<div class="sec-row plan-acts"><span class="acts">${shopBtnHtml()}<button type="button" class="btn sm" data-action="ev-new">+ Событие</button></span></div>`
-    + `<details class="fold days-more" data-k="plan-more"${openAttr('plan-more')}><summary><span>Дальше</span><span class="sec-note">до ${dm(end)} · ${HORIZON - 1} ${plural(HORIZON - 1, 'день', 'дня', 'дней')}</span></summary>${rest}</details>`
+    + `<details class="fold days-more" data-k="plan-more"${openAttr('plan-more')}><summary><span>Дальше</span><span class="sec-note">${dm(addDays(t, 6))} – ${dm(end)}</span></summary>${rest}</details>`
     + `<details class="fold" data-k="plan-q"${openAttr('plan-q')}><summary><span>Цели квартала</span></summary>${quarterHtml()}</details>`;
 }
 
@@ -2870,8 +2877,8 @@ function todayItems(d, study, sport) {
     open: `data-action="study" data-date="${e.date}" data-key="${esc(e.L.key)}" data-part="${e.part}"`, openLabel: 'Открыть урок', more: e.L.doc ? lessonMore(e.L.doc) : '' }));
   sport.filter(i => i.eff === d).forEach(i => out.push({ k: 'sport', ok: 'sp-' + i.id, key: 'sp-' + i.id, title: sportShort(i), sub: i.state === 'other' ? (i.note || 'сделал другое') : i.sub, done: i.state === 'done' || i.state === 'other', skipped: i.state === 'skipped',
     open: `data-action="sport" data-id="${esc(i.id)}"`, openLabel: 'Открыть тренировку', chk: i.state ? '' : `data-action="sp-done" data-id="${esc(i.id)}"`, more: sportMore(i) }));
-  eventsOn(d).forEach(o => { const upd = isUpdEv(o.ev); out.push({ k: upd ? 'ev k-upd' : 'ev', ok: 'ev-' + o.ev.id, key: 'ev-' + o.ev.id, title: evTitle(o.ev), sub: [o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
-    open: upd ? 'data-action="upd-open"' : `data-action="event" data-id="${esc(o.ev.id)}" data-date="${d}"`, openLabel: upd ? 'Открыть УПД' : 'Изменить', chk: `data-action="td-ev" data-id="${esc(o.ev.id)}" data-date="${d}"` }); });
+  eventsOn(d).forEach(o => { const upd = isUpdEv(o.ev), od = o.date; out.push({ k: upd ? 'ev k-upd' : 'ev', ok: 'ev-' + o.ev.id, key: 'ev-' + o.ev.id, title: evTitle(o.ev), sub: [o.carried ? '↪ перенесено с ' + short(od) : '', o.carried ? '' : o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
+    open: upd ? 'data-action="upd-open"' : `data-action="event" data-id="${esc(o.ev.id)}" data-date="${od}"`, openLabel: upd ? 'Открыть УПД' : 'Изменить', chk: `data-action="td-ev" data-id="${esc(o.ev.id)}" data-date="${od}"` }); });
   out.forEach((x, n) => { x.n = n; });
   // свой порядок дня (перетащил удержанием): идёт как день, сделанное остаётся на месте; новое — в конец
   const ord = (S.dayOrder || {})[d];
@@ -2903,6 +2910,26 @@ function sportMore(i) {
     (ses.blocks || []).forEach(b => (b.ex || []).forEach(x => { if (!/^бассейн$/i.test(x.name)) names.push(x.name); }));
     return names.length ? `<ul>${names.slice(0, 8).map(n => `<li>${esc(n)}</li>`).join('')}${names.length > 8 ? `<li>и ещё ${names.length - 8}</li>` : ''}</ul>` : '';
   } catch (_) { return ''; }
+}
+// следующие дни — свёрнуто: только значки дел по цвету (учёба — оранжевый, спорт — синий, дела — серый, УПД — зелёный)
+function dayIcons(items) {
+  return items.map(x => {
+    const k = /k-upd/.test(x.k) ? 'upd' : x.k === 'study' ? 'study' : x.k === 'sport' ? 'sport' : 'ev';
+    const ic = k === 'study' ? ico('book') : k === 'sport' ? ico('dumb') : k === 'upd' ? ico('rocket') : '';
+    return `<span class="pd-i k-${k}${x.done ? ' done' : ''}${x.skipped ? ' skipped' : ''}" title="${esc(x.title)}">${ic}</span>`;
+  }).join('');
+}
+function dayFoldHtml(d, study, sport, k) {
+  const items = todayItems(d, study, sport), extra = scheduleRows(d).concat(regularRows(d), plannedRows(d), dateRows(d), graceRows(d));
+  const label = k === 1 ? 'Завтра' : dayName(d);
+  const tag = restDay(d) && !items.some(x => !/^ev/.test(x.k)) ? '<span class="pd-note">чистый</span>' : dutyOn(d) ? '<span class="pd-note">наряд</span>' : holiday(d) ? '<span class="pd-note">праздник</span>' : '';
+  const list = items.map(x => {
+    const chk = x.done ? '<span class="td-c on">✓</span>' : x.skipped ? '<span class="td-c x">–</span>' : x.chk ? `<button type="button" class="td-c" ${x.chk} aria-label="Отметить: ${esc(x.title)}"></button>` : `<button type="button" class="td-c" ${x.open} aria-label="${esc(x.title)}"></button>`;
+    return `<div class="td-i k-${x.k}${x.done ? ' done' : ''}${x.skipped ? ' skipped' : ''}" data-sort-item data-ok="${esc(x.ok)}"><button type="button" class="td-m" ${x.open}><span class="td-t">${esc(x.title)}</span>${x.sub ? `<span class="td-s">${esc(x.sub)}</span>` : ''}</button>${chk}</div>`;
+  }).join('');
+  return `<details class="pd${holiday(d) ? ' hol' : ''}"><summary><span class="pd-d"><b>${esc(label)}</b><small>${esc(DOW_S[dow(d)])} ${pd(d).getDate()}</small></span><span class="pd-ics">${dayIcons(items)}${tag}</span><span class="pd-chev" aria-hidden="true"></span></summary>
+    <div class="pd-body"><div class="td-list" data-sort="td" data-date="${d}">${list}</div>${items.length ? '' : '<p class="td-empty">Дел нет.</p>'}${extra.length ? `<div class="stack td-extra">${extra.join('')}</div>` : ''}
+    <div class="pd-acts"><button type="button" class="btn sm" data-action="day" data-date="${d}">Весь день</button></div></div></details>`;
 }
 function todayCardHtml(d, study, sport, big) {
   const items = todayItems(d, study, sport);
@@ -6144,6 +6171,8 @@ const ICP = {
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2"/><rect x="16" y="14" width="5" height="7" rx="2"/>',
   cam: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  book: '<path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5"/>',
+  dumb: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
   scan: '<path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/><path d="M8 8v8M11 8v8M14 8v8M17 8v8"/>',
   warn: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17h.01"/>'
 };
