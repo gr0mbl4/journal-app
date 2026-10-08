@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' https://api.github.com; manifest-src 'self'; worker-src 'self'; child-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' https://api.github.com https://world.openfoodfacts.org; manifest-src 'self'; worker-src 'self'; child-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Бортовой журнал</title>
@@ -271,7 +271,7 @@ details.more-box[open] summary::after{content:"▴"}
 .meal{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:10px 12px;display:grid;gap:8px}
 .meal-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .meal-h b{font-weight:600}
-.dish-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
+.dish-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center}
 .dish{display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px;align-items:center;text-align:left;background:none;border:0;padding:0;cursor:pointer;width:100%;min-width:0}
 .dish.card-like{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:8px 10px}
 .thumb{width:46px;height:46px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;font:600 15px var(--f-disp);color:var(--muted);overflow:hidden}
@@ -1047,6 +1047,33 @@ details.fold.sub>:not(summary){margin-inline:8px}
 .wk-c .marks{min-height:14px;justify-content:center;gap:1px}
 .wk-c .mk{width:12px;height:12px;font-size:8px}
 .wk-c .mk.ev{width:6px;height:6px}
+/* питание: сводка дня, быстрый ввод, порции */
+.fz{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px 10px;margin-top:12px}
+.fz-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.fz-k{font-size:15px;color:var(--muted)} .fz-k b{font:700 26px var(--f-disp);color:var(--ink);letter-spacing:-.01em} .fz-k small{font-size:14px}
+.fz-bar{display:block;height:8px;border-radius:6px;background:color-mix(in srgb,var(--ink) 9%,transparent);overflow:hidden;margin-top:6px}
+.fz-bar.big{height:10px;margin-top:8px}
+.fz-bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#F2B33D,#E07B24)}
+.fz-bar.over i,.fz-m.over .fz-bar i{background:#C0392B}
+.fz-left{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+.fz-ms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+.fz-m{display:grid;gap:1px;min-width:0} .fz-l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.fz-v{font-weight:650;font-size:14.5px;white-space:nowrap} .fz-v small{font-weight:400;color:var(--muted)}
+.fz-m:nth-child(1) .fz-bar i{background:linear-gradient(90deg,#5BA8F0,#2F6FE0)} .fz-m:nth-child(2) .fz-bar i{background:linear-gradient(90deg,#F5C451,#D9961C)} .fz-m:nth-child(3) .fz-bar i{background:linear-gradient(90deg,#7ED38E,#2E9E5B)}
+.fz-note{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.35}
+.fq{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:10px 12px;margin-top:10px;display:grid;gap:8px}
+.fq-meals{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none} .fq-meals .chip-btn{flex:none;min-height:32px;padding:4px 12px}
+.fq-prev{display:grid;gap:4px} .fq-prev:empty{display:none}
+.fq-it{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5px 8px;border-radius:8px;background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.fq-it span:last-child{color:var(--muted);text-align:right} .fq-it small{color:var(--muted)} .fq-it.est span:last-child{color:var(--warn,#B7791F)}
+.fq-acts{display:flex;flex-wrap:wrap;gap:6px} .fq-acts .btn svg{width:16px;height:16px;margin-right:5px;vertical-align:-3px}
+.fq-fav{display:flex;flex-wrap:wrap;gap:6px;align-items:center} .fq-fl{font-size:12px;color:var(--muted);width:100%}
+.fq-fav .chip-btn{min-height:32px;padding:4px 10px;font-size:13px} .fq-fav small{color:var(--muted);margin-left:3px}
+.pt-btn{border:1px solid var(--line);background:none;border-radius:999px;padding:3px 9px;font-size:12px;color:var(--muted);min-height:30px;white-space:nowrap;cursor:pointer}
+.meal-k{font-weight:500;color:var(--muted);font-size:12.5px;margin-left:4px}
+.ftg-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 8px;align-items:end}
+.ftg-grid .fld{grid-row:1;font-size:12px} .ftg-grid input{grid-row:2;min-width:0}
+.ftg-grid.five{grid-template-columns:repeat(5,minmax(0,1fr))}
 /* УПД — зелёным; сделанное событие — серая галочка вместо точки */
 .mk.ev.upd{background:#22A35E}
 .mk.ev.done{width:12px;height:12px;background:none;color:var(--event);font-size:11px;font-weight:800}
@@ -1458,6 +1485,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261008c"></script>
+<script src="app.js?v=20261008d"></script>
 </body>
 </html>

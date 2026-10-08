@@ -1,6 +1,6 @@
 // Офлайн-оболочка журнала: страница и скрипт берутся из кэша, если нет сети.
 // Данные (api.github.com) сюда не попадают — они в localStorage приложения.
-const CACHE = 'bj-shell-20261008c';
+const CACHE = 'bj-shell-20261008d';
 const STATIC = ['./manifest.webmanifest', './icon-192.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
