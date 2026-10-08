@@ -5522,12 +5522,14 @@ document.addEventListener('click', async ev => {
     case 'cu-cal': openUsageCal(); break;
     case 'cu-cal-save': {
       const ps = numOrNull(($('#cu-ps') || {}).value), pw = numOrNull(($('#cu-pw') || {}).value);
-      const s5 = cuSum(cuHours(5)), wk = cuSum(cuSums(7)), ok = v => v != null && v > 0 && v <= 100;
+      const rd = ($('#cu-rd') || {}).value, rt = ($('#cu-rt') || {}).value || '09:00';
+      if (rd != null && rd !== '') { S.config = S.config || {}; S.config.claude = Object.assign({}, S.config.claude, { weekReset: { dow: Number(rd), hm: rt } }); }
+      const s5 = cuSum(cuHours(5)), wk = cuSum(cuWeek()), ok = v => v != null && v > 0 && v <= 100;
       if (!ok(ps) && !ok(pw)) { toast('Впиши хотя бы один процент — от 1 до 100'); break; }
       if (ok(ps) && !s5) { toast('За последние 5 часов журнал ничего не записал — сессию сверим позже'); if (!ok(pw)) break; }
       if (ok(pw) && !wk) { toast('За неделю расход ещё не записан — сверим позже'); if (!ok(ps) || !s5) break; }
       busy(b, true);
-      if (await writeConfig(c => { c.claude = c.claude || {}; if (ok(ps) && s5) c.claude.sessionMax = Math.round(s5 / (ps / 100)); if (ok(pw) && wk) c.claude.weekMax = Math.round(wk / (pw / 100)); c.claude.calAt = today(); }, `Расход Claude: сверка — ${[ok(ps) ? 'сессия ' + ps + '%' : '', ok(pw) ? 'неделя ' + pw + '%' : ''].filter(Boolean).join(', ')}`)) { toast('Сверил: полоски — доля от лимитов аккаунта'); openMenu(); usageLoad(); }
+      if (await writeConfig(c => { c.claude = c.claude || {}; if (ok(ps) && s5) c.claude.sessionMax = Math.round(s5 / (ps / 100)); if (ok(pw) && wk) c.claude.weekMax = Math.round(wk / (pw / 100)); c.claude.calAt = today(); if (rd != null && rd !== '') c.claude.weekReset = { dow: Number(rd), hm: rt }; }, `Расход Claude: сверка — ${[ok(ps) ? 'сессия ' + ps + '%' : '', ok(pw) ? 'неделя ' + pw + '%' : ''].filter(Boolean).join(', ')}`)) { toast('Сверил: полоски — доля от лимитов аккаунта'); openMenu(); usageLoad(); }
       busy(b, false); break;
     }
     case 'ready': openReadiness(); break;
@@ -6291,6 +6293,28 @@ function cuHours(n) {
   });
   return out;
 }
+// неделя у Claude — не скользящие 7 дней, а с момента сброса (claude.ai: «Resets Thursday 9:00 AM»): config.claude.weekReset {dow, hm}
+const MSK_MS = 3 * 3600e3;
+function cuWeekStart() {
+  const r = ((S.config || {}).claude || {}).weekReset; if (!r || r.dow == null) return null;
+  const [hh, mm] = String(r.hm || '00:00').split(':').map(Number), now = Date.now(), m = new Date(now + MSK_MS);
+  let t = Date.UTC(m.getUTCFullYear(), m.getUTCMonth(), m.getUTCDate(), hh || 0, mm || 0) - MSK_MS;
+  t -= ((m.getUTCDay() - Number(r.dow) + 7) % 7) * 864e5;
+  if (t > now) t -= 7 * 864e5;
+  return t;
+}
+function cuWeek() {
+  const st = cuWeekStart(); if (st == null) return cuSums(7);
+  const out = {}, d0 = new Date(st + MSK_MS).toISOString().slice(0, 10);
+  cuLog().forEach(x => {
+    if (!x.d || x.d < d0) return;
+    let w = 0;
+    if (x.hw) for (const [h, v] of Object.entries(x.hw)) { if (Date.parse(`${x.d}T${String(h).padStart(2, '0')}:00:00+03:00`) + 3600e3 > st) w += Number(v) || 0; }
+    else w = Number(x.w) || 0; // старые записи без часов: день сброса считаем целиком
+    out[x.who] = (out[x.who] || 0) + w;
+  });
+  return out;
+}
 const cuFmt = w => w >= 1e6 ? (Math.round(w / 1e5) / 10).toString().replace('.', ',') + ' млн' : Math.round(w / 1e3) + ' тыс.';
 const cuSum = o => Object.values(o).reduce((a, b) => a + b, 0);
 function cuCell(v, max, has) {
@@ -6302,13 +6326,13 @@ function cuCell(v, max, has) {
 function usageHtml() {
   if (!S.usage) return '<div class="cu"><div class="cu-h"><b>Расход Claude</b><span class="m">загружаю…</span></div></div>';
   const c = (S.config || {}).claude || {}, wMax = Number(c.weekMax) || 0, sMax = Number(c.sessionMax) || 0;
-  const wk = cuSums(7), s5 = cuHours(5), people = cuPeople();
+  const wk = cuWeek(), s5 = cuHours(5), people = cuPeople(), ws = cuWeekStart();
   const row = (name, s, w, has, cls) => `<div class="cu-r${cls || ''}"><span class="cu-n">${esc(name)}</span>${cuCell(s, sMax, has)}${cuCell(w, wMax, has)}</div>`;
   const rows = people.map(p => row(p.name, s5[p.id] || 0, wk[p.id] || 0, cuLog().some(x => x.who === p.id), '')).join('')
     + (people.length > 1 ? row('Всего', cuSum(s5), cuSum(wk), true, ' tot') : '');
   const cal = wMax || sMax;
   return `<div class="cu"><div class="cu-h"><b>Расход Claude</b><button type="button" class="link-btn" data-action="cu-cal">${cal ? 'сверить' : 'сверить с лимитом'}</button></div>
-    <div class="cu-r cu-hd"><span></span><span>5 часов</span><span>неделя</span></div>${rows}
+    <div class="cu-r cu-hd"><span></span><span>5 часов</span><span>${ws ? 'неделя с ' + esc(DOW_S[new Date(ws + MSK_MS).getUTCDay()]) + ' ' + esc(new Date(ws + MSK_MS).toISOString().slice(11, 16)) : 'неделя'}</span></div>${rows}
     <p class="cu-note">${cal ? `Доля от лимитов аккаунта: окно сессии (5 ч) и неделя — по сверке${c.calAt ? ' ' + esc(dm(c.calAt)) : ''}. ` : 'Сверь один раз с claude.ai — и здесь будет доля от лимитов аккаунта: окна сессии (5 ч) и недели. Пока — только токены. '}Считаются разборы журналов и разговоры о журнале; другие чаты с Claude — нет, поэтому это оценка снизу.</p></div>`;
 }
 async function usageLoad() {
@@ -6325,13 +6349,15 @@ async function usageLoad() {
   const box = document.getElementById('cu-box'); if (box) box.innerHTML = usageHtml();
 }
 function openUsageCal() {
-  const wk = cuSum(cuSums(7)), s5 = cuSum(cuHours(5));
+  const wk = cuSum(cuWeek()), s5 = cuSum(cuHours(5));
   S.cur = { type: 'cucal' };
   openSheet(`<h2 class="sh-title">Сверить с лимитом</h2>
     <p class="note">Открой <b>claude.ai/settings/usage</b> (в приложении Claude: Настройки → Использование). Там две полоски: <b>текущая сессия</b> (окно 5 часов) и <b>неделя</b>. Впиши проценты — журнал посчитает, сколько условных токенов составляют 100%.</p>
     <div class="two"><div><label class="fld" for="cu-ps">Сессия (5 ч), %</label><input id="cu-ps" inputmode="decimal" placeholder="например, 40"></div>
     <div><label class="fld" for="cu-pw">Неделя, %</label><input id="cu-pw" inputmode="decimal" placeholder="например, 25"></div></div>
-    <p class="note">Журнал записал: за 5 часов — ${esc(cuFmt(s5))}, за 7 дней — ${esc(cuFmt(wk))}. Сверяй, когда Claude в эти часы был занят в основном журналом (например, сразу после разговора о журнале): другие чаты тоже едят лимит, но журнал их не видит. Неделя у Claude обнуляется в свой день, а журнал считает последние 7 дней — это оценка. Можно заполнить только одно поле.</p>
+    <p class="note">Журнал записал: за 5 часов — ${esc(cuFmt(s5))}, за неделю — ${esc(cuFmt(wk))}. Сверяй, когда Claude в эти часы был занят в основном журналом (например, сразу после разговора о журнале): другие чаты тоже едят лимит, но журнал их не видит. Можно заполнить только одно поле.</p>
+    <span class="fld">Когда обнуляется неделя (на той же странице: «Resets …»)</span>
+    <div class="two"><select id="cu-rd">${[1, 2, 3, 4, 5, 6, 0].map(d => `<option value="${d}"${(((S.config || {}).claude || {}).weekReset || { dow: 4 }).dow == d ? ' selected' : ''}>${DOW_S[d]}</option>`).join('')}</select><input id="cu-rt" type="time" value="${esc((((S.config || {}).claude || {}).weekReset || {}).hm || '09:00')}"></div>
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="cu-cal-save">Сохранить</button></div>`);
 }
 function openMenu() {
