@@ -5694,6 +5694,14 @@ function usageHtml() {
 async function usageLoad() {
   try { const d = await readDoc('usage.json'); S.usage = d && Array.isArray(d.log) ? d : { log: [] }; }
   catch (_) { S.usage = S.usage || { log: [] }; }
+  // у человека со своим репозиторием (config.claude.people[].repo) расход лежит там — в его usage.json
+  for (const p of cuPeople().filter(p => p.repo && p.repo !== GH.cred.repo)) {
+    try {
+      const d = JSON.parse(await (await GH.rawIn(p.repo, 'usage.json')).text());
+      const rows = (Array.isArray(d.log) ? d.log : []).filter(x => x.who === p.id);
+      S.usage.log = S.usage.log.filter(x => x.who !== p.id).concat(rows);
+    } catch (_) { /* нет доступа токену или файла ещё нет — полоска останется пустой */ }
+  }
   const box = document.getElementById('cu-box'); if (box) box.innerHTML = usageHtml();
 }
 function openUsageCal() {
