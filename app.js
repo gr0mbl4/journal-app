@@ -5618,6 +5618,15 @@ document.addEventListener('click', async ev => {
       break;
     }
     case 'upd-new': S.updAdd = !S.updAdd; openUpd(); break;
+    case 'upd-send': {
+      const x = ((S.upd && S.upd.items) || []).find(i => i.id === id); if (!x) return;
+      const c = (($('#upd-c-' + CSS.escape(id)) || {}).value || '').trim();
+      const text = `УПД: ${x.title}${x.note ? '\n' + x.note : ''}${c ? '\n\nКомментарий: ' + c : ''}`;
+      busy(b, true);
+      const ok = await writeRequests(list => { list.push({ id: 'q' + rid().slice(0, 10), text, date: today(), ts: Date.now(), status: 'new', upd: x.id }); }, 'Запрос для Claude: УПД — ' + x.title.slice(0, 40));
+      if (ok) { await write('upd.json', d => { d.items = Array.isArray(d.items) ? d.items : []; const y = d.items.find(i => i.id === id); if (y) { y.sent = today(); if (y.st === 'todo') y.st = 'doing'; } return d; }, 'УПД: отправлено Claude', { items: [] }).then(nx => { if (nx) S.upd = nx; }); toast('Отправил Claude — ответ придёт в чат'); openUpd(); }
+      busy(b, false); break;
+    }
     case 'ben-st': busy(b, true); await benSet(id, b.dataset.st); busy(b, false); break;
     case 'close': case 'close-all': closeSheet(); break;
     case 'back': navBack(); break;
@@ -6693,7 +6702,7 @@ function openUpd() {
   const row = x => {
     const st = UPD_ST[x.st] ? x.st : 'todo', done = st === 'done', m = meta(x);
     return `<div class="upd-r${done ? ' done' : ''}"><details class="ben st-${st}${x.order ? ' next' : ''}" data-k="upd-${esc(x.id)}"${openAttr('upd-' + x.id)}><summary><span class="ben-h"><b>${esc(x.title)}</b>${m ? `<span class="ben-v">${esc(m)}</span>` : ''}</span>${st === 'doing' || st === 'na' ? `<span class="chip ben-st">${UPD_ST[st]}</span>` : ''}</summary>
-      <div class="ben-d">${x.note ? `<p>${esc(x.note).replace(/\n/g, '<br>')}</p>` : ''}${done ? '' : `<div class="seg4 ben-seg upd-seg">${['todo', 'doing', 'na'].map(k => `<button type="button" data-action="upd-st" data-id="${esc(x.id)}" data-st="${k}" aria-pressed="${st === k}">${UPD_ST[k]}</button>`).join('')}</div>`}</div></details>
+      <div class="ben-d">${x.note ? `<p>${esc(x.note).replace(/\n/g, '<br>')}</p>` : ''}${done ? '' : `<div class="upd-send"><textarea id="upd-c-${esc(x.id)}" rows="2" placeholder="Комментарий для Claude — необязательно"></textarea><button type="button" class="btn sm study" data-action="upd-send" data-id="${esc(x.id)}">${ico('send')}Отправить Claude</button></div>${x.sent ? `<p class="upd-sent">отправлено Claude ${esc(dm(x.sent))}</p>` : ''}<div class="seg4 ben-seg upd-seg">${['todo', 'doing', 'na'].map(k => `<button type="button" data-action="upd-st" data-id="${esc(x.id)}" data-st="${k}" aria-pressed="${st === k}">${UPD_ST[k]}</button>`).join('')}</div>`}</div></details>
       <button type="button" class="upd-c${done ? ' on' : ''}" data-action="upd-st" data-id="${esc(x.id)}" data-st="${done ? 'todo' : 'done'}" aria-label="${done ? 'Вернуть в работу' : 'Сделано'}: ${esc(x.title)}">${done ? '✓' : ''}</button></div>`;
   };
   const ord = { doing: 1, todo: 2, na: 3 }, sz = { s: 0, m: 1, l: 2, xl: 3 };
