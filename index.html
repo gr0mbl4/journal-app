@@ -1047,6 +1047,15 @@ details.fold.sub>:not(summary){margin-inline:8px}
 .wk-c .marks{min-height:14px;justify-content:center;gap:1px}
 .wk-c .mk{width:12px;height:12px;font-size:8px}
 .wk-c .mk.ev{width:6px;height:6px}
+/* УПД — зелёным; сделанное событие — серая галочка вместо точки */
+.mk.ev.upd{background:#22A35E}
+.mk.ev.done{width:12px;height:12px;background:none;color:var(--event);font-size:11px;font-weight:800}
+.mk.ev.upd.done{color:#22A35E;background:none}
+.wk-c .mk.ev.done{width:9px;height:9px;font-size:9px}
+.tag.event.upd{color:#17904D;background:color-mix(in srgb,#22A35E 16%,transparent)}
+.td-i.k-upd{background:color-mix(in srgb,#22A35E 13%,var(--surface));border-color:color-mix(in srgb,#22A35E 40%,transparent);--acc:#22A35E}
+.td-i.k-upd .td-t{color:#17904D}
+@media (prefers-color-scheme: dark){ .td-i.k-upd .td-t,.tag.event.upd{color:#5ED895} }
 .cal-back{display:inline-block;margin-top:6px;font-weight:600}
 /* Спорт: разделы, превью комплекса, база картинками */
 .sp-seg{margin:6px 0 14px}
@@ -1449,6 +1458,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261008b"></script>
+<script src="app.js?v=20261008c"></script>
 </body>
 </html>

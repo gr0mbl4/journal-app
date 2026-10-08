@@ -1564,9 +1564,17 @@ function eventsOn(d) {
   for (const e of S.events) if (occurrences(e, d, d).length) out.push({ ev: e, date: d, done: Array.isArray(e.done) && e.done.includes(d) });
   return out.sort((a, b) => (a.ev.time || '') < (b.ev.time || '') ? -1 : (a.ev.time || '') > (b.ev.time || '') ? 1 : 0);
 }
+// УПД (фичи журнала и задачи на будущее): событие «УПД: …» в плане — просто «УПД», в календаре — зелёным
+const isUpdEv = e => /^\s*упд(?![а-яё])/i.test((e && e.title) || '');
+const evTitle = e => isUpdEv(e) ? 'УПД' : (e.title || '');
+// отметки событий в календаре: УПД — зелёная, сделанное — серая галочка, остальное — серая точка
+function evMarks(d) {
+  const evs = eventsOn(d).sort((a, b) => (a.done - b.done) || (isUpdEv(b.ev) - isUpdEv(a.ev)));
+  return evs.slice(0, 2).map(o => `<span class="mk ev${isUpdEv(o.ev) ? ' upd' : ''}${o.done ? ' done' : ''}" title="${isUpdEv(o.ev) ? 'УПД' : 'Событие'}${o.done ? ' — сделано' : ''}">${o.done ? '✓' : ''}</span>`).join('');
+}
 function rowEvent(o) {
   const ev = o.ev, rep = repeatLabel(ev.repeat);
-  return `<button type="button" class="row slim${o.done ? ' is-done' : ''}" data-action="event" data-id="${esc(ev.id)}" data-date="${o.date}"><span class="tag event">Событие</span><span class="rb"><span class="t ev-t">${esc(ev.title)}</span>${rep ? `<span class="m">↻ ${esc(rep)}</span>` : ''}</span><span class="s">${o.done ? '<span class="chip good">✓</span> ' : ''}${ev.time ? esc(ev.time) : 'весь день'}</span></button>`;
+  return `<button type="button" class="row slim${o.done ? ' is-done' : ''}" data-action="event" data-id="${esc(ev.id)}" data-date="${o.date}"><span class="tag event${isUpdEv(ev) ? ' upd' : ''}">${isUpdEv(ev) ? 'УПД' : 'Событие'}</span><span class="rb"><span class="t ev-t">${esc(evTitle(ev))}</span>${rep ? `<span class="m">↻ ${esc(rep)}</span>` : ''}</span><span class="s">${o.done ? '<span class="chip good">✓</span> ' : ''}${ev.time ? esc(ev.time) : 'весь день'}</span></button>`;
 }
 function rowStudy(e) {
   const L = e.L;
@@ -2836,8 +2844,8 @@ function weekStripHtml(study, sport) {
   const t = today(), mon = mondayOf(t);
   let cells = '';
   for (let k = 0; k < 7; k++) {
-    const d = addDays(mon, k), evs = eventsOn(d).length;
-    const marks = sportMark(d, sport) + studyMark(d, study) + (evs ? '<span class="mk ev"></span>'.repeat(Math.min(evs, 2)) : '');
+    const d = addDays(mon, k);
+    const marks = sportMark(d, sport) + studyMark(d, study) + evMarks(d);
     cells += `<span class="wk-c${d === t ? ' today' : ''}${d < t ? ' past' : ''}${holiday(d) ? ' hol' : ''}${restDay(d) ? ' rest' : ''}"><span class="wk-dw">${DOW_S[dow(d)]}</span><span class="wk-n">${pd(d).getDate()}${dutyOn(d) ? '<i class="cal-duty">Н</i>' : ''}</span><span class="marks">${marks}</span></span>`;
   }
   return `<button type="button" class="wk-strip" data-action="cal-open" aria-label="Неделя — открыть календарь">${cells}</button>`;
@@ -2862,8 +2870,8 @@ function todayItems(d, study, sport) {
     open: `data-action="study" data-date="${e.date}" data-key="${esc(e.L.key)}" data-part="${e.part}"`, openLabel: 'Открыть урок', more: e.L.doc ? lessonMore(e.L.doc) : '' }));
   sport.filter(i => i.eff === d).forEach(i => out.push({ k: 'sport', ok: 'sp-' + i.id, key: 'sp-' + i.id, title: sportShort(i), sub: i.state === 'other' ? (i.note || 'сделал другое') : i.sub, done: i.state === 'done' || i.state === 'other', skipped: i.state === 'skipped',
     open: `data-action="sport" data-id="${esc(i.id)}"`, openLabel: 'Открыть тренировку', chk: i.state ? '' : `data-action="sp-done" data-id="${esc(i.id)}"`, more: sportMore(i) }));
-  eventsOn(d).forEach(o => out.push({ k: 'ev', ok: 'ev-' + o.ev.id, key: 'ev-' + o.ev.id, title: o.ev.title, sub: [o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
-    open: `data-action="event" data-id="${esc(o.ev.id)}" data-date="${d}"`, openLabel: 'Изменить', chk: `data-action="td-ev" data-id="${esc(o.ev.id)}" data-date="${d}"` }));
+  eventsOn(d).forEach(o => { const upd = isUpdEv(o.ev); out.push({ k: upd ? 'ev k-upd' : 'ev', ok: 'ev-' + o.ev.id, key: 'ev-' + o.ev.id, title: evTitle(o.ev), sub: [o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
+    open: upd ? 'data-action="upd-open"' : `data-action="event" data-id="${esc(o.ev.id)}" data-date="${d}"`, openLabel: upd ? 'Открыть УПД' : 'Изменить', chk: `data-action="td-ev" data-id="${esc(o.ev.id)}" data-date="${d}"` }); });
   out.forEach((x, n) => { x.n = n; });
   // свой порядок дня (перетащил удержанием): идёт как день, сделанное остаётся на месте; новое — в конец
   const ord = (S.dayOrder || {})[d];
@@ -2900,7 +2908,7 @@ function todayCardHtml(d, study, sport, big) {
   const items = todayItems(d, study, sport);
   const done = items.filter(x => x.done).length;
   const extra = scheduleRows(d).concat(regularRows(d), plannedRows(d), dateRows(d), graceRows(d));
-  const rest = restDay(d) && !items.some(x => x.k !== 'ev');
+  const rest = restDay(d) && !items.some(x => !/^ev/.test(x.k));
   const key = 'td-' + d;
   const head = `<div class="td-h"><span class="td-d">${big ? 'Сегодня' : 'Завтра'}<small>${esc(longDate(d))}${restDay(d) ? ' · чистый день' : ''}</small></span>${items.length ? `<span class="td-n">${done} из ${items.length}</span>` : ''}<button type="button" class="more" data-action="day" data-date="${d}" aria-label="День ${short(d)}">${DOTS}</button></div>`;
   const bar = items.length && big ? `<div class="td-bar"><i style="width:${(done / items.length * 100).toFixed(0)}%"></i></div>` : '';
@@ -3064,13 +3072,12 @@ function renderCal() {
   const t = today();
   let cells = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].map(x => `<div class="cal-dow">${x}</div>`).join('');
   for (let d = gridStart; d <= gridEnd; d = addDays(d, 1)) {
-    const evs = eventsOn(d).length;
-    const marks = sportMark(d, sport) + studyMark(d, plan) + (evs ? '<span class="mk ev" title="Событие"></span>'.repeat(Math.min(evs, 2)) : '');
+    const marks = sportMark(d, sport) + studyMark(d, plan) + evMarks(d);
     const ab = absenceOn(d);
     cells += `<button type="button" class="cal-cell${monthKey(d) !== S.calMonth ? ' out' : ''}${d === t ? ' today' : ''}${holiday(d) ? ' hol' : ''}${ab ? ' abs-' + ab.type : ''}" data-action="day" data-date="${d}" aria-label="${esc(longDate(d))}${holiday(d) ? ', ' + esc(holiday(d)) : ''}"><span class="cal-num">${pd(d).getDate()}</span>${dutyOn(d) ? '<span class="cal-duty">Н</span>' : ''}<span class="marks">${marks}</span></button>`;
   }
   body.innerHTML = `<div class="cal-grid">${cells}</div>
-    <details class="fold legend-f" data-k="cal-legend"${openAttr('cal-legend')}><summary><span>Обозначения</span></summary><div class="legend"><span><span class="mk sport">✓</span>сделано</span><span><span class="mk sport plan">→</span>перенесено</span><span><span class="mk sport x">✕</span>пропуск</span><span><span class="mk sport plan"></span>по плану</span><span><span class="mk study">✓</span>учёба</span><span><span class="mk ev"></span>событие</span><span><span class="lg-hol">7</span>праздник</span><span><span class="cal-duty">Н</span>наряд</span><span><span class="mk sport plan">?</span>нет отметки</span></div></details>`;
+    <details class="fold legend-f" data-k="cal-legend"${openAttr('cal-legend')}><summary><span>Обозначения</span></summary><div class="legend"><span><span class="mk sport">✓</span>сделано</span><span><span class="mk sport plan">→</span>перенесено</span><span><span class="mk sport x">✕</span>пропуск</span><span><span class="mk sport plan"></span>по плану</span><span><span class="mk study">✓</span>учёба</span><span><span class="mk ev"></span>событие</span><span><span class="mk ev done">✓</span>событие сделано</span><span><span class="mk ev upd"></span>УПД</span><span><span class="lg-hol">7</span>праздник</span><span><span class="cal-duty">Н</span>наряд</span><span><span class="mk sport plan">?</span>нет отметки</span></div></details>`;
 }
 
 function lessonRow(l, study) {
@@ -3992,7 +3999,7 @@ function openEvent(id, date) {
   openSheet(`<div class="sh-eyebrow"><span class="tag event">${rep ? 'Напоминание' : 'Событие'}</span></div>
     <h2 class="sh-title">${id ? esc(ev.title) : 'Новое событие или напоминание'}</h2>
     ${id ? `<p class="sh-meta">${esc(cap1(longDate(occ)))}${ev.time ? ', ' + esc(ev.time) : ''}${rep ? ' · ↻ ' + esc(repeatLabel(rep)) : ''}</p>
-      <div class="sh-acts"><button type="button" class="btn ${done ? '' : 'primary '}block" data-action="ev-done" data-date="${esc(occ)}">${done ? 'Снять отметку «сделано»' : 'Сделано ✓'}</button></div>
+      <div class="sh-acts"><button type="button" class="btn ${done ? '' : 'primary '}block" data-action="ev-done" data-date="${esc(occ)}">${done ? 'Снять отметку «сделано»' : 'Сделано ✓'}</button>${isUpdEv(ev) ? '<button type="button" class="btn block" data-action="upd-open">Список УПД</button>' : ''}</div>
       <details class="more-box"><summary>Изменить</summary>` : ''}
     <label class="fld" for="ev-title">Что</label><input id="ev-title" value="${esc(ev.title)}" placeholder="Например: смена фильтра, наряд, врач">
     <div class="two"><div><label class="fld" for="ev-date">${rep || !id ? 'Дата (первая)' : 'Дата'}</label><input type="date" id="ev-date" value="${esc(ev.date)}"></div><div><label class="fld" for="ev-time">Время</label><input type="time" id="ev-time" value="${esc(ev.time || '')}"></div></div>
