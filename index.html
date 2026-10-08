@@ -625,6 +625,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--study);b
 .rev-links{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:8px 2px 0;font-size:14px;color:var(--muted)}
 .rev-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;text-align:left;margin-top:12px;padding:12px 14px;border-radius:var(--r);border:1px solid rgba(224,133,95,.45);background:color-mix(in srgb,#E0855F 13%,var(--glass-2));box-shadow:var(--hl);color:var(--ink);cursor:pointer}
 .rev-card .t{display:block;font-weight:600}
+.news{margin-top:12px;padding:12px 14px;border-radius:var(--r);border:1px solid color-mix(in srgb,#2F6FE0 40%,transparent);background:color-mix(in srgb,#2F6FE0 10%,var(--glass-2))}
+.news-h{display:flex;justify-content:space-between;align-items:baseline}.news-h b{font-size:15px}.news-h .m{font-size:12px;color:var(--muted)}
+.news-i{display:grid;gap:2px;margin-top:9px;font-size:13.5px}.news-i b{font-size:14px}.news-i span{color:var(--muted);line-height:1.35}.news-i .link-btn{justify-self:start;padding:2px 0}
+.news-i.card{margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}.news-i small{font-size:11.5px;color:var(--muted)}
+.news-a{display:flex;gap:8px;margin-top:10px}
 .rev-card .m{display:block;font-size:13px;color:var(--muted);margin-top:2px}
 .rev-card .s{font-size:13px;color:#C2572F;font-weight:600}
 .cf-dot{width:26px;height:26px;border-radius:9px;display:inline-grid;place-items:center;color:#fff;background:linear-gradient(135deg,#E0855F,#A8472A);flex:0 0 auto}
@@ -1515,6 +1520,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261008h"></script>
+<script src="app.js?v=20261008i"></script>
 </body>
 </html>

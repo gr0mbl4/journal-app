@@ -780,6 +780,7 @@ async function loadAll(quiet) {
     setSync(queueNote() || syncLabel());
     if (!$('#tab-lessons').hidden) { S.notes = S.notes || null; loadNotes(true); }
     processQuick();
+    loadNews().then(() => { if (newsUnseen().length && !$('#tab-plan').hidden) renderTab('plan'); });
     checkNotesPushed();
     loadNotesDays();
     setTimeout(announceAchievements, 300);
@@ -2777,6 +2778,28 @@ async function openReview(type, from) {
   await Promise.all([ensureMoney(monthsIn(r.from, r.to)), ensureWorkouts(monthsIn(r.from, r.to))]);
   if (S.cur && S.cur.type === 'rev' && S.rev.from === r.from && S.rev.type === type) draw(false);
 }
+/* ---------- «Что нового»: короткие уведомления о новых фичах (news.json рядом с приложением, без личных данных) ----------
+   Карточка на «Плане», пока не нажал «Понятно»; выключается в config.news = false (у Олега — он сам их заказывает). */
+async function loadNews() {
+  try { const r = await fetch('news.json?vcheck=' + Date.now(), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); S.news = Array.isArray(j.items) ? j.items : []; } }
+  catch (_) { /* нет сети — без новостей */ }
+}
+function newsUnseen() {
+  if (!Array.isArray(S.news) || (S.config && S.config.news === false) || demo()) return [];
+  const seen = new Set(LS.get('bj-news-seen') || []);
+  return S.news.filter(x => x && x.id && !seen.has(x.id)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+}
+function newsCardHtml() {
+  const l = newsUnseen(); if (!l.length) return '';
+  const top = l.slice(0, 3);
+  return `<section class="news"><div class="news-h"><b>Новое в журнале</b>${l.length > 3 ? `<span class="m">ещё ${l.length - 3}</span>` : ''}</div>
+    ${top.map(x => `<div class="news-i"><b>${esc(x.title)}</b><span>${esc(x.text || '')}</span>${x.tab ? `<button type="button" class="link-btn" data-action="tab" data-tab="${esc(x.tab)}">открыть</button>` : ''}</div>`).join('')}
+    <div class="news-a"><button type="button" class="btn sm" data-action="news-ok">Понятно</button>${l.length > 3 ? '<button type="button" class="btn sm" data-action="news-all">Всё новое</button>' : ''}</div></section>`;
+}
+function openNews() {
+  const l = (Array.isArray(S.news) ? S.news : []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  openSheet(`<h2 class="sh-title">Что нового</h2>${l.length ? `<div class="stack">${l.map(x => `<div class="news-i card"><small>${esc(x.date ? dm(x.date) : '')}</small><b>${esc(x.title)}</b><span>${esc(x.text || '')}</span></div>`).join('')}</div>` : '<p class="note">Пока пусто.</p>'}`);
+}
 function reviewCardHtml() {
   if (demo()) return '';
   const r = latestReview();
@@ -2811,7 +2834,7 @@ function renderPlan() {
   const bn = $('#plan-banner'), st = $('#plan-stats'), tl = $('#plan-tails'), dy = $('#plan-days');
   renderSleep();
   if (!isReady()) { bn.innerHTML = bannerHtml(); st.innerHTML = tl.innerHTML = dy.innerHTML = ''; return; }
-  const banners = notesReminderHtml() + reviewCardHtml(); bn.innerHTML = '';
+  const banners = newsCardHtml() + notesReminderHtml() + reviewCardHtml(); bn.innerHTML = '';
   const study = buildStudy(); S.studyCache = study;
   const sport = buildSport(); S.sportList = sport;
   const t = today();
@@ -5579,6 +5602,9 @@ document.addEventListener('click', async ev => {
     case 'en-next': if (S.cur && S.cur.type === 'en') { S.cur.i++; enShow(); } break;
     case 'ben-open': openBenefits(); break;
     case 'upd-open': await updLoad(); openUpd(); break;
+    case 'news-ok': { const seen = new Set(LS.get('bj-news-seen') || []); (S.news || []).forEach(x => x && x.id && seen.add(x.id)); LS.set('bj-news-seen', Array.from(seen)); render(); break; }
+    case 'news-all': openNews(); { const seen = new Set(LS.get('bj-news-seen') || []); (S.news || []).forEach(x => x && x.id && seen.add(x.id)); LS.set('bj-news-seen', Array.from(seen)); render(); } break;
+    case 'news-open': openNews(); break;
     case 'upd-st': busy(b, true); await updSet(id, { st: b.dataset.st }); busy(b, false); break;
     case 'upd-add': {
       const t = (($('#upd-t') || {}).value || '').trim();
@@ -6399,6 +6425,7 @@ function openMenu() {
     ['ready', 'bolt', 'Готовность', rd ? rd.score + ' · ' + rd.label.toLowerCase() : '', 'c-green'],
     ['q-edit', 'target', 'Цели квартала', '', 'c-orange'],
     ['upd-open', 'rocket', 'УПД', '', 'c-green'],
+    ['news-open', 'star', 'Что нового', 'новые фичи', 'c-blue'],
     ['ben-open', 'shield', 'Льготы', bs.done + ' из ' + bs.total + ' оформлено', 'c-teal'],
     ['weight', 'scale', 'Вес', (() => { const w = lastWeight(); return w ? String(w.kg).replace('.', ',') + ' кг' : ''; })(), 'c-pink'],
     ['dates', 'gift', 'Важные даты', '', 'c-rose'],
