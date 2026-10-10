@@ -7199,7 +7199,7 @@ async function outSend(j) {
     const rec = outRec(j); rec.voice = path; rec.dur = j.voice.dur;
     return !!(await writeIdeas(list => { const i = list.findIndex(x => x.id === j.id); if (i >= 0) list[i] = rec; else list.push(rec); }, `Идея (голос): ${mmss(j.voice.dur)}`));
   }
-  const small = j.area === 'sport' || /баз|клип|плавн|упражн|техник/i.test(j.text || '');
+  const small = true; // видео из чата — всегда ещё и целиком (сжатая копия до 2 мин): клипы упражнений режутся из настоящего видео, а не из кадров
   const up = j.files.length ? await uploadFiles(j.files, `inbox/ideas/${j.id}`, 'Идея', { small }) : { media: [], photos: [], frames: 0, failed: [], video: [] };
   const au = j.audio.length ? await uploadAudio(j.audio, j.id) : { media: [], names: [], failed: [] };
   if (!up.media.length && !au.media.length) { j.err = up.failed.length ? 'файлы не прочитались или нет связи' : 'нет связи'; return false; }
