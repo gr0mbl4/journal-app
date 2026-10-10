@@ -6948,8 +6948,7 @@ function openRequests(tab, keepScroll, area) {
       <div class="cl-recbar"><button type="button" class="cl-x" data-action="cl-rec-x" aria-label="Удалить запись">${ico('trash')}</button><span class="cl-rec-dot" aria-hidden="true"></span><span id="cl-rec-t">0:00</span><span class="cl-rec-h">Идёт запись</span><button type="button" class="cl-send" data-action="cl-rec-send" aria-label="Отправить голосовое">${ico('send')}</button></div>
     </div>`, false, 'chat');
   clScrollEnd(); clLazy(); clGrow(); clBarState();
-  // открыли чат — сразу курсор в поле и клавиатура (фокус синхронно, в жесте нажатия — иначе iOS клавиатуру не покажет)
-  if (fresh) { const t = $('#msg-text'); if (t) { try { t.focus({ preventScroll: true }); } catch (_) { t.focus(); } const n = t.value.length; try { t.setSelectionRange(n, n); } catch (_) {} } }
+  // клавиатура — только по нажатию на поле (Олег: при открытии чата не нужна)
   markAnswersSeen();
   chatPoll();
 }
