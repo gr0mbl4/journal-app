@@ -6746,9 +6746,9 @@ function openShopChat() {
   openSheet(`<h2 class="sh-title">Покупки</h2>
     <div class="chat" id="shop-chat">${shopChatHtml()}</div>
     <div class="chat-acts" id="shop-acts">${shopActsHtml()}</div>
-    <form class="chat-in" id="shop-form" autocomplete="off"><input id="shop-in" placeholder="Что купить" enterkeyhint="send" autocapitalize="sentences"><button type="submit" class="send" aria-label="Добавить">${ico('play')}</button></form>`);
+    <form class="chat-in" id="shop-form" autocomplete="off"><input id="shop-in" placeholder="Что купить" enterkeyhint="send" autocapitalize="sentences"><button type="submit" class="send" aria-label="Добавить">${ico('play')}</button></form>`, false, 'chat');
+  // шторка на всю высоту; клавиатура — только по нажатию на поле, иначе она закрывает список
   const ch = document.getElementById('shop-chat'); if (ch) ch.scrollTop = ch.scrollHeight;
-  const inp = document.getElementById('shop-in'); if (inp) try { inp.focus({ preventScroll: true }); } catch (_) { inp.focus(); }
 }
 function renderShopUI() {
   const chip = document.getElementById('shop-chip');
