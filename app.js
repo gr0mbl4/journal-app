@@ -2121,6 +2121,7 @@ function openFocus() {
   el.innerHTML = `<div class="fc-in"><div class="fc-top"><span class="tag study">Фокус</span><button type="button" class="sheet-x" data-action="focus-hide" aria-label="Свернуть">—</button></div>
     <div class="fc-title">${L ? esc(lessonTitle(L)) : 'Учёба'}</div><div class="fc-time" id="fc-time"></div>
     ${L && Array.isArray(L.goals) && L.goals.length ? `<ol class="fc-goals">${L.goals.map(g => `<li>${esc(g)}</li>`).join('')}</ol>` : ''}
+    ${L && L.practice ? `<div class="fc-goals"><b>Практика · 10–15 мин</b><span>${esc(L.practice)}</span></div>` : ''}
     <div class="fc-acts"><button type="button" class="btn block" data-action="focus-pause">${tm.paused ? '▶ Продолжить' : '⏸ Пауза'}</button><button type="button" class="btn study block" data-action="timer-stop-real">■ Закончить</button></div></div>`;
   el.hidden = false; document.body.classList.add('locked');
   renderTimerChip();
@@ -2939,7 +2940,7 @@ async function saveDayOrder(d, keys) {
 function sportShort(i) { return i.kind === 'cardio' ? 'Спорт · кардио' : 'Спорт · ' + String(i.title || '').replace(/^Силовая\s*·\s*/i, '').replace(/\s*\(.*\)$/, ''); }
 function lessonMore(l) {
   const g = Array.isArray(l.goals) ? l.goals.slice(0, 3) : [];
-  return (l.outcome ? `<p>${esc(l.outcome)}</p>` : '') + (g.length ? `<ul>${g.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '');
+  return (l.outcome ? `<p>${esc(l.outcome)}</p>` : '') + (g.length ? `<ul>${g.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '') + (l.practice ? `<p><b>Практика:</b> ${esc(l.practice)}</p>` : '');
 }
 function sportMore(i) {
   try {
@@ -3784,6 +3785,7 @@ function lessonInfo(doc) {
   if (doc.outcome) h += `<div class="outcome"><b>Чему научишься</b>${esc(doc.outcome)}</div>`;
   if (Array.isArray(doc.goals) && doc.goals.length) h += `<ul class="goals">${doc.goals.map(g => `<li>${esc(g)}</li>`).join('')}</ul>`;
   else h += '<p class="note">Вопросов пока нет.</p>';
+  if (doc.practice) h += `<div class="outcome"><b>Практика · 10–15 мин в конце</b>${esc(doc.practice)}</div>`;
   return h;
 }
 function openStudy(d, key, part) {
