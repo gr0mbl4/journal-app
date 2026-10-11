@@ -1574,6 +1574,8 @@ function eventsOn(d) {
 // УПД (фичи журнала и задачи на будущее): событие «УПД: …» в плане — просто «УПД», в календаре — зелёным
 const isUpdEv = e => /^\s*упд(?![а-яё])/i.test((e && e.title) || '');
 const evTitle = e => isUpdEv(e) ? 'УПД' : (e.title || '');
+// Напоминания «Начальник: …» — не обычное серое событие, а акцентный цвет (как УПД — свой)
+const isBossEv = e => /^\s*начальник:/i.test((e && e.title) || '');
 // отметки событий в календаре: УПД — зелёная, сделанное — серая галочка, остальное — серая точка
 function evMarks(d) {
   const evs = eventsOn(d).sort((a, b) => (a.done - b.done) || (isUpdEv(b.ev) - isUpdEv(a.ev)));
@@ -1581,7 +1583,7 @@ function evMarks(d) {
 }
 function rowEvent(o) {
   const ev = o.ev, rep = repeatLabel(ev.repeat);
-  return `<button type="button" class="row slim${o.done ? ' is-done' : ''}" data-action="event" data-id="${esc(ev.id)}" data-date="${o.date}"><span class="tag event${isUpdEv(ev) ? ' upd' : ''}">${isUpdEv(ev) ? 'УПД' : 'Событие'}</span><span class="rb"><span class="t ev-t">${esc(evTitle(ev))}</span>${rep ? `<span class="m">↻ ${esc(rep)}</span>` : ''}</span><span class="s">${o.done ? '<span class="chip good">✓</span> ' : ''}${ev.time ? esc(ev.time) : 'весь день'}</span></button>`;
+  return `<button type="button" class="row slim${o.done ? ' is-done' : ''}" data-action="event" data-id="${esc(ev.id)}" data-date="${o.date}"><span class="tag event${isUpdEv(ev) ? ' upd' : isBossEv(ev) ? ' boss' : ''}">${isUpdEv(ev) ? 'УПД' : 'Событие'}</span><span class="rb"><span class="t ev-t">${esc(evTitle(ev))}</span>${rep ? `<span class="m">↻ ${esc(rep)}</span>` : ''}</span><span class="s">${o.done ? '<span class="chip good">✓</span> ' : ''}${ev.time ? esc(ev.time) : 'весь день'}</span></button>`;
 }
 function rowStudy(e) {
   const L = e.L;
@@ -2900,7 +2902,7 @@ function todayItems(d, study, sport) {
     open: `data-action="study" data-date="${e.date}" data-key="${esc(e.L.key)}" data-part="${e.part}"`, openLabel: 'Открыть урок', more: e.L.doc ? lessonMore(e.L.doc) : '' }));
   sport.filter(i => i.eff === d).forEach(i => out.push({ k: 'sport', ok: 'sp-' + i.id, key: 'sp-' + i.id, title: sportShort(i), sub: i.state === 'other' ? (i.note || 'сделал другое') : i.sub, done: i.state === 'done' || i.state === 'other', skipped: i.state === 'skipped',
     open: `data-action="sport" data-id="${esc(i.id)}"`, openLabel: 'Открыть тренировку', chk: i.state ? '' : `data-action="sp-done" data-id="${esc(i.id)}"`, more: sportMore(i) }));
-  eventsOn(d).forEach(o => { const upd = isUpdEv(o.ev), od = o.date; out.push({ k: upd ? 'ev k-upd' : 'ev', ok: 'ev-' + o.ev.id, key: 'ev-' + o.ev.id, title: evTitle(o.ev), sub: [o.carried ? '↪ перенесено с ' + short(od) : '', o.carried ? '' : o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
+  eventsOn(d).forEach(o => { const upd = isUpdEv(o.ev), od = o.date; out.push({ k: upd ? 'ev k-upd' : isBossEv(o.ev) ? 'ev k-boss' : 'ev', ok: 'ev-' + o.ev.id, key: 'ev-' + o.ev.id, title: evTitle(o.ev), sub: [o.carried ? '↪ перенесено с ' + short(od) : '', o.carried ? '' : o.ev.time || '', repeatLabel(o.ev.repeat) ? '↻ ' + repeatLabel(o.ev.repeat) : ''].filter(Boolean).join(' · '), done: o.done,
     open: upd ? 'data-action="upd-open"' : `data-action="event" data-id="${esc(o.ev.id)}" data-date="${od}"`, openLabel: upd ? 'Открыть УПД' : 'Изменить', chk: `data-action="td-ev" data-id="${esc(o.ev.id)}" data-date="${od}"` }); });
   out.forEach((x, n) => { x.n = n; });
   // свой порядок дня (перетащил удержанием): идёт как день, сделанное остаётся на месте; новое — в конец
@@ -2937,7 +2939,7 @@ function sportMore(i) {
 // следующие дни — свёрнуто: только значки дел по цвету (учёба — оранжевый, спорт — синий, дела — серый, УПД — зелёный)
 function dayIcons(items) {
   return items.map(x => {
-    const k = /k-upd/.test(x.k) ? 'upd' : x.k === 'study' ? 'study' : x.k === 'sport' ? 'sport' : 'ev';
+    const k = /k-upd/.test(x.k) ? 'upd' : /k-boss/.test(x.k) ? 'boss' : x.k === 'study' ? 'study' : x.k === 'sport' ? 'sport' : 'ev';
     const ic = k === 'study' ? ico('book') : k === 'sport' ? ico('dumb') : k === 'upd' ? ico('rocket') : '';
     return `<span class="pd-i k-${k}${x.done ? ' done' : ''}${x.skipped ? ' skipped' : ''}" title="${esc(x.title)}">${ic}</span>`;
   }).join('');
@@ -4046,7 +4048,7 @@ function openEvent(id, date) {
   const rep = ev.repeat || null;
   S.cur = { type: 'event', ev, occ };
   const units = [['', 'не повторять'], ['day', 'дни'], ['week', 'недели'], ['month', 'месяцы'], ['year', 'годы']];
-  openSheet(`<div class="sh-eyebrow"><span class="tag event">${rep ? 'Напоминание' : 'Событие'}</span></div>
+  openSheet(`<div class="sh-eyebrow"><span class="tag event${isBossEv(ev) ? ' boss' : ''}">${rep ? 'Напоминание' : 'Событие'}</span></div>
     <h2 class="sh-title">${id ? esc(ev.title) : 'Новое событие или напоминание'}</h2>
     ${id ? `<p class="sh-meta">${esc(cap1(longDate(occ)))}${ev.time ? ', ' + esc(ev.time) : ''}${rep ? ' · ↻ ' + esc(repeatLabel(rep)) : ''}</p>
       <div class="sh-acts"><button type="button" class="btn ${done ? '' : 'primary '}block" data-action="ev-done" data-date="${esc(occ)}">${done ? 'Снять отметку «сделано»' : 'Сделано ✓'}</button>${isUpdEv(ev) ? '<button type="button" class="btn block" data-action="upd-open">Список УПД</button>' : ''}</div>
