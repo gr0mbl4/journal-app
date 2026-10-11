@@ -1003,17 +1003,30 @@ function slotsOn(d) {
   const old = h.find(x => d <= x.until);
   return old ? old.slots : st.slots;
 }
+// study.sportSlots = {"<день недели>": минуты} — окно в этот день, если в нём есть тренировка (не отменённая);
+// без тренировки — обычное study.slots. Только для текущих окон (не для прошлых из slotHistory).
+let spDaysCache = { moves: null, extra: null, cfg: null, set: null };
+function sportDaysSet() {
+  const c = spDaysCache;
+  if (c.set && c.moves === S.sportMoves && c.extra === S.sportExtra && c.cfg === S.config.sport) return c.set;
+  const t = today();
+  const set = new Set(buildSport(addDays(t, -150), addDays(t, HORIZON + 90)).filter(i => i.state !== 'skipped').map(i => i.eff));
+  spDaysCache = { moves: S.sportMoves, extra: S.sportExtra, cfg: S.config.sport, set };
+  return set;
+}
 function studyCap(d, days) {
   days = days || S.studyDays;
   const st = S.config.study || {};
-  const base = Number((slotsOn(d) || {})[String(dow(d))] || 0);
+  const cur = slotsOn(d) || {}, k = String(dow(d));
+  let base = Number(cur[k] || 0);
+  if (cur === st.slots && st.sportSlots && st.sportSlots[k] != null && sportDaysSet().has(d)) base = Number(st.sportSlots[k]) || 0;
   const o = days[d];
   if (o && o.blocked) return { cap: 0, blocked: true, base };
   if (o && o.extra) return { cap: Number(o.extra), extra: true, base };
   return { cap: base, base };
 }
 function slotLabel(d, c) {
-  if (c.extra) return dur(c.cap);
+  if (c.extra || ((S.config.study || {}).sportSlots || {})[String(dow(d))] != null) return dur(c.cap);
   const l = ((S.config.study || {}).labels || {})[String(dow(d))];
   return l || dur(c.cap);
 }
@@ -3160,8 +3173,8 @@ function renderLessons() {
     ? rest.slice(0, 3).map(l => lessonRow(l, study)).join('')
       + (rest.length > 3 ? `<details class="fold" data-k="l-queue"${openAttr('l-queue')}><summary><span>Вся очередь</span><span class="sec-note">ещё ${rest.length - 3}</span></summary><div class="stack">${rest.slice(3).map(l => lessonRow(l, study)).join('')}</div></details>` : '')
     : '<p class="note">Дальше — уроки без темы.</p>';
-  const slots = (S.config.study || {}).slots || {};
-  const sig = JSON.stringify(slots);
+  const slots = (S.config.study || {}).slots || {}, spS = (S.config.study || {}).sportSlots || {};
+  const sig = JSON.stringify([slots, spS]);
   if (sig !== S.slotsSig) {
     S.slotsSig = sig;
     const order = [1, 2, 3, 4, 5, 6, 0];
@@ -3169,7 +3182,7 @@ function renderLessons() {
       const cur = Number(slots[k] || 0);
       const vals = [0, 30, 45, 60, 90, 120]; if (!vals.includes(cur)) vals.push(cur);
       return `<div class="slot"><label for="slot-${k}">${DOW_S[k]}</label><select id="slot-${k}" data-slot="${k}">${vals.sort((a, b) => a - b).map(v => `<option value="${v}"${v === cur ? ' selected' : ''}>${v || '—'}</option>`).join('')}</select></div>`;
-    }).join('')}</div>`;
+    }).join('')}</div>` + (Object.keys(spS).length ? `<p class="note">В день с тренировкой: ${[1, 2, 3, 4, 5, 6, 0].filter(k => spS[k] != null).map(k => DOW_S[k] + ' — ' + dur(spS[k])).join(', ')}</p>` : '');
   }
   const done = S.lessons.filter(l => l.done).sort((a, b) => a.done < b.done ? 1 : a.done > b.done ? -1 : (b.n || 0) - (a.n || 0)).slice(0, 40);
   dn.innerHTML = done.length
