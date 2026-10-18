@@ -1236,6 +1236,13 @@ function prevHint(x, before) {
   if (x.log !== 'wr' && x.log !== 'r') return '';
   const p = prevSets(null, x.name, before); if (!p) return '';
   const n = v => String(v).replace('.', ',');
+  if (x.lr) {
+    const list = p.sets.filter(s => s && (s.w != null || s.rL != null || s.rR != null || s.r != null));
+    if (!list.length) return '';
+    const oneLR = s => (s.w != null ? n(s.w) + ' кг × ' : '') + (s.rL != null || s.rR != null ? (s.rL != null ? s.rL : '–') + '/' + (s.rR != null ? s.rR : '–') : (s.r != null ? s.r : ''));
+    const first = list[0], rest = list.slice(1).map(oneLR);
+    return `<span class="ex-prev">Прошлый раз, ${esc(dm(p.date))}: начал с <b>${esc(oneLR(first))}</b>${rest.length ? ' · дальше ' + esc(rest.join(', ')) : ''}</span>`;
+  }
   const one = s => s.w != null ? n(s.w) + (s.r != null ? ' × ' + s.r : ' кг') : (s.r != null ? s.r + ' повт' : '');
   const list = p.sets.filter(s => s && (s.w != null || s.r != null));
   if (!list.length) return '';
@@ -1322,11 +1329,15 @@ function workoutForm(i, ses) {
           total++; if (s.w != null || s.r != null) filled++;
           const rIn = stepper(`lg-${k}-r`, s.r != null ? s.r : '', ps.r != null ? ps.r : 'повт', 'numeric', nm + ', повторы', k, 'r');
           let row;
-          if (o.x.log === 'r') row = `<div class="set r" data-k="${k}"><span class="sl">${lab}</span>${rIn}<span class="u">повт</span></div>`;
+          if (o.x.lr) {
+            const rlIn = stepper(`lg-${k}-rl`, s.rL != null ? s.rL : '', ps.rL != null ? ps.rL : 'Л', 'numeric', nm + ', повторы левой руки', k, 'rl');
+            const rrIn = stepper(`lg-${k}-rr`, s.rR != null ? s.rR : '', ps.rR != null ? ps.rR : 'П', 'numeric', nm + ', повторы правой руки', k, 'rr');
+            row = `<div class="set lr" data-k="${k}"><span class="sl">${lab}</span>${stepper(`lg-${k}-w`, s.w != null ? s.w : '', ps.w != null ? ps.w : 'кг', 'decimal', nm + ', вес', k, 'w')}<span class="u">×</span>${rlIn}<span class="u">/</span>${rrIn}</div>`;
+          } else if (o.x.log === 'r') row = `<div class="set r" data-k="${k}"><span class="sl">${lab}</span>${rIn}<span class="u">повт</span></div>`;
           else row = `<div class="set" data-k="${k}"><span class="sl">${lab}</span>${stepper(`lg-${k}-w`, s.w != null ? s.w : '', ps.w != null ? ps.w : 'кг', 'decimal', nm + ', вес', k, 'w')}<span class="u">×</span>${rIn}<button type="button" class="sb drop" data-action="drop-add" data-k="${k}" aria-label="Добавить дроп-сет" title="Дроп-сет">↓<small>дроп</small></button></div>`;
           const drops = Array.isArray(s.drops) ? s.drops : [];
           const pd = Array.isArray(ps.drops) ? ps.drops : [];
-          row += drops.map((dr, j) => { const kd = k + '-d' + j, pj = pd[j] || {}; return `<div class="set drop-row" data-k="${kd}"><span class="sl">↳</span>${stepper(`lg-${kd}-w`, dr && dr.w != null ? dr.w : '', pj.w != null ? pj.w : 'кг', 'decimal', nm + ', дроп, вес', kd, 'w')}<span class="u">×</span>${stepper(`lg-${kd}-r`, dr && dr.r != null ? dr.r : '', pj.r != null ? pj.r : 'повт', 'numeric', nm + ', дроп, повторы', kd, 'r')}<button type="button" class="sb" data-action="drop-del" data-k="${kd}" aria-label="Убрать дроп-сет">×</button></div>`; }).join('');
+          if (!o.x.lr) row += drops.map((dr, j) => { const kd = k + '-d' + j, pj = pd[j] || {}; return `<div class="set drop-row" data-k="${kd}"><span class="sl">↳</span>${stepper(`lg-${kd}-w`, dr && dr.w != null ? dr.w : '', pj.w != null ? pj.w : 'кг', 'decimal', nm + ', дроп, вес', kd, 'w')}<span class="u">×</span>${stepper(`lg-${kd}-r`, dr && dr.r != null ? dr.r : '', pj.r != null ? pj.r : 'повт', 'numeric', nm + ', дроп, повторы', kd, 'r')}<button type="button" class="sb" data-action="drop-del" data-k="${kd}" aria-label="Убрать дроп-сет">×</button></div>`; }).join('');
           return row;
         }).join('') + '</div>';
       }
@@ -1387,18 +1398,22 @@ function collectLog(ses) {
     const o = { name: x.name, log: x.log || 'check' };
     if (o.log === 'wr' || o.log === 'r') {
       const sets = [];
-      for (let r = 1; document.getElementById(`lg-${bi}-${ei}-${r}-r`); r++) {
+      for (let r = 1; document.getElementById(`lg-${bi}-${ei}-${r}-r`) || document.getElementById(`lg-${bi}-${ei}-${r}-rl`); r++) {
         const k = `${bi}-${ei}-${r}`;
-        const w = num(`lg-${k}-w`), rr = num(`lg-${k}-r`);
+        const w = num(`lg-${k}-w`);
+        const hasLr = !!document.getElementById(`lg-${k}-rl`);
+        const rl = hasLr ? num(`lg-${k}-rl`) : null, rrh = hasLr ? num(`lg-${k}-rr`) : null;
+        const rr = hasLr ? ((rl != null || rrh != null) ? (rl || 0) + (rrh || 0) : null) : num(`lg-${k}-r`);
         const drops = [];
         for (let j = 0; document.getElementById(`lg-${k}-d${j}-r`); j++) {
           const dw = num(`lg-${k}-d${j}-w`), dr = num(`lg-${k}-d${j}-r`);
           const d = {}; if (dw != null) d.w = dw; if (dr != null) d.r = dr; drops.push(d);
         }
         const keepDrops = drops.length && drops.some(d => d.w != null || d.r != null) ? drops : (drops.length ? drops : null);
-        if (w == null && rr == null && !keepDrops) sets.push(null);
+        if (w == null && rr == null && rl == null && rrh == null && !keepDrops) sets.push(null);
         else {
           const s = {}; if (w != null) s.w = w; if (rr != null) s.r = rr;
+          if (rl != null) s.rL = rl; if (rrh != null) s.rR = rrh;
           if (keepDrops) s.drops = keepDrops;
           if (w != null || rr != null) { any = true; s.t = (c.times || {})[k] || undefined; if (!s.t) delete s.t; }
           sets.push(s);
@@ -1464,7 +1479,7 @@ function stepSet(k, f, d) {
     v = base != null ? base : (f === 'w' ? 0 : 0) + (d > 0 ? (f === 'w' ? wStepFor(...k.split('-').slice(0, 2)) : 1) : 0);
   } else {
     const [bi, ei] = k.split('-');
-    const st = f === 'r' ? 1 : wStepFor(bi, ei);
+    const st = (f === 'r' || f === 'rl' || f === 'rr') ? 1 : wStepFor(bi, ei);
     v = Math.max(0, Math.round((v + d * st) * 100) / 100);
   }
   el.value = String(v);
