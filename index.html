@@ -10,8 +10,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Журнал">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#E8EDF4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0A0C11" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#D9E3F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#060A16" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1350,6 +1350,44 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 .setup-steps{margin:8px 0 10px;padding-left:20px;display:grid;gap:6px;font-size:14px}
 .chip.ar-books{color:#B45309;background:rgba(245,158,11,.16)}
 .chip.ar-sport{color:var(--sport);background:var(--sport-soft)} .chip.ar-study{color:var(--study);background:var(--study-soft)} .chip.ar-food{color:#B45309;background:rgba(245,158,11,.16)}
+
+/* ===== Стекло v2 (28.10.2026): глубокий фон, матовые карточки с размытием ===== */
+:root{
+  --bg:#D9E3F2;
+  --blob-a:rgba(70,130,255,.55); --blob-b:rgba(0,190,255,.32); --blob-c:rgba(150,100,255,.38); --blob-d:rgba(255,140,190,.26);
+  --glass:rgba(255,255,255,.42); --glass-2:rgba(255,255,255,.56); --glass-3:rgba(255,255,255,.28);
+  --glass-line:rgba(255,255,255,.7);
+  --blur:blur(18px) saturate(170%);
+  --card-shadow:0 10px 30px -16px rgba(30,50,110,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#060A16;
+    --blob-a:rgba(56,110,255,.50); --blob-b:rgba(0,180,255,.26); --blob-c:rgba(130,80,255,.42); --blob-d:rgba(255,90,160,.16);
+    --glass:rgba(255,255,255,.065); --glass-2:rgba(255,255,255,.10); --glass-3:rgba(255,255,255,.045);
+    --glass-line:rgba(255,255,255,.13);
+    --hl:inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(255,255,255,.03);
+    --sheet-bg:rgba(14,19,36,.72); --sheet-top:#0E1324; --sheet-solid:#0E1324;
+    --surface-2:rgba(255,255,255,.09);
+    --sport:#7DB9FF; --sport-soft:rgba(125,185,255,.18);
+    --card-shadow:0 12px 34px -16px rgba(0,0,0,.75);
+  }
+}
+body::before{inset:-25vmax;
+  background:
+    radial-gradient(42vmax 36vmax at 8% 6%, var(--blob-a), transparent 68%),
+    radial-gradient(36vmax 30vmax at 96% 18%, var(--blob-b), transparent 70%),
+    radial-gradient(44vmax 38vmax at 18% 74%, var(--blob-c), transparent 70%),
+    radial-gradient(34vmax 30vmax at 92% 92%, var(--blob-d), transparent 70%),
+    linear-gradient(165deg, var(--bg), color-mix(in srgb, var(--bg) 82%, #3A4FA0))}
+.row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.inbox,.cal-cell,.dish.card-like,.outcome,.callout,.q-card,.news-i.card,.fz{
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--hl),var(--card-shadow)}
+.top{-webkit-backdrop-filter:none;backdrop-filter:none}
+.sec{color:color-mix(in srgb, var(--ink) 62%, transparent)}
+.bar i,.cur-prog i{background:linear-gradient(90deg,#4F8BFF,#8FD3FF)}
+@media (prefers-reduced-transparency: reduce){
+  .row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.cal-cell,.q-card,.fz{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--sheet-solid)}
+}
 </style>
 </head>
 <body>
@@ -1529,6 +1567,6 @@ body.has-mini .toast{bottom:calc(212px + env(safe-area-inset-bottom,0px))}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261018a"></script>
+<script src="app.js?v=20261028a"></script>
 </body>
 </html>
