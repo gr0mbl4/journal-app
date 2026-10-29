@@ -3552,6 +3552,9 @@ function videoFrames(file, max, onFrame) {
   });
 }
 const isVideo = f => /^video\//.test(f.type || '') || /\.(mov|mp4|m4v|3gp)$/i.test(f.name || '');
+// документы (приказы, ГОСТы, PDF) — уходят как есть, без сжатия: правовая база и другие файлы для Claude
+const DOC_RE = /\.(pdf|docx?|rtf|txt|odt|xlsx?)$/i, DOC_MAX = 40 * 1024 * 1024;
+const isDoc = f => !isVideo(f) && !/^image\//.test(f.type || '') && (DOC_RE.test(f.name || '') || /^application\/pdf$/.test(f.type || ''));
 // Видео целиком, но маленькое: перекодируем на телефоне в 480p без звука (MediaRecorder с холста), чтобы Claude вырезал
 // из него плавный клип техники вместо анимации из кадров. Видео в это время играет в маленьком окошке (iOS не даёт
 // крутить невидимое видео). Не вышло или видео длиннее 2 минут — null, остаются только кадры.
@@ -3591,7 +3594,7 @@ async function videoSmall(file, onProg) {
 // Все файлы уходят одной фиксацией (Git Data API). failed — номера файлов, которые не получилось подготовить или отправить.
 // opts.small — у видео ещё и маленькая копия целиком (для клипов упражнений), пути — в out.video.
 async function uploadFiles(files, prefix, label, opts) {
-  const out = { media: [], photos: [], frames: 0, failed: [], video: [] };
+  const out = { media: [], photos: [], frames: 0, failed: [], video: [], docs: [] };
   const batch = [], N = files.length, vids = files.filter(isVideo).length;
   PROG.start(vids ? (N > 1 ? `Отправляю ${N} ${plural(N, 'файл', 'файла', 'файлов')}` : 'Отправляю видео') : (N > 1 ? `Отправляю ${N} фото` : 'Отправляю фото'));
   for (let k = 0; k < files.length; k++) {
@@ -3599,6 +3602,12 @@ async function uploadFiles(files, prefix, label, opts) {
     setSync(`готовлю файл ${k + 1} из ${files.length}…`);
     PROG.step('prep', k / N, isVideo(f) ? `видео ${N > 1 ? (k + 1) + ' из ' + N + ' ' : ''}— нарезаю кадры` : `фото ${k + 1} из ${N} — сжимаю`);
     try {
+      if (isDoc(f)) {
+        if (f.size > DOC_MAX) { toast(`«${f.name}» больше 40 МБ — не отправить`); out.failed.push(k + 1); continue; }
+        const ext = ((f.name || '').match(DOC_RE) || ['', 'pdf'])[1].toLowerCase();
+        batch.push({ path: `${prefix}_${k + 1}.${ext}`, b64: await fileToBase64(f), doc: true, name: f.name || ('документ.' + ext), k: k + 1 });
+        continue;
+      }
       if (isVideo(f)) {
         const fr = await videoFrames(f, 24, (i, n) => PROG.step('prep', (k + (i + 1) / n) / N, `видео ${N > 1 ? (k + 1) + ' из ' + N + ' ' : ''}— кадр ${i + 1} из ${n}`));
         if (!fr.length) { out.failed.push(k + 1); continue; }
@@ -3616,12 +3625,12 @@ async function uploadFiles(files, prefix, label, opts) {
   if (!batch.length) { PROG.done(false, 'файлы не прочитались'); return out; }
   try {
     await GH.commitFiles(batch, `${label}: ${batch.length} ${plural(batch.length, 'файл', 'файла', 'файлов')}`, (i, n, bd, bt) => { setSync(`отправляю ${i} из ${n}…`); PROG.step('up', bd / bt, `отправляю ${i} из ${n}`); });
-    batch.forEach(b => { if (b.video) { out.video.push(b.path); return; } out.media.push(b.path); if (b.photo) out.photos.push(b.path); });
+    batch.forEach(b => { if (b.video) { out.video.push(b.path); return; } out.media.push(b.path); if (b.photo) out.photos.push(b.path); if (b.doc) out.docs.push(b.name); });
   } catch (e) {
     console.warn(e);
     // запасной путь — по одному файлу через Contents API
     for (const b of batch) {
-      try { await GH.putRaw(b.path, b.b64, `${label}: ${b.path.split('/').pop()}`); if (b.video) out.video.push(b.path); else { out.media.push(b.path); if (b.photo) out.photos.push(b.path); } }
+      try { await GH.putRaw(b.path, b.b64, `${label}: ${b.path.split('/').pop()}`); if (b.video) out.video.push(b.path); else { out.media.push(b.path); if (b.photo) out.photos.push(b.path); if (b.doc) out.docs.push(b.name); } }
       catch (e2) { setSync(errText(e2), true); if (b.k && !out.failed.includes(b.k)) out.failed.push(b.k); }
     }
   }
@@ -6850,7 +6859,7 @@ function clItems() {
   const rq = S.requests.filter(r => !demoBad(r.text + ' ' + (r.answer || ''))).map(r => ({ kind: 'rq', id: r.id, src: r, text: r.text || '', area: r.area || 'general', ts: ts(r), date: r.date, status: r.status || 'new',
     answer: r.answer, answerTs: r.answerTs, choices: Array.isArray(r.choices) ? r.choices : [], re: r.re, reMe: r.reMe, edited: r.edited, media: [], audio: [], via: r.via }));
   const id = S.ideas.map(x => ({ kind: 'idea', id: x.id, src: x, text: x.text || x.title || '', area: x.area || 'general', ts: ts(x), date: x.date, status: x.status === 'seen' ? 'done' : (x.status || 'new'),
-    answer: x.answer, answerTs: x.answerTs, choices: Array.isArray(x.choices) ? x.choices : [], re: x.re, reMe: x.reMe, link: x.link, media: x.media || [], frames: x.frames, audio: x.audio || [], names: x.names || [],
+    answer: x.answer, answerTs: x.answerTs, choices: Array.isArray(x.choices) ? x.choices : [], re: x.re, reMe: x.reMe, link: x.link, media: x.media || [], frames: x.frames, audio: x.audio || [], names: x.names || [], docs: x.docs || [],
     fetching: linkPending(x), fetchErr: x.status !== 'seen' ? x.fetchErr : null, source: x.source, caption: x.caption, failed: x.failed, via: x.via,
     voice: x.voice, dur: x.dur, transcript: x.voice ? x.transcript : null, voiceErr: x.voiceErr }));
   return rq.concat(id);
@@ -6882,6 +6891,8 @@ function clMediaHtml(x) {
     else h += `<button type="button" class="cl-grid" data-action="cl-strip" data-id="${esc(x.id)}" aria-label="Фото">${imgs.slice(0, 4).map((p, k) => k === 3 && imgs.length > 4 ? `<span class="cl-more-ph">${clImgTag(p)}<b>+${imgs.length - 3}</b></span>` : clImgTag(p)).join('')}</button>`;
     if (strip) h += `<div class="cl-strip">${imgs.map(p => clImgTag(p)).join('')}</div>`;
   }
+  const docs = (x.media || []).filter(p => DOC_RE.test(p));
+  if (docs.length) h += `<div class="cl-up">📄 ${docs.length} ${plural(docs.length, 'документ', 'документа', 'документов')}${x.docs && x.docs.length ? ': ' + esc(clSnip(x.docs.join(', '), 80)) : ''}</div>`;
   if (x.audio && x.audio.length) h += `<div class="cl-up">${ico('headphones')} ${x.audio.length} ${plural(x.audio.length, 'файл', 'файла', 'файлов')}${x.names && x.names.length ? ': ' + esc(clSnip(x.names.join(', '), 60)) : ''}</div>`;
   if (x.failed) h += `<div class="cl-up">не дошло файлов: ${x.failed}</div>`;
   return h;
@@ -6976,7 +6987,7 @@ function openRequests(tab, keepScroll, area) {
   openSheet(`<div class="cl-head"><span class="cf-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="currentColor"/></svg></span><span class="cl-hn"><b>Claude</b><small>${esc(sub)}</small></span></div>
     <div class="cl-chat" id="cl-chat" aria-live="polite">${clChatHtml()}</div>
     <div class="cl-in"><div id="cl-ctx">${clCtxHtml()}</div>
-      <div class="cl-bar"><label class="cl-att file-btn" aria-label="Прикрепить фото, видео или аудио">${ico('clip')}<input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b" multiple></label><textarea id="msg-text" rows="1" placeholder="Сообщение" aria-label="Сообщение для Claude" autocapitalize="sentences">${esc(S.cur.draft)}</textarea><button type="button" class="cl-send" data-action="msg-send" aria-label="Отправить">${ico('send')}</button><button type="button" class="cl-mic" data-action="cl-rec" aria-label="Записать голосовое">${ico('mic')}</button></div>
+      <div class="cl-bar"><label class="cl-att file-btn" aria-label="Прикрепить фото, видео, аудио или документ">${ico('clip')}<input type="file" id="msg-files" accept="image/*,video/*,audio/*,.mp3,.m4a,.m4b,.pdf,.doc,.docx,.rtf,.txt,.odt,.xls,.xlsx,application/pdf" multiple></label><textarea id="msg-text" rows="1" placeholder="Сообщение" aria-label="Сообщение для Claude" autocapitalize="sentences">${esc(S.cur.draft)}</textarea><button type="button" class="cl-send" data-action="msg-send" aria-label="Отправить">${ico('send')}</button><button type="button" class="cl-mic" data-action="cl-rec" aria-label="Записать голосовое">${ico('mic')}</button></div>
       <div class="cl-recbar"><button type="button" class="cl-x" data-action="cl-rec-x" aria-label="Удалить запись">${ico('trash')}</button><span class="cl-rec-dot" aria-hidden="true"></span><span id="cl-rec-t">0:00</span><span class="cl-rec-h">Идёт запись</span><button type="button" class="cl-send" data-action="cl-rec-send" aria-label="Отправить голосовое">${ico('send')}</button></div>
     </div>`, false, 'chat');
   clScrollEnd(); clLazy(); clGrow(); clBarState();
@@ -7172,6 +7183,7 @@ function outRec(j, up, au) {
   if (au && au.media.length) { rec.audio = au.media; rec.names = au.names; rec.repo = booksRepo(); }
   if (up && up.frames) rec.frames = up.frames;
   if (up && up.video && up.video.length) rec.video = up.video;
+  if (up && up.docs && up.docs.length) rec.docs = up.docs;
   const failed = ((up && up.failed.length) || 0) + ((au && au.failed.length) || 0);
   if (failed) rec.failed = failed;
   return rec;
