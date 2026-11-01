@@ -10,8 +10,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Журнал">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#D9E3F2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#060A16" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ECEEF1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1388,6 +1388,97 @@ body::before{inset:-25vmax;
 @media (prefers-reduced-transparency: reduce){
   .row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.cal-cell,.q-card,.fz{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--sheet-solid)}
 }
+
+/* ===== GitHub-стекло (01.11.2026, просьба Олега): светло-серое матовое стекло, спокойные цвета GitHub,
+   без градиентов, фиолетового и цветных пятен на фоне. Перекрывает слои выше. ===== */
+:root{
+  --bg:#ECEEF1; --accent-base:#0969DA;
+  --glass:rgba(255,255,255,.62); --glass-2:rgba(255,255,255,.78); --glass-3:rgba(255,255,255,.46);
+  --glass-line:rgba(31,35,40,.10); --line:rgba(31,35,40,.12); --glass-edge:rgba(31,35,40,.08);
+  --blur:blur(14px) saturate(120%);
+  --hl:inset 0 1px 0 rgba(255,255,255,.9);
+  --lift:0 1px 2px rgba(31,35,40,.06);
+  --card-shadow:0 1px 2px rgba(31,35,40,.05),0 8px 20px -14px rgba(31,35,40,.22);
+  --shadow:0 8px 24px rgba(31,35,40,.16);
+  --sheet-bg:rgba(246,248,250,.92); --sheet-top:#F6F8FA; --sheet-solid:#F6F8FA;
+  --ink:#1F2328; --muted:#59636E; --faint:#818B98; --on-ink:#FFFFFF;
+  --sport:#0969DA; --sport-soft:rgba(9,105,218,.10);
+  --study:#BC4C00; --study-soft:rgba(188,76,0,.10);
+  --money:#1A7F37; --money-soft:rgba(26,127,55,.10); --good:#1A7F37;
+  --event:#59636E; --event-soft:rgba(89,99,110,.12);
+  --amber:#9A6700; --red:#CF222E; --teal:#1B7C83; --claude:#C96442;
+  --warn-soft:rgba(212,167,44,.18);
+  --surface:var(--glass-2); --surface-2:rgba(31,35,40,.05);
+  --f-disp:var(--f-body);
+  --r:14px;
+  --blob-a:transparent; --blob-b:transparent; --blob-c:transparent; --blob-d:transparent;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0D1117; --accent-base:#4493F8;
+    --glass:rgba(22,27,34,.70); --glass-2:rgba(33,40,48,.78); --glass-3:rgba(22,27,34,.5);
+    --glass-line:rgba(240,246,252,.10); --line:rgba(240,246,252,.10); --glass-edge:rgba(0,0,0,.4);
+    --hl:inset 0 1px 0 rgba(240,246,252,.06);
+    --lift:0 1px 2px rgba(0,0,0,.4);
+    --card-shadow:0 1px 2px rgba(0,0,0,.35),0 8px 22px -14px rgba(0,0,0,.6);
+    --shadow:0 8px 24px rgba(0,0,0,.5);
+    --sheet-bg:rgba(22,27,34,.94); --sheet-top:#161B22; --sheet-solid:#161B22;
+    --ink:#E6EDF3; --muted:#9198A1; --faint:#6E7681; --on-ink:#0D1117;
+    --sport:#4493F8; --sport-soft:rgba(68,147,248,.14);
+    --study:#F0883E; --study-soft:rgba(240,136,62,.14);
+    --money:#3FB950; --money-soft:rgba(63,185,80,.14); --good:#3FB950;
+    --event:#9198A1; --event-soft:rgba(145,152,161,.14);
+    --amber:#D29922; --red:#F85149; --teal:#39C5CF; --claude:#D97757;
+    --warn-soft:rgba(210,153,34,.16);
+    --surface:var(--glass-2); --surface-2:rgba(240,246,252,.06);
+  }
+}
+/* один акцент на все вкладки, никаких цветных пятен */
+body[data-tab]{--accent:var(--accent-base);--blob-a:transparent;--blob-b:transparent;--blob-c:transparent;--blob-d:transparent}
+body{background:var(--bg)}
+body::before{display:none}
+/* градиенты — нигде */
+*,*::before,*::after{background-image:none!important}
+/* то, что держалось только на градиенте, — сплошной цвет */
+.btn.primary{background-color:var(--ink);box-shadow:none}
+.btn.study{background-color:var(--study)} .btn.sport{background-color:var(--sport)} .btn.money{background-color:var(--money)}
+.btn.study,.btn.sport,.btn.money{box-shadow:none}
+.streak{background-color:var(--study-soft);color:var(--study)}
+.q-g .bar i,.wp-bar i,.pf-bar i{background-color:var(--study)}
+.pf-lvl{background-color:var(--study);box-shadow:none}
+.pf-card,.en-card{border-color:var(--glass-line)}
+.cf-dot,.sh-claude .cf-dot{background-color:var(--claude)}
+.claude-fab{background-color:var(--claude);border-color:transparent;box-shadow:var(--card-shadow)}
+.t-sleep{--tint:var(--teal)} .t-ready{--tint:var(--money)} .t-ready.lvl-mid{--tint:var(--amber)} .t-ready.lvl-low{--tint:var(--red)} .t-streak{--tint:var(--study)}
+.tile .ti{background-color:var(--tint)}
+.ring.en .rg-fg{stroke:var(--teal)}
+.an-ic{background-color:var(--amber)}
+.ib.ok{background-color:var(--money)}
+.m-hero{background-color:color-mix(in srgb,var(--money) 9%,var(--glass-2));box-shadow:var(--hl),var(--card-shadow)}
+.l-hero{background-color:color-mix(in srgb,var(--accent) 7%,var(--glass-2))}
+.en-ic,.en-prog span{background-color:var(--teal)} .en-go{background:var(--teal)}
+.c-blue{--mcc:var(--sport)} .c-violet{--mcc:#57606A} .c-indigo{--mcc:var(--teal)} .c-green{--mcc:var(--money)} .c-orange{--mcc:var(--study)}
+.c-teal{--mcc:var(--teal)} .c-pink{--mcc:#BF3989} .c-rose{--mcc:var(--red)} .c-amber{--mcc:var(--amber)} .c-gray{--mcc:#6E7781} .c-red{--mcc:var(--red)}
+.mi-ic{background-color:var(--mcc,#6E7781);box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.big-ic{background-color:var(--study)}
+.msg,.cl-b.me{background-color:var(--accent)}
+.send,.cl-send{background-color:var(--accent)}
+.upp-bar i,.bar i,.cur-prog i,.cu-bar i,.fz-m:nth-child(1) .fz-bar i{background-color:var(--accent)}
+.cu-c.warm .cu-bar i,.fz-bar i,.fz-m:nth-child(2) .fz-bar i{background-color:var(--amber)}
+.fz-m:nth-child(3) .fz-bar i{background-color:var(--money)} .fz-m:nth-child(4) .fz-bar i{background-color:var(--study)}
+.cu-c.hot .cu-bar i,.cl-b.err{background-color:var(--red)}
+.cu-bar.none{background-color:var(--surface-2)}
+.td-bar i{background-color:var(--money)}
+.rc-play{background-color:rgba(0,0,0,.32)}
+.mp-bar{background-color:var(--sheet-solid)}
+.bk-card{background-color:color-mix(in srgb,var(--amber) 8%,var(--glass-2))}
+.bk-main .bar i,.bk-row .bar i,.bk-hero .bar i{background-color:var(--amber)}
+.bk-play,.bk-b.main,.mini-pp,.bk-cov{background-color:var(--study);box-shadow:none}
+/* спокойнее: меньше свечения и скруглений, как на GitHub */
+.row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.inbox,.cal-cell,.dish.card-like,.outcome,.callout,.q-card,.news-i.card,.fz{box-shadow:var(--hl),var(--card-shadow)}
+.m-hero,.l-hero{border-radius:16px}
+.ach .ai{display:block;width:24px;height:24px;color:var(--faint)} .ach.ok .ai{color:var(--amber)} .ach .ai svg{width:24px;height:24px}
+.streak{display:inline-flex;align-items:center;gap:4px} .streak svg{width:15px;height:15px}
 </style>
 </head>
 <body>
@@ -1567,6 +1658,6 @@ body::before{inset:-25vmax;
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261029a"></script>
+<script src="app.js?v=20261101a"></script>
 </body>
 </html>

@@ -607,7 +607,7 @@ function openAutoSetup() {
       <li>В Safari: ${copyRow('Ссылка', 'https://claude.ai/code/routines', 'claude.ai/code/routines')} → «${esc(c.routine || 'Журнал: входящие')}» → ⋯ → <b>Edit</b> → <b>Add another trigger</b> → <b>API</b> → Save → <b>Generate token</b>. Скопируй токен — он показывается один раз.</li>
       <li>Команды → <b>+</b> → назови ${copyRow('Имя', c.shortcut || 'Claude разбор')}</li>
       <li>Действие «Получить содержимое URL»: ${copyRow('URL', c.fireUrl)} Метод <b>POST</b>. Заголовки: ${copyRow('Authorization', 'Bearer ', 'Bearer ␣ + токен из п. 1')}${copyRow('anthropic-beta', 'experimental-cc-routine-2026-04-01')}${copyRow('anthropic-version', '2023-06-01')} Тело запроса — <b>JSON</b>, поле Текст: ${copyRow('text', 'Запуск с телефона')}</li>
-      <li>Готово. Кнопка «⚡ Разобрать сейчас» в «Связи с Claude» запускает эту Команду; через 2–5 минут ответы появятся в чате.</li>
+      <li>Готово. Кнопка «Разобрать сейчас» в «Связи с Claude» запускает эту Команду; через 2–5 минут ответы появятся в чате.</li>
     </ol>
     <p class="note">Токен умеет только запускать эту задачу — больше ничего. Если утечёт: там же Regenerate. Запуск по кнопке тратит лимит подписки так же, как обычный разговор.</p>`; })()}
     <h3 class="sec">Проверить, как журнал поймёт текст</h3>
@@ -1941,7 +1941,7 @@ async function buySave(mode) {
 function plannedHtml() {
   const l = plannedBuys().filter(x => !x.done).sort((a, b) => (a.date || '9') < (b.date || '9') ? -1 : 1);
   const total = l.reduce((a, x) => a + (Number(x.amount) || 0), 0);
-  return `<details class="regs" data-k="planned"${openAttr('planned')}><summary><span class="rs-t">Будущие покупки</span><span class="sec-note">${l.length ? fmt(total) + ' ' + esc(curSym()) : 'пусто'}</span></summary><div class="stack">${giftsBetween(today(), addDays(today(), 60)).map(o => `<button type="button" class="reg" data-action="dates"><span class="rn">🎁 ${esc(o.x.title)}</span><span class="ra">${fmt(o.x.gift)} ${esc(curSym())}</span><span class="rw">${dm(o.d)} · через ${daysBetween(today(), o.d)} ${plural(daysBetween(today(), o.d), 'день', 'дня', 'дней')}</span></button>`).join('')}${l.map(x => `<button type="button" class="reg" data-action="buy" data-id="${esc(x.id)}"><span class="rn">${esc(x.name)}</span><span class="ra">${x.amount ? fmt(x.amount) + ' ' + esc(curSym()) : '—'}</span><span class="rw">${x.date ? dm(x.date) + (x.date >= today() ? ' · через ' + daysBetween(today(), x.date) + ' ' + plural(daysBetween(today(), x.date), 'день', 'дня', 'дней') : '') : 'без даты'}${x.note ? ' · ' + esc(x.note) : ''}</span></button>`).join('')}</div><div class="acct-links"><button type="button" class="link-btn" data-action="buy-new">+ Покупка</button><button type="button" class="link-btn" data-action="dates">🎁 Важные даты</button></div></details>`;
+  return `<details class="regs" data-k="planned"${openAttr('planned')}><summary><span class="rs-t">Будущие покупки</span><span class="sec-note">${l.length ? fmt(total) + ' ' + esc(curSym()) : 'пусто'}</span></summary><div class="stack">${giftsBetween(today(), addDays(today(), 60)).map(o => `<button type="button" class="reg" data-action="dates"><span class="rn">${esc(o.x.title)}</span><span class="ra">${fmt(o.x.gift)} ${esc(curSym())}</span><span class="rw">${dm(o.d)} · через ${daysBetween(today(), o.d)} ${plural(daysBetween(today(), o.d), 'день', 'дня', 'дней')}</span></button>`).join('')}${l.map(x => `<button type="button" class="reg" data-action="buy" data-id="${esc(x.id)}"><span class="rn">${esc(x.name)}</span><span class="ra">${x.amount ? fmt(x.amount) + ' ' + esc(curSym()) : '—'}</span><span class="rw">${x.date ? dm(x.date) + (x.date >= today() ? ' · через ' + daysBetween(today(), x.date) + ' ' + plural(daysBetween(today(), x.date), 'день', 'дня', 'дней') : '') : 'без даты'}${x.note ? ' · ' + esc(x.note) : ''}</span></button>`).join('')}</div><div class="acct-links"><button type="button" class="link-btn" data-action="buy-new">+ Покупка</button><button type="button" class="link-btn" data-action="dates">Важные даты</button></div></details>`;
 }
 /* ---------- серия: дни подряд, когда запланированное сделано ---------- */
 function dayPlanned(d, sport) { const c = S.config && S.config.study ? studyCap(d) : { cap: 0 }; return (c.cap > 0 && !c.blocked) || sport.some(i => i.eff === d); }
@@ -1962,7 +1962,7 @@ function streakInfo() {
 }
 function streakChip() {
   const s = streakInfo(); if (!s) return '';
-  return `<span class="streak${s.cur ? '' : ' off'}" title="Дни подряд, когда запланированное сделано">🔥 ${s.cur}${s.best > s.cur ? `<small> · рекорд ${s.best}</small>` : ''}</span>`;
+  return `<span class="streak${s.cur ? '' : ' off'}" title="Дни подряд, когда запланированное сделано">${ico('flame')} ${s.cur}${s.best > s.cur ? `<small> · рекорд ${s.best}</small>` : ''}</span>`;
 }
 
 /* ---------- цели на квартал ---------- */
@@ -2012,7 +2012,7 @@ function dateRows(d) {
   const rows = [];
   for (const x of importantDates()) {
     const occ = nextOcc(x.md, d);
-    if (occ === d) rows.push(`<button type="button" class="row slim" data-action="dates"><span class="tag gift">🎁 Дата</span><span class="rb"><span class="t">${esc(x.title)}</span></span>${x.gift ? `<span class="s">${fmt(x.gift)} ${esc(curSym())}</span>` : ''}</button>`);
+    if (occ === d) rows.push(`<button type="button" class="row slim" data-action="dates"><span class="tag gift">Дата</span><span class="rb"><span class="t">${esc(x.title)}</span></span>${x.gift ? `<span class="s">${fmt(x.gift)} ${esc(curSym())}</span>` : ''}</button>`);
     else if (occ === addDays(d, 7)) rows.push(`<button type="button" class="row slim" data-action="dates"><span class="tag gift">Через неделю</span><span class="rb"><span class="t">${esc(x.title)} · ${dm(occ)}</span><span class="m">${x.gift ? 'подарок ~' + fmt(x.gift) + ' ' + esc(curSym()) : 'подарок: впиши бюджет'}</span></span></button>`);
   }
   return rows;
@@ -2084,7 +2084,7 @@ function openShop(days) {
   const items = shopList(days), got = new Set(LS.get('bj-shop-got') || []);
   const todo = items.filter(x => !got.has(x.key)), done = items.filter(x => got.has(x.key));
   const row = x => `<button type="button" class="shop-i${got.has(x.key) ? ' got' : ''}" data-action="shop-tick" data-key="${esc(x.key)}"><span class="cb">${got.has(x.key) ? '✓' : ''}</span><span class="sn">${esc(x.label)}${x.from ? `<small>${esc(x.from)}</small>` : ''}</span><span class="sa">${esc(x.amount)}</span></button>`;
-  openSheet(`<h2 class="sh-title">🛒 Список покупок</h2>
+  openSheet(`<h2 class="sh-title">Список покупок</h2>
     <div class="seg" role="group">${[[3, '3 дня'], [7, 'Неделя']].map(([v, l]) => `<button type="button" data-action="shop-days" data-days="${v}" aria-pressed="${v === days}">${l}</button>`).join('')}</div>
     ${items.length ? `<div class="stack shop">${todo.map(row).join('')}${done.map(row).join('')}</div>` : '<p class="note">Выбери блюда на ближайшие дни — список соберётся сам.</p>'}
     <div class="form-row" style="margin-top:12px"><input id="shop-add" placeholder="Добавить своё"><button type="button" class="btn" data-action="shop-add">+</button></div>
@@ -2637,7 +2637,7 @@ function pfCardHtml() {
   if (!S.ready || !S.curriculum || !curBlocks().length) return '';
   const c = pfStats(), ach = achievements(c);
   const fresh = newAchievements(ach).length;
-  return `<button type="button" class="pf-card" data-action="pf-open"><span class="pf-top"><span class="pf-lvl">${c.lvl}</span>${fresh ? `<span class="pf-new">+${fresh} 🏆</span>` : ''}</span><span class="pf-rt"><b>${esc(c.rank)}</b><small>${fmt(c.xp)} XP${c.next ? ' · ещё ' + fmt(c.to - c.xp) : ''}</small></span><span class="bar pf-bar"><i style="width:${c.pctLvl.toFixed(1)}%"></i></span></button>`;
+  return `<button type="button" class="pf-card" data-action="pf-open"><span class="pf-top"><span class="pf-lvl">${c.lvl}</span>${fresh ? `<span class="pf-new">+${fresh} новых</span>` : ''}</span><span class="pf-rt"><b>${esc(c.rank)}</b><small>${fmt(c.xp)} XP${c.next ? ' · ещё ' + fmt(c.to - c.xp) : ''}</small></span><span class="bar pf-bar"><i style="width:${c.pctLvl.toFixed(1)}%"></i></span></button>`;
 }
 function newAchievements(ach) { const seen = new Set(LS.get('bj-ach') || []); return ach.filter(a => a.ok && !seen.has(a.id)); }
 const PF_ST = { done: 'сделано', doing: 'в работе', todo: 'впереди' };
@@ -2654,9 +2654,9 @@ function openPortfolio(tab) {
       <h3 class="sec">Путь NetDevOps · ${Math.round(c.pctPath)}%</h3><div class="pf-blocks">${c.blocks.map(b => { const n = blockSize(b), d = blockLessons(b).filter(lessonDoneN).length; return `<div class="pf-b${blockClosed(b) ? ' ok' : ''}"><span class="bn">${esc(b.title)}</span><span class="bc">${blockClosed(b) ? '✓' : d + '/' + n}</span><span class="bar"><i style="width:${(n ? d / n * 100 : 0).toFixed(1)}%"></i></span></div>`; }).join('')}</div>`;
   } else if (tab === 'ach') {
     const got = ach.filter(a => a.ok).length;
-    body = `<p class="sh-meta">Открыто ${got} из ${ach.length}</p><div class="ach-grid">${ach.map(a => `<div class="ach${a.ok ? ' ok' : ''}${fresh.has(a.id) ? ' fresh' : ''}"><span class="ai">${a.ok ? a.ic : '🔒'}</span><span class="at">${esc(a.t)}</span><span class="ad">${esc(a.d)}</span></div>`).join('')}</div>`;
+    body = `<p class="sh-meta">Открыто ${got} из ${ach.length}</p><div class="ach-grid">${ach.map(a => `<div class="ach${a.ok ? ' ok' : ''}${fresh.has(a.id) ? ' fresh' : ''}"><span class="ai">${ico(a.ok ? 'star' : 'lock')}</span><span class="at">${esc(a.t)}</span><span class="ad">${esc(a.d)}</span></div>`).join('')}</div>`;
   } else if (tab === 'proj') {
-    body = `<p class="sh-meta">⭐ — сквозной проект</p>` + c.blocks.map(b => { const ps = c.projects.filter(p => p.block === b.id); if (!ps.length) return ''; return `<h3 class="sec">${esc(b.title)} · ${ps.filter(p => p.status === 'done').length}/${ps.length}</h3><div class="stack">${ps.map(p => `<div class="pf-p ${p.status}"><span class="pn">${p.key ? '⭐ ' : ''}${esc(p.title)}</span><span class="chip${p.status === 'done' ? ' good' : p.status === 'doing' ? ' warn' : ''}">${PF_ST[p.status] || p.status}${p.date && p.status === 'done' ? ' ' + dm(p.date) : ''}</span>${p.note ? `<span class="pm">${esc(p.note)}</span>` : ''}</div>`).join('')}</div>`; }).join('');
+    body = `<p class="sh-meta">★ — сквозной проект</p>` + c.blocks.map(b => { const ps = c.projects.filter(p => p.block === b.id); if (!ps.length) return ''; return `<h3 class="sec">${esc(b.title)} · ${ps.filter(p => p.status === 'done').length}/${ps.length}</h3><div class="stack">${ps.map(p => `<div class="pf-p ${p.status}"><span class="pn">${p.key ? '★ ' : ''}${esc(p.title)}</span><span class="chip${p.status === 'done' ? ' good' : p.status === 'doing' ? ' warn' : ''}">${PF_ST[p.status] || p.status}${p.date && p.status === 'done' ? ' ' + dm(p.date) : ''}</span>${p.note ? `<span class="pm">${esc(p.note)}</span>` : ''}</div>`).join('')}</div>`; }).join('');
   } else {
     const arts = c.arts.slice().sort((a, b) => (b.date || '') < (a.date || '') ? -1 : 1);
     const les = S.lessons.filter(l => l.done).sort((a, b) => b.done < a.done ? -1 : 1);
@@ -2674,8 +2674,8 @@ function announceAchievements() {
   // сообщаем об ачивке один раз: запоминаем, о каких уже сказали
   const lv = LS.get('bj-lvl'), told = LS.get('bj-ach-told'), toldSet = new Set(told || []);
   const news = ach.filter(a => a.ok && !toldSet.has(a.id));
-  if (lv != null && c.lvl > lv) toast(`🎖 Новое звание: ${c.rank}! Уровень ${c.lvl}`);
-  else if (told && news.length) toast(news.length === 1 ? `🏆 Ачивка: ${news[0].t}` : `🏆 Новые ачивки: ${news.length} — загляни в портфолио`);
+  if (lv != null && c.lvl > lv) toast(`Новое звание: ${c.rank}! Уровень ${c.lvl}`);
+  else if (told && news.length) toast(news.length === 1 ? `Ачивка: ${news[0].t}` : `Новые ачивки: ${news.length} — загляни в портфолио`);
   LS.set('bj-ach-told', ach.filter(a => a.ok).map(a => a.id));
   LS.set('bj-lvl', c.lvl);
 }
@@ -3827,7 +3827,7 @@ function openStudy(d, key, part) {
     ${multi ? `` : ''}
     <div class="sh-acts">
       <button type="button" class="btn study block" data-action="study-done">${doneLabel}</button>
-      ${d === today() ? `<div class="two"><button type="button" class="btn" data-action="focus-start" data-n="${esc(L.n)}">🎯 Фокус</button>${!timerState() ? `<button type="button" class="btn" data-action="timer-start" data-n="${esc(L.n)}">▶ Засечь время</button>` : ''}</div>` : ''}
+      ${d === today() ? `<div class="two"><button type="button" class="btn" data-action="focus-start" data-n="${esc(L.n)}">Фокус</button>${!timerState() ? `<button type="button" class="btn" data-action="timer-start" data-n="${esc(L.n)}">▶ Засечь время</button>` : ''}</div>` : ''}
       ${L.placeholder ? `<button type="button" class="btn block" data-action="lesson-ph" data-n="${L.n}">Задать тему</button>` : `<button type="button" class="btn block" data-action="lesson" data-id="${esc(L.key)}">Изменить урок</button>`}
     </div>
     <details class="more-box"><summary>Не получится в этот день</summary>
@@ -3929,8 +3929,8 @@ function openDay(d) {
     ${rows.length ? `<div class="stack" style="margin-top:12px">${rows.join('')}</div>` : '<p class="sh-meta">Ничего не запланировано.</p>'}
     <div class="sh-acts"><div class="two"><button type="button" class="btn study" data-action="add-study" data-date="${d}">+ Учёба</button><button type="button" class="btn sport" data-action="add-sport" data-date="${d}">+ Спорт</button></div>
     <div class="two"><button type="button" class="btn" data-action="ev-new" data-date="${d}">+ Событие</button><button type="button" class="btn" data-action="sleep" data-date="${d}">${slm ? 'Сон' : '+ Сон'}</button></div>
-    <div class="two"><button type="button" class="btn" data-action="${dutyOn(d) ? 'duty-off' : 'duty-on'}" data-date="${d}">${dutyOn(d) ? 'Снять наряд' : '🪖 Наряд'}</button><button type="button" class="btn" data-action="abs-new" data-date="${d}">🏖 Отпуск / болею</button></div>
-    <button type="button" class="btn block" data-action="weight" data-date="${d}">⚖️ Вес тела${weights()[d] != null ? ' · ' + String(weights()[d]).replace('.', ',') + ' кг' : ''}</button></div>
+    <div class="two"><button type="button" class="btn" data-action="${dutyOn(d) ? 'duty-off' : 'duty-on'}" data-date="${d}">${dutyOn(d) ? 'Снять наряд' : 'Наряд'}</button><button type="button" class="btn" data-action="abs-new" data-date="${d}">Отпуск / болею</button></div>
+    <button type="button" class="btn block" data-action="weight" data-date="${d}">Вес тела${weights()[d] != null ? ' · ' + String(weights()[d]).replace('.', ',') + ' кг' : ''}</button></div>
     ${studyBox}`);
 }
 
@@ -5083,7 +5083,7 @@ function openSettings() {
     ${c ? `<p class="sh-meta">Данные: <span class="mono">${esc(c.owner)}/${esc(c.repo)}</span></p><p class="note">${esc(syncLabel() || 'ещё не загружено')}</p>` : '<p class="sh-meta">Не подключено.</p>'}
     <div class="sh-acts">
       <button type="button" class="btn block" data-action="refresh">Обновить данные</button>
-      <button type="button" class="btn block" data-action="demo-toggle">${demo() ? '🎬 Демо-режим включён — выключить' : '🎬 Демо-режим (скрыть долги и кредиты)'}</button>
+      <button type="button" class="btn block" data-action="demo-toggle">${demo() ? 'Демо-режим включён — выключить' : 'Демо-режим (скрыть долги и кредиты)'}</button>
       ${c ? '<button type="button" class="btn danger block" data-action="logout">Отключить это устройство</button>' : ''}
     </div>
     <p class="note">«Отключить» удаляет ключ и сохранённые данные только с этого устройства. Сам ключ отзывается на GitHub: Settings → Developer settings → Personal access tokens.</p>`);
@@ -6250,7 +6250,8 @@ const ICP = {
   book: '<path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5"/>',
   dumb: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
   scan: '<path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/><path d="M8 8v8M11 8v8M14 8v8M17 8v8"/>',
-  warn: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17h.01"/>'
+  warn: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17h.01"/>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
 };
 const ico = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICP[n] || ''}</svg>`;
 const openAttr = k => S.open.has(k) ? ' open' : '';
@@ -6865,7 +6866,7 @@ function clItems() {
   return rq.concat(id);
 }
 function clSnippet(x) {
-  if (x.voice) return '🎙 ' + (x.transcript ? x.transcript : 'Голосовое ' + mmss(x.dur || 0));
+  if (x.voice) return (x.transcript ? x.transcript : 'Голосовое ' + mmss(x.dur || 0));
   if (x.text) return x.text;
   if (x.frames) return 'Видео';
   if (x.media && x.media.length) return x.media.length > 1 ? 'Фото · ' + x.media.length : 'Фото';
@@ -6892,7 +6893,7 @@ function clMediaHtml(x) {
     if (strip) h += `<div class="cl-strip">${imgs.map(p => clImgTag(p)).join('')}</div>`;
   }
   const docs = (x.media || []).filter(p => DOC_RE.test(p));
-  if (docs.length) h += `<div class="cl-up">📄 ${docs.length} ${plural(docs.length, 'документ', 'документа', 'документов')}${x.docs && x.docs.length ? ': ' + esc(clSnip(x.docs.join(', '), 80)) : ''}</div>`;
+  if (docs.length) h += `<div class="cl-up">${docs.length} ${plural(docs.length, 'документ', 'документа', 'документов')}${x.docs && x.docs.length ? ': ' + esc(clSnip(x.docs.join(', '), 80)) : ''}</div>`;
   if (x.audio && x.audio.length) h += `<div class="cl-up">${ico('headphones')} ${x.audio.length} ${plural(x.audio.length, 'файл', 'файла', 'файлов')}${x.names && x.names.length ? ': ' + esc(clSnip(x.names.join(', '), 60)) : ''}</div>`;
   if (x.failed) h += `<div class="cl-up">не дошло файлов: ${x.failed}</div>`;
   return h;
@@ -6911,7 +6912,7 @@ function clMeHtml(x, byId) {
   const tick = x.fetching || voicePending(x) ? '<i class="cl-tk">⏳</i>' : x.answer ? '<i class="cl-tk read">✓✓</i>' : '<i class="cl-tk">✓</i>';
   const tag = x.area && AREA_SHORT[x.area] ? `<span class="cl-tag">#${esc(AREA_SHORT[x.area])}</span>` : '';
   const empty = !x.text && !(x.media || []).length && !x.link && !(x.audio || []).length && !x.voice;
-  const via = x.via === 'alice' ? '<span class="cl-via">🎙 через Алису</span>' : '';
+  const via = x.via === 'alice' ? '<span class="cl-via">через Алису</span>' : '';
   const body = q + via + (x.voice ? clVoiceHtml(x) : '') + clMediaHtml(x) + (x.link ? clLinkHtml(x) : '') + (x.text || empty ? `<div class="cl-t">${x.text ? clFmt(x.text) : '…'}</div>` : '');
   const canDel = !x.answer && x.status === 'new';
   const acts = sel ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="cl-reply" data-id="${esc(x.id)}" data-me="1">Дополнить</button>${x.text || x.transcript ? `<button type="button" class="btn sm" data-action="cl-copy" data-id="${esc(x.id)}">Копировать</button>` : ''}${x.kind === 'rq' && canDel ? `<button type="button" class="btn sm" data-action="rq-edit" data-id="${esc(x.id)}">Изменить</button><button type="button" class="btn sm" data-action="rq-del" data-id="${esc(x.id)}">Удалить</button>` : ''}${x.kind === 'idea' && canDel ? `<button type="button" class="btn sm" data-action="idea-del" data-id="${esc(x.id)}">Удалить</button>` : ''}</div>` : '';
@@ -6932,7 +6933,7 @@ function clClHtml(x, replies) {
 function clOutHtml(j) {
   const err = j.st === 'err' || j.st === 'net', n = j.files.length + j.audio.length;
   const what = j.voice ? `${ico('mic')} голосовое ${mmss(j.voice.dur)}` : `${ico('clip')} ${n} ${plural(n, 'файл', 'файла', 'файлов')}`;
-  return `<div class="cl-row me"><div class="cl-b me out${err ? ' err' : ''}" data-out="${esc(j.id)}">${j.text ? `<div class="cl-t">${clFmt(j.text)}</div>` : ''}<div class="cl-up">${what} · <span data-od>${esc(outLabel(j))}</span></div>${err ? '' : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}<span class="cl-meta">${hhmm(new Date(j.ts))}<i class="cl-tk">${j.st === 'net' ? '🕓' : err ? '!' : '🕓'}</i></span></div>${err ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">${j.st === 'net' ? 'Отправить' : 'Повторить'}</button></div>` : ''}</div>`;
+  return `<div class="cl-row me"><div class="cl-b me out${err ? ' err' : ''}" data-out="${esc(j.id)}">${j.text ? `<div class="cl-t">${clFmt(j.text)}</div>` : ''}<div class="cl-up">${what} · <span data-od>${esc(outLabel(j))}</span></div>${err ? '' : `<div class="upp-bar"><i data-ob style="width:${(j.pct || 0).toFixed(1)}%"></i></div>`}<span class="cl-meta">${hhmm(new Date(j.ts))}<i class="cl-tk">${err ? '!' : '…'}</i></span></div>${err ? `<div class="cl-acts"><button type="button" class="btn sm" data-action="out-drop" data-id="${esc(j.id)}">Убрать</button><button type="button" class="btn sm study" data-action="out-retry" data-id="${esc(j.id)}">${j.st === 'net' ? 'Отправить' : 'Повторить'}</button></div>` : ''}</div>`;
 }
 function clChatHtml() {
   const items = clItems(), byId = new Map(items.map(x => [x.id, x])), replies = new Map();
@@ -7344,7 +7345,7 @@ async function openBooks() {
     openSheet(`<h2 class="sh-title">Книги</h2>${min ? `<p class="sh-meta">Прослушано всего ${hmShort(min)}</p>` : ''}
       ${booksSetupHtml()}
       ${l.length ? `<div class="stack" style="margin-top:12px">${rows}</div>` : '<p class="note">Пока пусто.</p>'}
-      <details class="fold" data-k="bk-how"${l.length ? openAttr('bk-how') : ' open'}><summary><span>Как добавить книгу</span></summary><ol class="setup-steps"><li>Кнопка Claude → тема <b>Книги</b> → 📎 → выбери MP3 (главы по отдельности или одним файлом, до 45 МБ каждый).</li><li>В тексте — название и автор, если в именах файлов их нет.</li><li>Когда позовёшь меня, разложу по главам, и книга появится здесь.</li></ol></details>`, true);
+      <details class="fold" data-k="bk-how"${l.length ? openAttr('bk-how') : ' open'}><summary><span>Как добавить книгу</span></summary><ol class="setup-steps"><li>Кнопка Claude → тема <b>Книги</b> → скрепка → выбери MP3 (главы по отдельности или одним файлом, до 45 МБ каждый).</li><li>В тексте — название и автор, если в именах файлов их нет.</li><li>Когда позовёшь меня, разложу по главам, и книга появится здесь.</li></ol></details>`, true);
   };
   render();
   if (!S.booksRepo) { await booksRepoCheck(); if (S.cur && S.cur.type === 'books') render(); }
