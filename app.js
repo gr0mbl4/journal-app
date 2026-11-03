@@ -40,8 +40,6 @@ const numOrNull = v => { v = String(v == null ? '' : v).replace(',', '.').trim()
 const HORIZON = 20;
 const LET = 'АБВГДЕЖЗИК';
 const DOTS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>';
-// голосовое управление плеером книг — см. «голосовое управление плеером» ниже
-const BKV = { ok: !!(window.SpeechRecognition || window.webkitSpeechRecognition), on: false, rec: null };
 const LS = {
   get(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (_) { return null; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
@@ -5602,13 +5600,12 @@ document.addEventListener('click', async ev => {
     case 'bk-ch': { unlockAudio(); const k = Number(b.dataset.k), p = bkPos(id); bkPlay(id, k, k === p.ch ? p.pos : 0); openPlayer(); break; }
     case 'bk-player': openPlayer(); break;
     case 'bk-toggle': { const au = AU(); if (!S.play || !au) return; if (S.play.loading) return; if (au.paused) au.play().catch(() => {}); else au.pause(); break; }
-    case 'bk-voice': voiceToggle(); break;
     case 'bk-back': { const au = AU(); if (au && S.play) au.currentTime = Math.max(0, au.currentTime - 15); break; }
     case 'bk-fwd': { const au = AU(); if (au && S.play) au.currentTime = Math.min(au.duration || 1e9, au.currentTime + 30); break; }
     case 'bk-prev': bkStep(-1); break;
     case 'bk-next': bkStep(1); break;
     case 'bk-speed': { const v = Number(b.dataset.v) || 1; LS.set('bj-bk-speed', v); const au = AU(); if (au) au.playbackRate = v; renderPlayer(); break; }
-    case 'bk-stop': { if (BKV.on) voiceToggle(); const au = AU(); if (au) au.pause(); bkSave(false); if (S.play && S.play.url) URL.revokeObjectURL(S.play.url); S.play = null; renderMini(); break; }
+    case 'bk-stop': { const au = AU(); if (au) au.pause(); bkSave(false); if (S.play && S.play.url) URL.revokeObjectURL(S.play.url); S.play = null; renderMini(); break; }
     case 'shop-clean': shopClean(); break;
     case 'shop-menu': shopFromMenu(); break;
     case 'msg-area': if (S.cur && S.cur.type === 'req') { const was = S.cur.area; S.cur.area = b.dataset.area; if ((was === 'books') !== (S.cur.area === 'books')) { S.cur.draft = ($('#msg-text') || {}).value || ''; openRequests('new', true); } else document.querySelectorAll('[data-action="msg-area"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.area === S.cur.area))); } break;
@@ -7485,7 +7482,7 @@ function renderMini() {
   if (!p || !b) { el.hidden = true; document.body.classList.remove('has-mini'); return; }
   const a = AU(), c = b.chapters[p.k] || {};
   el.hidden = false; document.body.classList.add('has-mini');
-  el.innerHTML = `<button type="button" class="mini-pp" data-action="bk-toggle" aria-label="${a && !a.paused ? 'Пауза' : 'Играть'}">${p.loading ? '<span class="spin" aria-hidden="true"></span>' : a && !a.paused ? '❚❚' : ico('play')}</button><button type="button" class="mini-t" data-action="bk-player"><b>${esc(c.title || 'Глава ' + (p.k + 1))}</b><small>${esc(b.title)}</small></button>${BKV.ok ? `<button type="button" class="mini-mic${BKV.on ? ' on' : ''}" data-action="bk-voice" aria-pressed="${BKV.on}" aria-label="Голосовое управление" title="Голос: «Журнал, пауза»">${ico('mic')}</button>` : ''}<button type="button" class="mini-x" data-action="bk-stop" aria-label="Закрыть плеер">×</button>`;
+  el.innerHTML = `<button type="button" class="mini-pp" data-action="bk-toggle" aria-label="${a && !a.paused ? 'Пауза' : 'Играть'}">${p.loading ? '<span class="spin" aria-hidden="true"></span>' : a && !a.paused ? '❚❚' : ico('play')}</button><button type="button" class="mini-t" data-action="bk-player"><b>${esc(c.title || 'Глава ' + (p.k + 1))}</b><small>${esc(b.title)}</small></button><button type="button" class="mini-x" data-action="bk-stop" aria-label="Закрыть плеер">×</button>`;
 }
 const SPEEDS = [1, 1.25, 1.5, 1.75, 2];
 function playerHtml() {
@@ -7496,7 +7493,6 @@ function playerHtml() {
     <div class="bk-times"><span id="bk-t">${mmss(t)}</span><span id="bk-left">−${mmss(Math.max(0, dur - t))}</span></div>
     <div class="bk-ctl"><button type="button" class="bk-b" data-action="bk-prev" aria-label="Предыдущая глава"${p.k ? '' : ' disabled'}>⏮</button><button type="button" class="bk-b" data-action="bk-back" aria-label="Назад 15 секунд">−15</button><button type="button" class="bk-b main" data-action="bk-toggle" aria-label="Играть или пауза">${p.loading ? '<span class="spin" aria-hidden="true"></span>' : a && !a.paused ? '❚❚' : ico('play')}</button><button type="button" class="bk-b" data-action="bk-fwd" aria-label="Вперёд 30 секунд">+30</button><button type="button" class="bk-b" data-action="bk-next" aria-label="Следующая глава"${p.k + 1 < b.chapters.length ? '' : ' disabled'}>⏭</button></div>
     <div class="chips bk-speed">${SPEEDS.map(v => `<button type="button" class="chip-btn" data-action="bk-speed" data-v="${v}" aria-pressed="${v === sp}">${String(v).replace('.', ',')}×</button>`).join('')}</div>
-    ${BKV.ok ? `<div class="bk-voice"><button type="button" class="chip-btn" data-action="bk-voice" aria-pressed="${BKV.on}">${ico('mic')} Голос: ${BKV.on ? 'слушаю' : 'выкл'}</button><small>Скажи «Журнал, пауза» · «продолжи» · «назад 30» · «вперёд 2 минуты» · «следующая глава» · «прошлая глава» · «быстрее» · «медленнее» · «громче» · «тише»</small></div>` : ''}
     <button type="button" class="link-btn" data-action="bk-open" data-id="${esc(b.id)}">Все главы</button>`;
 }
 function openPlayer() { S.cur = { type: 'player' }; openSheet(playerHtml()); }
@@ -7513,66 +7509,6 @@ async function bkPreloadNext() {
   S.bkNextLoaded = true;
   const b = bookById(p.id), c = b && b.chapters[p.k + 1]; if (!c) return;
   try { await audioBlob(b.repo || booksRepo(), c.file); } catch (_) { S.bkNextLoaded = false; }
-}
-/* ---------- голосовое управление плеером (03.11.2026) ----------
-   Браузер слушает микрофон (Chrome / Edge на ПК, распознавание речи браузера). Команда — только после слова «журнал»,
-   чтобы голос из книги в колонках не нажимал кнопки: «Журнал, пауза», «Журнал, назад 30». */
-const VNUM = { 'одну': 1, 'один': 1, 'одна': 1, 'две': 2, 'два': 2, 'три': 3, 'четыре': 4, 'пять': 5, 'шесть': 6, 'семь': 7, 'восемь': 8, 'девять': 9, 'десять': 10, 'пятнадцать': 15, 'двадцать': 20, 'тридцать': 30, 'сорок': 40, 'пятьдесят': 50, 'полминуты': 30 };
-function voiceSecs(t, def) {
-  const m = t.match(/(\d+(?:[.,]\d+)?)|(одну|один|одна|две|два|три|четыре|пять|шесть|семь|восемь|девять|десять|пятнадцать|двадцать|тридцать|сорок|пятьдесят|полминуты)/);
-  let n = m ? (m[1] ? parseFloat(m[1].replace(',', '.')) : VNUM[m[2]]) : null;
-  if (/полминуты/.test(t)) return 30;
-  if (/минут/.test(t)) return (n || 1) * 60;
-  return n || def;
-}
-function voiceCmd(raw) {
-  const t0 = raw.toLowerCase().replace(/ё/g, 'е');
-  const w = t0.search(/журнал/); if (w < 0) return false;
-  const t = t0.slice(w).replace(/^журнал\S*[\s,.!]*/, '').trim(); if (!t) return false;
-  const a = AU(); if (!a || !S.play) { toast('Голос: Сначала включи книгу'); return true; }
-  const say = m => toast('Голос: ' + m);
-  if (/пауз|стоп|останов|подожд|хватит|тихо всё/.test(t)) { a.pause(); say('пауза'); }
-  else if (/след[а-я]* глав|дальше глав|глав[а-я]* дальше/.test(t)) { bkStep(1); say('следующая глава'); }
-  else if (/пред[а-я]* глав|прошл[а-я]* глав|назад глав|глав[а-я]* назад/.test(t)) { bkStep(-1); say('предыдущая глава'); }
-  else if (/назад|отмот|верни/.test(t)) { const d = voiceSecs(t, 15); a.currentTime = Math.max(0, a.currentTime - d); say('назад ' + mmss(d)); bkTick(true); }
-  else if (/вперед|перемот|пропусти/.test(t)) { const d = voiceSecs(t, 30); a.currentTime = Math.min(a.duration || 1e9, a.currentTime + d); say('вперёд ' + mmss(d)); bkTick(true); }
-  else if (/быстрее|медленнее|скорост/.test(t)) {
-    const cur = Number(LS.get('bj-bk-speed')) || 1, m = t.match(/(\d+(?:[.,]\d+)?)/);
-    let v = m ? parseFloat(m[1].replace(',', '.')) : SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, SPEEDS.indexOf(cur) + (/медлен/.test(t) ? -1 : 1)))];
-    v = SPEEDS.reduce((x, y) => Math.abs(y - v) < Math.abs(x - v) ? y : x, 1);
-    LS.set('bj-bk-speed', v); a.playbackRate = v; say('скорость ' + String(v).replace('.', ',') + '×');
-  }
-  else if (/громче/.test(t)) { a.volume = Math.min(1, Math.round((a.volume + 0.2) * 10) / 10); say('громкость ' + Math.round(a.volume * 100) + '%'); }
-  else if (/тише/.test(t)) { a.volume = Math.max(0.1, Math.round((a.volume - 0.2) * 10) / 10); say('громкость ' + Math.round(a.volume * 100) + '%'); }
-  else if (/игра|продолж|включ|дальше|плей|слушать|поехали|воспроизв/.test(t)) { a.play().catch(() => {}); say('играю'); }
-  else { say('не понял: «' + t.slice(0, 40) + '»'); return true; }
-  renderMini(); renderPlayer();
-  return true;
-}
-function voiceStart() {
-  const R = window.SpeechRecognition || window.webkitSpeechRecognition; if (!R) return;
-  const r = new R(); BKV.rec = r;
-  r.lang = 'ru-RU'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 3;
-  r.onresult = ev => {
-    for (let i = ev.resultIndex; i < ev.results.length; i++) {
-      if (!ev.results[i].isFinal) continue;
-      const alts = Array.from(ev.results[i]).map(x => x.transcript);
-      alts.some(voiceCmd);
-    }
-  };
-  r.onerror = ev => {
-    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { BKV.on = false; toast('Голос: Нет доступа к микрофону — разреши его для сайта в браузере'); renderMini(); renderPlayer(); }
-    else if (ev.error === 'network') toast('Голос: Распознаванию речи нужен интернет');
-  };
-  r.onend = () => { if (BKV.on && BKV.rec === r) setTimeout(() => { if (BKV.on && BKV.rec === r) { try { r.start(); } catch (_) {} } }, 400); };
-  try { r.start(); } catch (_) {}
-}
-function voiceToggle() {
-  if (!BKV.ok) { toast('Этот браузер не умеет распознавать речь — открой журнал в Chrome или Edge'); return; }
-  BKV.on = !BKV.on;
-  if (BKV.on) { voiceStart(); toast('Голос: Слушаю. Скажи: «Журнал, пауза»'); }
-  else { const r = BKV.rec; BKV.rec = null; try { r && r.stop(); } catch (_) {} toast('Голос: Голос выключен'); }
-  renderMini(); renderPlayer();
 }
 (function audioWire() {
   const a = AU(); if (!a) return;
