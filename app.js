@@ -5084,6 +5084,7 @@ function openSettings() {
     ${c ? `<p class="sh-meta">Данные: <span class="mono">${esc(c.owner)}/${esc(c.repo)}</span></p><p class="note">${esc(syncLabel() || 'ещё не загружено')}</p>` : '<p class="sh-meta">Не подключено.</p>'}
     <div class="sh-acts">
       <button type="button" class="btn block" data-action="refresh">Обновить данные</button>
+      ${LS.get('bj-pult') ? '<button type="button" class="btn block" data-action="pult-set">Пульт ноутбука — сменить адрес</button>' : ''}
       <button type="button" class="btn block" data-action="demo-toggle">${demo() ? 'Демо-режим включён — выключить' : 'Демо-режим (скрыть долги и кредиты)'}</button>
       ${c ? '<button type="button" class="btn danger block" data-action="logout">Отключить это устройство</button>' : ''}
     </div>
@@ -5644,6 +5645,13 @@ document.addEventListener('click', async ev => {
     case 'en-next': if (S.cur && S.cur.type === 'en') { S.cur.i++; enShow(); } break;
     case 'ben-open': openBenefits(); break;
     case 'upd-open': await updLoad(); openUpd(); break;
+    case 'pult-open': { const u = LS.get('bj-pult'); if (u) { window.open(u, '_blank'); break; } pultSetup(); break; }
+    case 'pult-set': pultSetup(); break;
+    case 'pult-save': {
+      const v = (($('#pult-url') || {}).value || '').trim();
+      if (!/^http:\/\/[\w.-]+:\d+\/\?k=[\w-]+$/i.test(v)) { toast('Вставь адрес из окна setup.ps1 целиком: http://…:8787/?k=…'); break; }
+      LS.set('bj-pult', v); closeSheet(); toast('Пульт сохранён — открываю'); window.open(v, '_blank'); break;
+    }
     case 'news-ok': { const seen = new Set(LS.get('bj-news-seen') || []); (S.news || []).forEach(x => x && x.id && seen.add(x.id)); LS.set('bj-news-seen', Array.from(seen)); render(); break; }
     case 'news-all': openNews(); { const seen = new Set(LS.get('bj-news-seen') || []); (S.news || []).forEach(x => x && x.id && seen.add(x.id)); LS.set('bj-news-seen', Array.from(seen)); render(); } break;
     case 'news-open': openNews(); break;
@@ -6477,6 +6485,7 @@ function openMenu() {
     ['ready', 'bolt', 'Готовность', rd ? rd.score + ' · ' + rd.label.toLowerCase() : '', 'c-green'],
     ['q-edit', 'target', 'Цели квартала', '', 'c-orange'],
     ['upd-open', 'rocket', 'УПД', '', 'c-green'],
+    ['pult-open', 'play', 'Пульт ноутбука', LS.get('bj-pult') ? 'фильм с кровати' : 'настроить', 'c-indigo'],
     ['news-open', 'star', 'Что нового', 'новые фичи', 'c-blue'],
     ['ben-open', 'shield', 'Льготы', bs.done + ' из ' + bs.total + ' оформлено', 'c-teal'],
     ['weight', 'scale', 'Вес', (() => { const w = lastWeight(); return w ? String(w.kg).replace('.', ',') + ' кг' : ''; })(), 'c-pink'],
@@ -6487,6 +6496,20 @@ function openMenu() {
     ['settings', 'gear', 'GitHub', S.lastLoad ? 'обновлено ' + hhmm(new Date(S.lastLoad)) : 'подключение', 'c-gray']
   ];
   openSheet(`<h2 class="sh-title">Меню</h2><div id="cu-box">${usageHtml()}</div><div class="menu-grid">${items.map(([a, i, t, sub, c, extra]) => `<button type="button" class="mi ${c}" data-action="${a}" ${extra || ''}><span class="mi-ic">${ico(i)}</span><span class="mi-t">${esc(t)}</span>${sub ? `<span class="mi-s">${esc(sub)}</span>` : ''}</button>`).join('')}</div>`);
+}
+
+/* ---------- пульт ноутбука (03.11.2026) ----------
+   Сам пульт отдаёт скрипт на ноутбуке (D:\\projects\\noutpult\\remote.ps1) по домашнему Wi-Fi.
+   Встроить кнопки прямо в журнал нельзя: журнал открыт по https, а ноутбук отвечает по http — браузер такие запросы блокирует.
+   Поэтому журнал хранит адрес пульта (только на этом телефоне, в нём ключ) и открывает его одной кнопкой. */
+function pultSetup() {
+  const u = LS.get('bj-pult') || '';
+  openSheet(`<h2 class="sh-title">Пульт ноутбука</h2>
+    <p class="sh-meta">Пауза, громкость и перемотка фильма на ноутбуке с телефона — по домашнему Wi-Fi.</p>
+    <ol class="setup-steps"><li>На ноутбуке запусти <b>D:\\projects\\noutpult\\setup.ps1</b> (правой кнопкой → «Выполнить с помощью PowerShell»).</li><li>Скопируй жёлтый адрес из окна — вида <span class="mono">http://192.168.…:8787/?k=…</span> — и вставь сюда.</li></ol>
+    <input id="pult-url" class="mono" type="url" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="http://192.168.1.10:8787/?k=…" value="${esc(u)}">
+    <div class="sh-acts"><button type="button" class="btn block" data-action="pult-save">Сохранить и открыть</button></div>
+    <p class="note">Адрес хранится только на этом устройстве. Сменился адрес ноутбука — снова запусти setup.ps1 и вставь новый.</p>`);
 }
 
 /* ---------- аномалии в тратах ---------- */
