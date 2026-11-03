@@ -1559,6 +1559,58 @@ body::before{display:none}
 }
 /* крупные цифры — тоньше и плотнее */
 .m-hero b,.m-hero .h-v,.stat b,.stat .v{letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+
+/* ===== Жидкое стекло (03.11.2026, просьба Олега: «как в Glassy Sidebar»). Поверх Fusion.
+   За стеклом — мягкий световой фон (ледяной и стальной, немного тёплого снизу), карточки — прозрачные
+   панели с сильным размытием, светлой кромкой сверху и бликом; активная вкладка — стеклянная капсула. ===== */
+:root{
+  --lg-a:rgba(255,255,255,.62); --lg-b:rgba(255,255,255,.34); --lg-rim:rgba(255,255,255,.85); --lg-hi:rgba(255,255,255,.95);
+  --lg-drop:0 16px 36px -20px rgba(20,45,80,.35); --lg-blur:blur(26px) saturate(170%);
+  --lg-l1:rgba(120,185,255,.55); --lg-l2:rgba(150,215,235,.45); --lg-l3:rgba(255,190,140,.28); --lg-base:#DCEAF5;
+  --lg-pill:rgba(255,255,255,.72); --lg-pill-rim:rgba(255,255,255,1); --lg-pill-ink:#0A0A0A;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --lg-a:rgba(255,255,255,.10); --lg-b:rgba(255,255,255,.035); --lg-rim:rgba(255,255,255,.16); --lg-hi:rgba(255,255,255,.28);
+    --lg-drop:0 18px 40px -20px rgba(0,0,0,.85); --lg-blur:blur(28px) saturate(180%);
+    --lg-l1:rgba(80,145,235,.62); --lg-l2:rgba(110,200,225,.40); --lg-l3:rgba(215,135,75,.34); --lg-base:#0A0A0A;
+    --lg-pill:rgba(215,239,255,.20); --lg-pill-rim:rgba(215,239,255,.55); --lg-pill-ink:#F4FAFF;
+    --tile-bg:rgba(215,239,255,.26); --tile-ink:#F4FAFF; --tile-muted:rgba(234,244,251,.66); --tile-acc:#D7EFFF;
+  }
+}
+/* фон, который видно сквозь стекло */
+body{background:var(--lg-base)}
+body::before{display:block!important;content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;transform:none!important;animation:none!important;
+  background-image:
+    radial-gradient(75vw 38vh at 8% 14%, var(--lg-l1), transparent 72%),
+    radial-gradient(70vw 34vh at 100% 48%, var(--lg-l2), transparent 72%),
+    radial-gradient(85vw 34vh at 22% 92%, var(--lg-l3), transparent 74%),
+    radial-gradient(55vw 26vh at 70% 4%, var(--lg-l2), transparent 70%)!important}
+/* стеклянные панели */
+.row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.inbox,.cal-cell,.dish.card-like,.outcome,.callout,.q-card,.news-i.card,.fz,
+.tile,.pill-card,.sheet-panel,.btn:not(.primary):not(.study):not(.sport):not(.money):not(.danger),.chip-btn,.icon-btn,.wk-strip,.l-card,.pf-card,.en-card{
+  background-color:transparent!important;
+  background-image:linear-gradient(155deg,var(--lg-a),var(--lg-b))!important;
+  border-color:var(--lg-rim)!important;
+  box-shadow:inset 0 1px 0 var(--lg-hi),inset 1px 0 0 rgba(255,255,255,.06),var(--lg-drop)!important;
+  -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+.icon-btn{border:1px solid var(--lg-rim)}
+.sheet-panel{background-image:linear-gradient(170deg,color-mix(in srgb,var(--sheet-solid) 72%,transparent),color-mix(in srgb,var(--sheet-solid) 86%,transparent))!important}
+/* главные цифры — плитка из ледяного стекла (в светлой теме — тёмное стекло) */
+.m-hero,.l-hero{background-color:transparent!important;
+  background-image:linear-gradient(150deg,color-mix(in srgb,var(--tile-bg) 100%,transparent),color-mix(in srgb,var(--tile-bg) 45%,transparent))!important;
+  border:1px solid var(--lg-pill-rim)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),var(--lg-drop)!important;
+  -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+/* нижнее меню — стеклянная капсула, подсветка вкладки — стеклянная таблетка с кромкой */
+.tabs{background-color:color-mix(in srgb,var(--lg-base) 55%,transparent)!important;background-image:linear-gradient(155deg,var(--lg-a),var(--lg-b))!important;border:1px solid var(--lg-rim)!important;
+  box-shadow:inset 0 1px 0 var(--lg-hi),var(--lg-drop)!important;-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+.tabs-in::before{background:var(--lg-pill)!important;border:1px solid var(--lg-pill-rim);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 6px 16px -8px rgba(0,0,0,.5)}
+.tab-btn[aria-selected="true"]{color:var(--lg-pill-ink)}
+.claude-fab{box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 10px 26px -10px rgba(0,0,0,.6)!important}
+@media (prefers-reduced-transparency: reduce){
+  .row,.card,.stats,.tail,.meal,.tile,.pill-card,.sheet-panel,.tabs,.m-hero,.l-hero{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background-image:none!important;background-color:var(--sheet-solid)!important}
+}
 </style>
 </head>
 <body>
@@ -1738,6 +1790,6 @@ body::before{display:none}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261103f"></script>
+<script src="app.js?v=20261103g"></script>
 </body>
 </html>
