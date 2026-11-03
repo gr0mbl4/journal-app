@@ -794,6 +794,7 @@ async function loadAll(quiet) {
     S.loading = false; $('#btn-refresh').classList.remove('busy');
     if (!S.skipRender) render(); else { renderClaudeBtn(); renderDayChip(); }
     S.skipRender = false;
+    if (!chatPollT) chatPoll();
   }
 }
 // месяц считается свежим, только если в этой загрузке его уже скачали — иначе показывали бы старый кэш
@@ -7269,27 +7270,43 @@ function refreshFeed() {
 // пока чат открыт, тихо проверяем (раз в 20 с, пока качается видео, иначе раз в минуту, если есть сообщения без ответа)
 const isVideoLink = u => /^https?:\/\/([a-z0-9-]+\.)*(instagram\.com|instagr\.am|tiktok\.com|youtube\.com|youtu\.be|vk\.com|vkvideo\.ru|rutube\.ru|x\.com|twitter\.com|pinterest\.[a-z.]+|pin\.it)\//i.test(u || '');
 const linkPending = x => x.link && isVideoLink(x.link) && x.status !== 'seen' && !(x.media && x.media.length) && !x.fetchErr && Date.now() - (x.ts || 0) < 30 * 60000;
-let chatPollT = 0;
+let chatPollT = 0, chatPolling = false;
+// с 03.11 разбор запускается сразу после сообщения (ответ через 3–5 мин), поэтому проверяем чаще и не только в открытом чате:
+// пока есть сообщения без ответа — раз в 15 с первые 15 минут после последнего сообщения, потом раз в минуту.
+// Запрос условный (ETag): если файл не менялся, GitHub отвечает 304 — быстро и почти бесплатно.
 function chatPoll() {
   clearTimeout(chatPollT); chatPollT = 0;
-  if (!(S.cur && S.cur.type === 'req')) return;
-  const fast = S.ideas.some(x => linkPending(x) || voicePending(x));
-  if (!fast && !clItems().some(x => !x.answer && x.status !== 'done')) return;
-  chatPollT = setTimeout(async () => {
-    chatPollT = 0;
-    if (!(S.cur && S.cur.type === 'req') || document.hidden) return;
-    if (!S.pending && !queueCount()) {
-      try {
-        const [q, i] = await Promise.all([readDoc('requests.json'), readDoc('ideas.json')]);
-        let ch = false;
-        if (q && Array.isArray(q.requests) && JSON.stringify(q.requests) !== JSON.stringify(S.requests)) { S.requests = q.requests; ch = true; }
-        if (i && Array.isArray(i.ideas) && JSON.stringify(i.ideas) !== JSON.stringify(S.ideas)) { S.ideas = i.ideas; ch = true; }
-        if (ch) { cacheNow(); refreshFeed(); renderClaudeBtn(); }
-      } catch (_) {}
-    }
-    chatPoll();
-  }, fast ? 20000 : 60000);
+  if (!GH.cred || document.hidden || chatPolling) return;
+  const fastLink = (S.ideas || []).some(x => linkPending(x) || voicePending(x));
+  const waiting = clItems().filter(x => !x.answer && x.status !== 'done');
+  if (!fastLink && !waiting.length) return;
+  const lastTs = Math.max(0, ...waiting.map(x => x.ts || 0));
+  const fast = fastLink || Date.now() - lastTs < 15 * 60000;
+  chatPollT = setTimeout(chatPollNow, fast ? 15000 : 60000);
 }
+async function chatPollNow() {
+  clearTimeout(chatPollT); chatPollT = 0;
+  if (chatPolling || document.hidden || !GH.cred) return;
+  chatPolling = true;
+  try {
+    if (!S.pending && !queueCount() && !S.loading) {
+      const before = unseenAnswers();
+      const [q, i] = await Promise.all([readDoc('requests.json'), readDoc('ideas.json')]);
+      let ch = false;
+      if (q && Array.isArray(q.requests) && JSON.stringify(q.requests) !== JSON.stringify(S.requests)) { S.requests = q.requests; ch = true; }
+      if (i && Array.isArray(i.ideas) && JSON.stringify(i.ideas) !== JSON.stringify(S.ideas)) { S.ideas = i.ideas; ch = true; }
+      if (ch) {
+        cacheNow(); renderClaudeBtn();
+        if (S.cur && S.cur.type === 'req') refreshFeed();
+        else if (unseenAnswers() > before) toast('Claude ответил — открой чат');
+      }
+    }
+  } catch (_) {}
+  chatPolling = false;
+  chatPoll();
+}
+// вернулся в журнал — сразу проверить ответы, не дожидаясь полной загрузки
+document.addEventListener('visibilitychange', () => { if (!document.hidden && GH.cred && S.ready) chatPollNow(); });
 const linkPoll = chatPoll;
 
 /* ---------- книги: аудио по главам, плеер с памятью позиции ----------
