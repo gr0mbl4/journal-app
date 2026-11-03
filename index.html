@@ -1566,14 +1566,14 @@ body::before{display:none}
 :root{
   --lg-a:rgba(255,255,255,.62); --lg-b:rgba(255,255,255,.34); --lg-rim:rgba(255,255,255,.85); --lg-hi:rgba(255,255,255,.95);
   --lg-drop:0 16px 36px -20px rgba(20,45,80,.35); --lg-blur:blur(26px) saturate(170%);
-  --lg-l1:rgba(150,205,250,.85); --lg-l2:rgba(185,225,250,.75); --lg-l3:rgba(230,30,50,.12); --lg-base:#DCEAF5;
+  --lg-l1:rgba(150,205,250,.98); --lg-l2:rgba(185,225,250,.92); --lg-l3:rgba(230,30,50,.12); --lg-base:#DCEAF5;
   --lg-pill:rgba(255,255,255,.72); --lg-pill-rim:rgba(255,255,255,1); --lg-pill-ink:#0A0A0A;
 }
 @media (prefers-color-scheme: dark){
   :root{
     --lg-a:rgba(255,255,255,.10); --lg-b:rgba(255,255,255,.035); --lg-rim:rgba(255,255,255,.16); --lg-hi:rgba(255,255,255,.28);
     --lg-drop:0 18px 40px -20px rgba(0,0,0,.85); --lg-blur:blur(28px) saturate(180%);
-    --lg-l1:rgba(215,239,255,.52); --lg-l2:rgba(215,239,255,.34); --lg-l3:rgba(230,30,50,.28); --lg-base:#0A0A0A;
+    --lg-l1:rgba(215,239,255,.72); --lg-l2:rgba(215,239,255,.54); --lg-l3:rgba(230,30,50,.28); --lg-base:#0A0A0A;
     --lg-pill:rgba(215,239,255,.20); --lg-pill-rim:rgba(215,239,255,.55); --lg-pill-ink:#F4FAFF;
     --tile-bg:rgba(215,239,255,.26); --tile-ink:#F4FAFF; --tile-muted:rgba(234,244,251,.66); --tile-acc:#D7EFFF;
   }
@@ -1602,7 +1602,9 @@ input:not([type=checkbox]):not([type=range]),select,textarea,.td-i,.seg{box-shad
 .td-i.k-upd{--gt:#22C26B} .td-i.k-sport{--gt:var(--sport)} .td-i.k-study{--gt:var(--study)} .td-i.k-boss{--gt:#D7EFFF}
 .callout,.anom,.callout.warn{--gt:#D7EFFF} .pill-card.rev{--gt:#E61E32}
 .goal.debt,.acc-chip.debt:not(.zero){--gt:#E61E32} .goal.save,.acc-chip.savings,.day-chip{--gt:var(--money)}
-.ms.c-sleep{--gt:var(--teal)} .ms.c-streak{--gt:var(--study)}
+.ms.c-sleep{--gt:var(--teal)} .ms.c-streak{--gt:#D7EFFF}
+.wk-c.today,.wk-c.today *{color:#F4FAFF!important}
+.wk-c.today{--gt:#D7EFFF;background-image:linear-gradient(155deg,rgba(215,239,255,.42),rgba(215,239,255,.14))!important;box-shadow:inset 0 0 0 1.5px rgba(215,239,255,.9),inset 0 1px 0 rgba(255,255,255,.7)!important}
 .icon-btn{border:1px solid var(--lg-rim)}
 .sheet-panel{background-image:linear-gradient(170deg,color-mix(in srgb,var(--sheet-solid) 72%,transparent),color-mix(in srgb,var(--sheet-solid) 86%,transparent))!important}
 /* выбранное (вкладки-сегменты, нажатые фишки) — плотный Fusion поверх стекла */
@@ -1611,10 +1613,11 @@ input:not([type=checkbox]):not([type=range]),select,textarea,.td-i,.seg{box-shad
   color:var(--pill-ink)!important;border-color:var(--lg-pill-rim)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 6px 16px -8px rgba(0,0,0,.5)!important}
 /* УПД — зеркальное зелёное стекло: яркий блик по диагонали и светлая кромка */
 .td-i.k-upd{background-image:
-    linear-gradient(118deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.10) 26%,rgba(255,255,255,0) 42%,rgba(255,255,255,0) 70%,rgba(255,255,255,.12) 100%),
-    linear-gradient(155deg,color-mix(in srgb,#22C26B 42%,var(--lg-a)),color-mix(in srgb,#22C26B 18%,var(--lg-b)))!important;
-  border-color:rgba(190,255,215,.75)!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.75),inset 0 -1px 0 rgba(34,194,107,.35),0 10px 26px -14px rgba(34,194,107,.45)!important}
+    linear-gradient(118deg,rgba(255,255,255,.62) 0%,rgba(255,255,255,.22) 18%,rgba(255,255,255,0) 34%,rgba(255,255,255,0) 58%,rgba(255,255,255,.18) 74%,rgba(255,255,255,.04) 86%,rgba(255,255,255,.26) 100%),
+    linear-gradient(180deg,rgba(255,255,255,.20) 0%,rgba(255,255,255,0) 48%,rgba(0,0,0,.10) 100%),
+    linear-gradient(155deg,color-mix(in srgb,#22C26B 52%,var(--lg-a)),color-mix(in srgb,#22C26B 24%,var(--lg-b)))!important;
+  border-color:rgba(215,255,230,.95)!important;
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(34,194,107,.5),inset 1px 0 0 rgba(255,255,255,.35),0 12px 30px -14px rgba(34,194,107,.6)!important}
 @media (prefers-color-scheme: dark){ .td-i.k-upd,.td-i.k-upd .td-t{color:#F2FFF7!important} .td-i.k-upd .td-s,.td-i.k-upd .td-n,.td-i.k-upd .td-d,.td-i.k-upd small{color:rgba(242,255,247,.82)!important} .td-i.k-upd .td-c{border-color:rgba(242,255,247,.85)!important} }
 /* бывшие горчичные плашки — Fusion: значок ледяной, кромка ледяная */
 .an-ic,.callout .an-ic{background-color:#D7EFFF!important;color:#0A0A0A!important}
@@ -1812,6 +1815,6 @@ input:not([type=checkbox]):not([type=range]),select,textarea,.td-i,.seg{box-shad
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261103i"></script>
+<script src="app.js?v=20261103j"></script>
 </body>
 </html>
