@@ -10,8 +10,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Журнал">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#ECEEF1" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#E4F1FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1479,6 +1479,86 @@ body::before{display:none}
 .m-hero,.l-hero{border-radius:16px}
 .ach .ai{display:block;width:24px;height:24px;color:var(--faint)} .ach.ok .ai{color:var(--amber)} .ach .ai svg{width:24px;height:24px}
 .streak{display:inline-flex;align-items:center;gap:4px} .streak svg{width:15px;height:15px}
+
+/* ===== Fusion (03.11.2026, выбор Олега): Blacktop #0A0A0A + Fusion #D7EFFF.
+   Тёмная тема — почти чёрный фон, карточки Royal Black, всё активное — ледяной Fusion.
+   Светлая — инверсия: ледяной фон, белые карточки, активное — чёрное. Главные цифры — плитки в духе Domus.
+   Нижнее меню — скользящая подсветка (анимация №1). Без фиолетового, свечения и цветных пятен. Перекрывает слои выше. ===== */
+:root{
+  --fx:#D7EFFF; --fx-ink:#0A0A0A;
+  --bg:#E4F1FB; --accent-base:#0A0A0A;
+  --glass:rgba(255,255,255,.74); --glass-2:rgba(255,255,255,.88); --glass-3:rgba(255,255,255,.6);
+  --glass-line:rgba(10,10,10,.07); --line:rgba(10,10,10,.09); --glass-edge:rgba(10,10,10,.06);
+  --hl:none; --lift:none; --card-shadow:0 1px 0 rgba(10,10,10,.03);
+  --shadow:0 10px 30px rgba(10,30,50,.18);
+  --sheet-bg:rgba(240,248,254,.96); --sheet-top:#F0F8FE; --sheet-solid:#F0F8FE;
+  --ink:#0A0A0A; --muted:#4E5D69; --faint:#8494A0; --on-ink:#D7EFFF;
+  --sport:#2563C9; --sport-soft:rgba(37,99,201,.10);
+  --study:#B4610E; --study-soft:rgba(180,97,14,.10);
+  --money:#13804F; --money-soft:rgba(19,128,79,.10); --good:#13804F;
+  --event:#4E5D69; --event-soft:rgba(78,93,105,.10);
+  --amber:#9A6700; --red:#C8323C; --teal:#0F7C8C; --claude:#0A0A0A;
+  --surface:var(--glass-2); --surface-2:rgba(10,10,10,.05);
+  --tile-bg:#0A0A0A; --tile-ink:#EAF4FB; --tile-muted:rgba(215,239,255,.62); --tile-acc:#D7EFFF;
+  --pill-bg:#0A0A0A; --pill-ink:#D7EFFF;
+  --r:16px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0A0A0A; --accent-base:#D7EFFF;
+    --glass:#131415; --glass-2:#17191A; --glass-3:#101112;
+    --glass-line:rgba(215,239,255,.07); --line:rgba(215,239,255,.09); --glass-edge:rgba(0,0,0,.5);
+    --hl:none; --lift:none; --card-shadow:none;
+    --shadow:0 12px 30px rgba(0,0,0,.6);
+    --sheet-bg:rgba(18,19,20,.97); --sheet-top:#121314; --sheet-solid:#121314;
+    --ink:#EAF4FB; --muted:#93A3AF; --faint:#5F6C76; --on-ink:#0A0A0A;
+    --sport:#8DB8FF; --sport-soft:rgba(141,184,255,.12);
+    --study:#F2BC7A; --study-soft:rgba(242,188,122,.12);
+    --money:#82DDB2; --money-soft:rgba(130,221,178,.12); --good:#82DDB2;
+    --event:#93A3AF; --event-soft:rgba(147,163,175,.12);
+    --amber:#E8C26A; --red:#FF8A8A; --teal:#8FE3E6; --claude:#D7EFFF;
+    --surface:var(--glass-2); --surface-2:rgba(215,239,255,.06);
+    --tile-bg:#D7EFFF; --tile-ink:#0A0A0A; --tile-muted:rgba(10,10,10,.6); --tile-acc:#0A0A0A;
+    --pill-bg:#D7EFFF; --pill-ink:#0A0A0A;
+  }
+}
+body,body[data-tab]{--accent:var(--pill-bg);background:var(--bg)}
+body::before{display:none}
+.row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.inbox,.cal-cell,.dish.card-like,.outcome,.callout,.q-card,.news-i.card,.fz{-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
+/* главные цифры — плитка: в тёмной теме ледяная, в светлой чёрная */
+.m-hero,.l-hero{background-color:var(--tile-bg)!important;color:var(--tile-ink);border-color:transparent;border-radius:22px}
+.m-hero *,.l-hero *{color:inherit}
+.m-hero .h-k,.m-hero small,.m-hero .h-s,.l-hero small,.l-hero .note{color:var(--tile-muted)!important}
+.m-hero .bar,.l-hero .bar{background-color:color-mix(in srgb,var(--tile-ink) 14%,transparent)}
+.m-hero .bar i,.l-hero .bar i{background-color:var(--tile-ink)!important}
+/* активное — Fusion */
+.btn.primary{background-color:var(--pill-bg);color:var(--pill-ink)}
+.msg,.cl-b.me,.send,.cl-send{background-color:var(--pill-bg);color:var(--pill-ink)}
+.cl-b.me *{color:inherit}
+.claude-fab{background-color:var(--pill-bg);color:var(--pill-ink)}
+.claude-fab svg{fill:currentColor;color:var(--pill-ink)}
+.upp-bar i,.bar i,.cur-prog i,.cu-bar i{background-color:var(--ink)}
+.chip-btn[aria-pressed="true"],.seg button[aria-selected="true"],.seg button.on{background-color:var(--pill-bg);color:var(--pill-ink)}
+/* нижнее меню: скользящая подсветка */
+.tabs{background-color:color-mix(in srgb,var(--glass-2) 88%,transparent);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);border:1px solid var(--glass-line);box-shadow:var(--shadow)}
+.tabs-in{position:relative;--ti:0}
+.tabs-in::before{content:"";position:absolute;top:0;bottom:0;left:calc(var(--ti) * 20%);width:20%;border-radius:24px;background:var(--pill-bg);transition:left .38s cubic-bezier(.32,1.25,.5,1);pointer-events:none}
+.tabs-in:has(.tab-btn:nth-child(2)[aria-selected="true"]){--ti:1}
+.tabs-in:has(.tab-btn:nth-child(3)[aria-selected="true"]){--ti:2}
+.tabs-in:has(.tab-btn:nth-child(4)[aria-selected="true"]){--ti:3}
+.tabs-in:has(.tab-btn:nth-child(5)[aria-selected="true"]){--ti:4}
+.tabs-in:not(:has(.tab-btn[aria-selected="true"]))::before{opacity:0}
+.tab-btn{position:relative;z-index:1;transition:color .25s}
+.tab-btn[aria-selected="true"]{color:var(--pill-ink);font-weight:600}
+.tab-btn[aria-selected="true"] .ic{background:none}
+@media (prefers-reduced-motion: reduce){.tabs-in::before,.tab-btn{transition:none}}
+@media (prefers-color-scheme: dark){
+  /* на пастельных значках — тёмные иконки и текст, белые там почти не видны */
+  .en-ic,.en-go,.mi-ic,.tile .ti,.big-ic,.an-ic,.ib.ok,.pf-lvl,.lv-badge,.btn.study,.btn.sport,.btn.money,.cf-dot{color:#0A0A0A}
+  .cf-dot svg{fill:currentColor}
+}
+/* крупные цифры — тоньше и плотнее */
+.m-hero b,.m-hero .h-v,.stat b,.stat .v{letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -1658,6 +1738,6 @@ body::before{display:none}
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261103e"></script>
+<script src="app.js?v=20261103f"></script>
 </body>
 </html>
