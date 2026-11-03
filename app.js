@@ -7468,7 +7468,7 @@ function renderMini() {
   if (!p || !b) { el.hidden = true; document.body.classList.remove('has-mini'); return; }
   const a = AU(), c = b.chapters[p.k] || {};
   el.hidden = false; document.body.classList.add('has-mini');
-  el.innerHTML = `<button type="button" class="mini-pp" data-action="bk-toggle" aria-label="${a && !a.paused ? 'Пауза' : 'Играть'}">${p.loading ? '<span class="spin" aria-hidden="true"></span>' : a && !a.paused ? '❚❚' : ico('play')}</button><button type="button" class="mini-t" data-action="bk-player"><b>${esc(c.title || 'Глава ' + (p.k + 1))}</b><small>${esc(b.title)}</small></button>${BKV.ok ? `<button type="button" class="mini-mic${BKV.on ? ' on' : ''}" data-action="bk-voice" aria-pressed="${BKV.on}" aria-label="Голосовое управление" title="Голос: «Журнал, пауза»">🎤</button>` : ''}<button type="button" class="mini-x" data-action="bk-stop" aria-label="Закрыть плеер">×</button>`;
+  el.innerHTML = `<button type="button" class="mini-pp" data-action="bk-toggle" aria-label="${a && !a.paused ? 'Пауза' : 'Играть'}">${p.loading ? '<span class="spin" aria-hidden="true"></span>' : a && !a.paused ? '❚❚' : ico('play')}</button><button type="button" class="mini-t" data-action="bk-player"><b>${esc(c.title || 'Глава ' + (p.k + 1))}</b><small>${esc(b.title)}</small></button>${BKV.ok ? `<button type="button" class="mini-mic${BKV.on ? ' on' : ''}" data-action="bk-voice" aria-pressed="${BKV.on}" aria-label="Голосовое управление" title="Голос: «Журнал, пауза»">${ico('mic')}</button>` : ''}<button type="button" class="mini-x" data-action="bk-stop" aria-label="Закрыть плеер">×</button>`;
 }
 const SPEEDS = [1, 1.25, 1.5, 1.75, 2];
 function playerHtml() {
@@ -7479,7 +7479,7 @@ function playerHtml() {
     <div class="bk-times"><span id="bk-t">${mmss(t)}</span><span id="bk-left">−${mmss(Math.max(0, dur - t))}</span></div>
     <div class="bk-ctl"><button type="button" class="bk-b" data-action="bk-prev" aria-label="Предыдущая глава"${p.k ? '' : ' disabled'}>⏮</button><button type="button" class="bk-b" data-action="bk-back" aria-label="Назад 15 секунд">−15</button><button type="button" class="bk-b main" data-action="bk-toggle" aria-label="Играть или пауза">${p.loading ? '<span class="spin" aria-hidden="true"></span>' : a && !a.paused ? '❚❚' : ico('play')}</button><button type="button" class="bk-b" data-action="bk-fwd" aria-label="Вперёд 30 секунд">+30</button><button type="button" class="bk-b" data-action="bk-next" aria-label="Следующая глава"${p.k + 1 < b.chapters.length ? '' : ' disabled'}>⏭</button></div>
     <div class="chips bk-speed">${SPEEDS.map(v => `<button type="button" class="chip-btn" data-action="bk-speed" data-v="${v}" aria-pressed="${v === sp}">${String(v).replace('.', ',')}×</button>`).join('')}</div>
-    ${BKV.ok ? `<div class="bk-voice"><button type="button" class="chip-btn" data-action="bk-voice" aria-pressed="${BKV.on}">🎤 Голос: ${BKV.on ? 'слушаю' : 'выкл'}</button><small>Скажи «Журнал, пауза» · «продолжи» · «назад 30» · «вперёд 2 минуты» · «следующая глава» · «прошлая глава» · «быстрее» · «медленнее» · «громче» · «тише»</small></div>` : ''}
+    ${BKV.ok ? `<div class="bk-voice"><button type="button" class="chip-btn" data-action="bk-voice" aria-pressed="${BKV.on}">${ico('mic')} Голос: ${BKV.on ? 'слушаю' : 'выкл'}</button><small>Скажи «Журнал, пауза» · «продолжи» · «назад 30» · «вперёд 2 минуты» · «следующая глава» · «прошлая глава» · «быстрее» · «медленнее» · «громче» · «тише»</small></div>` : ''}
     <button type="button" class="link-btn" data-action="bk-open" data-id="${esc(b.id)}">Все главы</button>`;
 }
 function openPlayer() { S.cur = { type: 'player' }; openSheet(playerHtml()); }
@@ -7512,8 +7512,8 @@ function voiceCmd(raw) {
   const t0 = raw.toLowerCase().replace(/ё/g, 'е');
   const w = t0.search(/журнал/); if (w < 0) return false;
   const t = t0.slice(w).replace(/^журнал\S*[\s,.!]*/, '').trim(); if (!t) return false;
-  const a = AU(); if (!a || !S.play) { toast('🎤 Сначала включи книгу'); return true; }
-  const say = m => toast('🎤 ' + m);
+  const a = AU(); if (!a || !S.play) { toast('Голос: Сначала включи книгу'); return true; }
+  const say = m => toast('Голос: ' + m);
   if (/пауз|стоп|останов|подожд|хватит|тихо всё/.test(t)) { a.pause(); say('пауза'); }
   else if (/след[а-я]* глав|дальше глав|глав[а-я]* дальше/.test(t)) { bkStep(1); say('следующая глава'); }
   else if (/пред[а-я]* глав|прошл[а-я]* глав|назад глав|глав[а-я]* назад/.test(t)) { bkStep(-1); say('предыдущая глава'); }
@@ -7544,8 +7544,8 @@ function voiceStart() {
     }
   };
   r.onerror = ev => {
-    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { BKV.on = false; toast('🎤 Нет доступа к микрофону — разреши его для сайта в браузере'); renderMini(); renderPlayer(); }
-    else if (ev.error === 'network') toast('🎤 Распознаванию речи нужен интернет');
+    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { BKV.on = false; toast('Голос: Нет доступа к микрофону — разреши его для сайта в браузере'); renderMini(); renderPlayer(); }
+    else if (ev.error === 'network') toast('Голос: Распознаванию речи нужен интернет');
   };
   r.onend = () => { if (BKV.on && BKV.rec === r) setTimeout(() => { if (BKV.on && BKV.rec === r) { try { r.start(); } catch (_) {} } }, 400); };
   try { r.start(); } catch (_) {}
@@ -7553,8 +7553,8 @@ function voiceStart() {
 function voiceToggle() {
   if (!BKV.ok) { toast('Этот браузер не умеет распознавать речь — открой журнал в Chrome или Edge'); return; }
   BKV.on = !BKV.on;
-  if (BKV.on) { voiceStart(); toast('🎤 Слушаю. Скажи: «Журнал, пауза»'); }
-  else { const r = BKV.rec; BKV.rec = null; try { r && r.stop(); } catch (_) {} toast('🎤 Голос выключен'); }
+  if (BKV.on) { voiceStart(); toast('Голос: Слушаю. Скажи: «Журнал, пауза»'); }
+  else { const r = BKV.rec; BKV.rec = null; try { r && r.stop(); } catch (_) {} toast('Голос: Голос выключен'); }
   renderMini(); renderPlayer();
 }
 (function audioWire() {
