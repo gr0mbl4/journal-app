@@ -1566,14 +1566,14 @@ body::before{display:none}
 :root{
   --lg-a:rgba(255,255,255,.62); --lg-b:rgba(255,255,255,.34); --lg-rim:rgba(255,255,255,.85); --lg-hi:rgba(255,255,255,.95);
   --lg-drop:0 16px 36px -20px rgba(20,45,80,.35); --lg-blur:blur(26px) saturate(170%);
-  --lg-l1:rgba(120,185,255,.55); --lg-l2:rgba(150,215,235,.45); --lg-l3:rgba(255,190,140,.28); --lg-base:#DCEAF5;
+  --lg-l1:rgba(150,205,250,.75); --lg-l2:rgba(185,225,250,.65); --lg-l3:rgba(230,30,50,.20); --lg-base:#DCEAF5;
   --lg-pill:rgba(255,255,255,.72); --lg-pill-rim:rgba(255,255,255,1); --lg-pill-ink:#0A0A0A;
 }
 @media (prefers-color-scheme: dark){
   :root{
     --lg-a:rgba(255,255,255,.10); --lg-b:rgba(255,255,255,.035); --lg-rim:rgba(255,255,255,.16); --lg-hi:rgba(255,255,255,.28);
     --lg-drop:0 18px 40px -20px rgba(0,0,0,.85); --lg-blur:blur(28px) saturate(180%);
-    --lg-l1:rgba(80,145,235,.62); --lg-l2:rgba(110,200,225,.40); --lg-l3:rgba(215,135,75,.34); --lg-base:#0A0A0A;
+    --lg-l1:rgba(215,239,255,.40); --lg-l2:rgba(215,239,255,.24); --lg-l3:rgba(230,30,50,.42); --lg-base:#0A0A0A;
     --lg-pill:rgba(215,239,255,.20); --lg-pill-rim:rgba(215,239,255,.55); --lg-pill-ink:#F4FAFF;
     --tile-bg:rgba(215,239,255,.26); --tile-ink:#F4FAFF; --tile-muted:rgba(234,244,251,.66); --tile-acc:#D7EFFF;
   }
@@ -1586,16 +1586,29 @@ body::before{display:block!important;content:"";position:fixed;inset:0;z-index:-
     radial-gradient(70vw 34vh at 100% 48%, var(--lg-l2), transparent 72%),
     radial-gradient(85vw 34vh at 22% 92%, var(--lg-l3), transparent 74%),
     radial-gradient(55vw 26vh at 70% 4%, var(--lg-l2), transparent 70%)!important}
-/* стеклянные панели */
+/* стеклянные панели — всё: карточки, строки, плашки, поля, кнопки. --gt — оттенок стекла (по умолчанию без оттенка) */
 .row,.card,.stats,.tail,.meal,.acct,.cur-block,.sleep-card,.req-item,.kv,.inbox,.cal-cell,.dish.card-like,.outcome,.callout,.q-card,.news-i.card,.fz,
-.tile,.pill-card,.sheet-panel,.btn:not(.primary):not(.study):not(.sport):not(.money):not(.danger),.chip-btn,.icon-btn,.wk-strip,.l-card,.pf-card,.en-card{
+.tile,.pill-card,.anom,.sheet-panel,.btn:not(.primary):not(.study):not(.sport):not(.money):not(.danger),.chip-btn,.icon-btn,.wk-strip,.l-card,.pf-card,.en-card,
+.td-i,.td,.ms,.reg,.budget,.goal,details.pd,details.fold,.q-rings,figure.chart,.seg,.fq,.acc-chip,.day-chip,.blk,
+input:not([type=checkbox]):not([type=range]),select,textarea{
+  --gt:transparent;
   background-color:transparent!important;
-  background-image:linear-gradient(155deg,var(--lg-a),var(--lg-b))!important;
-  border-color:var(--lg-rim)!important;
+  background-image:linear-gradient(155deg,color-mix(in srgb,var(--gt) 30%,var(--lg-a)),color-mix(in srgb,var(--gt) 14%,var(--lg-b)))!important;
+  border-color:color-mix(in srgb,var(--gt) 55%,var(--lg-rim))!important;
   box-shadow:inset 0 1px 0 var(--lg-hi),inset 1px 0 0 rgba(255,255,255,.06),var(--lg-drop)!important;
   -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+input:not([type=checkbox]):not([type=range]),select,textarea,.td-i,.seg{box-shadow:inset 0 1px 0 var(--lg-hi)!important}
+/* цветное стекло: УПД — зелёное, спорт — синее, учёба — янтарное, начальник и предупреждения — жёлтое, долги — красное */
+.td-i.k-upd{--gt:#22C26B} .td-i.k-sport{--gt:var(--sport)} .td-i.k-study{--gt:var(--study)} .td-i.k-boss{--gt:#F2B53A}
+.callout,.anom,.callout.warn{--gt:#F2B53A} .pill-card.rev{--gt:#E61E32}
+.goal.debt,.acc-chip.debt:not(.zero){--gt:#E61E32} .goal.save,.acc-chip.savings,.day-chip{--gt:var(--money)}
+.ms.c-sleep{--gt:var(--teal)} .ms.c-streak{--gt:var(--study)}
 .icon-btn{border:1px solid var(--lg-rim)}
 .sheet-panel{background-image:linear-gradient(170deg,color-mix(in srgb,var(--sheet-solid) 72%,transparent),color-mix(in srgb,var(--sheet-solid) 86%,transparent))!important}
+/* выбранное (вкладки-сегменты, нажатые фишки) — плотный Fusion поверх стекла */
+.chip-btn[aria-pressed="true"],.btn[aria-pressed="true"],.seg button[aria-pressed="true"],.seg4 button[aria-pressed="true"],.seg button[aria-selected="true"]{
+  background-color:transparent!important;background-image:linear-gradient(155deg,var(--pill-bg),color-mix(in srgb,var(--pill-bg) 82%,transparent))!important;
+  color:var(--pill-ink)!important;border-color:var(--lg-pill-rim)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 6px 16px -8px rgba(0,0,0,.5)!important}
 /* главные цифры — плитка из ледяного стекла (в светлой теме — тёмное стекло) */
 .m-hero,.l-hero{background-color:transparent!important;
   background-image:linear-gradient(150deg,color-mix(in srgb,var(--tile-bg) 100%,transparent),color-mix(in srgb,var(--tile-bg) 45%,transparent))!important;
@@ -1790,6 +1803,6 @@ body::before{display:block!important;content:"";position:fixed;inset:0;z-index:-
 <div id="up-prog" class="up-prog" role="status" aria-live="polite" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=20261103g"></script>
+<script src="app.js?v=20261103h"></script>
 </body>
 </html>
