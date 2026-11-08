@@ -258,7 +258,7 @@ const KW = [
   ['Подарки', ['подар','цвет']],
   ['Продукты', ['продукт','хлеб','батон','молок','кефир','сыр','творог','йогурт','сметан','яйц','мясо','куриц','курин','филе','фарш','рыб','колбас','сосис','овощ','фрукт','яблок','банан','картош','картоф','помидор','огур','морков','круп','рис','греч','овсян','макарон','масло','сахар','соль','мука','вода','сок','чай','конфет','печен','шоколад','пиво','лаваш','магнит','пятероч','перекрест','ашан','лента','дикси','вкусвилл','самокат','pyaterochk','magnit','dixy','diksi','krasnoe','красное','lenta','vkusvill','perekrest','bristol','бристоль','chizhik','чижик','verny','верный','spar','samokat','biedronka','lidl','zabka','żabka','auchan','carrefour','kaufland']]
 ];
-function cats() { return S.config && Array.isArray(S.config.categories) && S.config.categories.length ? S.config.categories : CATS_DEFAULT; }
+function cats() { return S.config && Array.isArray((S.config || {}).categories) && (S.config || {}).categories.length ? (S.config || {}).categories : CATS_DEFAULT; }
 function otherCat() { const c = cats(); return c.includes('Другое') ? 'Другое' : c[c.length - 1]; }
 function curSym() { return (S.config && S.config.currency) || '₽'; }
 const kindOf = x => x.kind || 'spend';
@@ -1002,7 +1002,7 @@ function nextOrder() { return Math.max(0, ...S.lessons.map(ord)) + 1; }
 function lessonTitle(L) { return 'Урок ' + L.n + (L.title ? ' · ' + L.title : ''); }
 // Окна учёбы меняются, а прошлое — нет: study.slotHistory = [{until: "ГГГГ-ММ-ДД", slots}] — какие окна были по эту дату включительно.
 function slotsOn(d) {
-  const st = S.config.study || {}, h = Array.isArray(st.slotHistory) ? st.slotHistory.slice().sort((a, b) => a.until < b.until ? -1 : 1) : [];
+  const st = (S.config || {}).study || {}, h = Array.isArray(st.slotHistory) ? st.slotHistory.slice().sort((a, b) => a.until < b.until ? -1 : 1) : [];
   const old = h.find(x => d <= x.until);
   return old ? old.slots : st.slots;
 }
@@ -1011,15 +1011,15 @@ function slotsOn(d) {
 let spDaysCache = { moves: null, extra: null, cfg: null, set: null };
 function sportDaysSet() {
   const c = spDaysCache;
-  if (c.set && c.moves === S.sportMoves && c.extra === S.sportExtra && c.cfg === S.config.sport) return c.set;
+  if (c.set && c.moves === S.sportMoves && c.extra === S.sportExtra && c.cfg === (S.config || {}).sport) return c.set;
   const t = today();
   const set = new Set(buildSport(addDays(t, -150), addDays(t, HORIZON + 90)).filter(i => i.state !== 'skipped').map(i => i.eff));
-  spDaysCache = { moves: S.sportMoves, extra: S.sportExtra, cfg: S.config.sport, set };
+  spDaysCache = { moves: S.sportMoves, extra: S.sportExtra, cfg: (S.config || {}).sport, set };
   return set;
 }
 function studyCap(d, days) {
   days = days || S.studyDays;
-  const st = S.config.study || {};
+  const st = (S.config || {}).study || {};
   const cur = slotsOn(d) || {}, k = String(dow(d));
   let base = Number(cur[k] || 0);
   if (cur === st.slots && st.sportSlots && st.sportSlots[k] != null && sportDaysSet().has(d)) base = Number(st.sportSlots[k]) || 0;
@@ -1029,8 +1029,8 @@ function studyCap(d, days) {
   return { cap: base, base };
 }
 function slotLabel(d, c) {
-  if (c.extra || ((S.config.study || {}).sportSlots || {})[String(dow(d))] != null) return dur(c.cap);
-  const l = ((S.config.study || {}).labels || {})[String(dow(d))];
+  if (c.extra || (((S.config || {}).study || {}).sportSlots || {})[String(dow(d))] != null) return dur(c.cap);
+  const l = (((S.config || {}).study || {}).labels || {})[String(dow(d))];
   return l || dur(c.cap);
 }
 function excused(d) { return !!(dutyOn(d) || absenceOn(d) || ((S.studyDays || {})[d] || {}).auto === 'duty'); }
@@ -1045,7 +1045,7 @@ function studyUsedToday(cap) {
 }
 function buildStudy(days, endDate) {
   days = days || S.studyDays;
-  const st = S.config.study || {};
+  const st = (S.config || {}).study || {};
   const t = today();
   let d = st.start && st.start > t ? st.start : t;
   const pending = pendingSorted().map(l => ({ key: l.id, doc: l, n: l.n, title: l.title || '', need: l.need ? Number(l.need) : null, rem: (Number(l.need) || 0) - (Number(l.progress) || 0), parts: 0 }));
@@ -1075,7 +1075,7 @@ function buildStudy(days, endDate) {
   return { byDate, first, entries };
 }
 function studyTails(n) {
-  const t = today(), st = (S.config.study || {}).start || t;
+  const t = today(), st = ((S.config || {}).study || {}).start || t;
   const out = [];
   let d = addDays(t, -n); if (d < st) d = st;
   for (; d < t; d = addDays(d, 1)) { const c = studyCap(d); if (c.blocked || c.cap <= 0) continue; if (activity(d)) continue; out.push(d); }
@@ -1090,7 +1090,7 @@ function altKey(tp, w, cfg) {
   return tp.alt[((wi % n) + n) % n];
 }
 function buildSport(fromD, toD) {
-  const cfg = S.config.sport || {};
+  const cfg = (S.config || {}).sport || {};
   const t = today();
   const from = fromD || addDays(t, -35), to = toD || addDays(t, HORIZON + 8);
   const list = [];
@@ -1130,7 +1130,7 @@ function findInst(id) {
 }
 function itemsToBlocks(items) { return (items || []).map(t => ({ ex: [{ name: String(t), log: 'check' }] })); }
 function sessionFor(i) {
-  const ses = (S.config.sport || {}).sessions || {};
+  const ses = ((S.config || {}).sport || {}).sessions || {};
   const ov = i.ov || {};
   let key = i.key, title = ses[i.key] ? ses[i.key].title : i.key, blocks, replaced = null;
   if (Array.isArray(ov.custom) && ov.custom.length) {
@@ -1533,7 +1533,7 @@ function calcStats(sport) {
   const done = due.filter(i => i.state === 'done' || i.state === 'other').length;
   const les = S.lessons.filter(l => l.done && l.done >= from && l.done <= t).length;
   let skips = 0;
-  const st = (S.config.study || {}).start || t;
+  const st = ((S.config || {}).study || {}).start || t;
   for (let d = from > st ? from : st; d < t; d = addDays(d, 1)) {
     const c = studyCap(d);
     if (excused(d) && !activity(d)) continue;
@@ -1545,7 +1545,7 @@ function calcStats(sport) {
 }
 
 /* ---------- render ---------- */
-function isReady() { return S.ready && S.config && S.config.study && S.config.sport; }
+function isReady() { return S.ready && S.config && S.config.study && (S.config || {}).sport; }
 function bannerHtml() {
   if (!S.ready) return '<p class="loading"><span class="spin" aria-hidden="true"></span>Загружаю журнал…</p>';
   return '<div class="callout">Журнал ещё не настроен: в репозитории нет расписания (config.json). Попроси Claude заполнить его.</div>';
@@ -1836,7 +1836,7 @@ function studyLog() { return S.studyLog || []; }
 function lessonActual(n) { return studyLog().filter(x => String(x.n) === String(n)).reduce((a, x) => a + (Number(x.min) || 0), 0); }
 function studyMinutes(from, to) { return studyLog().filter(x => x.date >= from && x.date <= to).reduce((a, x) => a + (Number(x.min) || 0), 0); }
 function plannedMinutes(from, to) {
-  const t = today(), st = (S.config.study || {}).start || from; let m = 0;
+  const t = today(), st = ((S.config || {}).study || {}).start || from; let m = 0;
   for (let d = from > st ? from : st; d <= to && d <= t; d = addDays(d, 1)) { const c = studyCap(d); if (!c.blocked) m += c.cap; }
   return m;
 }
@@ -1951,7 +1951,7 @@ function dayPlanned(d, sport) { const c = S.config && S.config.study ? studyCap(
 function dayDone(d, sport) { return activity(d) || sport.some(i => i.eff === d && (i.state === 'done' || i.state === 'other')); }
 function streakInfo() {
   if (!isReady()) return null;
-  const t = today(), st = [(S.config.study || {}).start, (S.config.sport || {}).start].filter(Boolean).sort()[0] || t;
+  const t = today(), st = [((S.config || {}).study || {}).start, ((S.config || {}).sport || {}).start].filter(Boolean).sort()[0] || t;
   const sport = buildSport(addDays(t, -120) < st ? st : addDays(t, -120), t);
   let cur = 0, best = 0, run = 0, broken = false, todayDone = false;
   for (let d = st; d <= t; d = addDays(d, 1)) {
@@ -2598,8 +2598,8 @@ function pfStats() {
 }
 // недели подряд (последние завершённые), где все учебные окна были использованы
 function studyStreakWeeks() {
-  if (!S.config || !S.config.study) return 0;
-  const st = S.config.study.start; if (!st) return 0;
+  if (!S.config || !(S.config || {}).study) return 0;
+  const st = (S.config || {}).study.start; if (!st) return 0;
   let w = addDays(mondayOf(today()), -7), n = 0;
   while (w >= mondayOf(st)) {
     let win = 0, miss = 0;
@@ -2684,7 +2684,7 @@ function announceAchievements() {
 }
 async function loadNotesDays() {
   const src = notesRepoSep(); if (!src) { S.notesDays = null; return; }
-  const st = (S.config.study || {}).start || '2026-01-01';
+  const st = ((S.config || {}).study || {}).start || '2026-01-01';
   try {
     const r = await GH.req('GET', `/repos/${encodeURIComponent(src.owner)}/${encodeURIComponent(src.repo)}/commits?per_page=100&since=${encodeURIComponent(new Date(pd(st).setHours(0, 0, 0, 0)).toISOString())}`);
     if (!r.ok) return;
@@ -2718,7 +2718,7 @@ function monthsIn(from, to) { const out = []; for (let m = monthKey(from); m <= 
 function bedMin(s) { const v = toMin(s && s.bed); return v == null ? null : (v < 12 * 60 ? v + 1440 : v); }
 function periodSummary(from, to) {
   const t = today(), end = to < t ? to : addDays(t, -1);
-  const since = S.config && S.config.money && S.config.money.since || '0000';
+  const since = S.config && S.config.money && (S.config || {}).money.since || '0000';
   const R = { from, to, started: from <= t, over: to < t };
   // спорт
   const sp = buildSport(from, to).filter(i => i.eff >= from && i.eff <= to);
@@ -2730,10 +2730,10 @@ function periodSummary(from, to) {
   let logs = 0;
   for (const mk of monthsIn(from, to)) for (const lg of Object.values(((S.workouts[mk] || {}).logs) || {})) if (lg.date >= from && lg.date <= to) logs++;
   R.sport.logs = logs;
-  const spStart = (S.config.sport || {}).start, stStart = (S.config.study || {}).start;
+  const spStart = ((S.config || {}).sport || {}).start, stStart = ((S.config || {}).study || {}).start;
   R.sport.before = !!(spStart && to < spStart); R.sport.start = spStart;
   // учёба
-  const ss = (S.config.study || {}).start || from;
+  const ss = ((S.config || {}).study || {}).start || from;
   let win = 0, skips = 0; const sreasons = [];
   for (let d = from > ss ? from : ss; d <= end; d = addDays(d, 1)) {
     const c = studyCap(d);
@@ -2768,7 +2768,7 @@ function revStatsHtml(R) {
   h += `<div class="rev-c"><div class="k">Спорт</div><div class="v">${sp.due ? `${sp.done + sp.other} из ${sp.due}` : '—'}</div><div class="m">${[sp.other ? `другое: ${sp.other}` : '', sp.skipped ? `пропуск: ${sp.skipped}` : '', sp.open ? `не отмечено: ${sp.open}` : '', sp.moved ? `переносов: ${sp.moved}` : '', sp.extra ? `сверх плана: ${sp.extra}` : ''].filter(Boolean).join(' · ') || (sp.due ? 'всё по плану' : sp.before ? 'план в журнале с ' + dm(sp.start) : 'тренировок не было')}${R.weight ? `<br>вес ${String(R.weight.last).replace('.', ',')} кг${R.weight.pts.length > 1 ? ` (${R.weight.last - R.weight.first >= 0 ? '+' : '−'}${String(Math.abs(Math.round((R.weight.last - R.weight.first) * 10) / 10)).replace('.', ',')})` : ''}` : ''}</div></div>`;
   h += `<div class="rev-c"><div class="k">Учёба</div><div class="v">${st.lessons.length} ${plural(st.lessons.length, 'урок', 'урока', 'уроков')}</div><div class="m">${st.win ? `окон: ${st.win} · пропусков: ${st.skips}` : st.before ? 'план окон с ' + dm(st.start) : 'окон не было'}${st.parts ? ` · частей: ${st.parts}` : ''}${st.rss || st.vsz ? `<br><span class="mono">VSZ ${hmShort(st.vsz)} · RSS ${hmShort(st.rss)}</span>` : ''}</div></div>`;
   h += `<div class="rev-c"><div class="k">Сон</div><div class="v">${sl.avg ? hm(sl.avg) : '—'}</div><div class="m">${sl.n ? `${sl.n} ${plural(sl.n, 'ночь', 'ночи', 'ночей')} · ложился ~${hmm(sl.bed)}${sl.short ? ` · меньше 7 ч: ${sl.short}` : ''}` : 'сон не отмечен'}</div></div>`;
-  h += `<div class="rev-c"><div class="k">Деньги</div><div class="v">${m.tracked ? fmt(m.spend) + ' ' + cur : '—'}</div><div class="m">${m.tracked ? `потрачено · доход ${fmt(m.income)} · итог ${m.net >= 0 ? '+' : '−'}${fmt(Math.abs(m.net))}` : 'учёт с ' + dm(((S.config.money || {}).since) || R.from)}</div></div>`;
+  h += `<div class="rev-c"><div class="k">Деньги</div><div class="v">${m.tracked ? fmt(m.spend) + ' ' + cur : '—'}</div><div class="m">${m.tracked ? `потрачено · доход ${fmt(m.income)} · итог ${m.net >= 0 ? '+' : '−'}${fmt(Math.abs(m.net))}` : 'учёт с ' + dm((((S.config || {}).money || {}).since) || R.from)}</div></div>`;
   h += '</div>';
   const more = [];
   if (st.lessons.length) more.push(`<b>Пройдено:</b> ${st.lessons.map(l => `урок ${esc(l.n)}${l.title ? ' ' + esc(l.title) : ''}`).join(', ')}`);
@@ -3136,7 +3136,7 @@ function sportMark(d, list) {
 }
 function studyMark(d, plan) {
   if (activity(d)) return '<span class="mk study" title="Урок пройден">✓</span>';
-  const c = studyCap(d), st = (S.config.study || {}).start || '';
+  const c = studyCap(d), st = ((S.config || {}).study || {}).start || '';
   if (c.blocked && c.base > 0) return '<span class="mk study x" title="Учёба пропущена">✕</span>';
   if (d < today()) return c.cap > 0 && d >= st ? '<span class="mk study plan" title="Не отмечено">?</span>' : '';
   if ((plan.byDate[d] || []).some(e => !e.blocked)) return '<span class="mk study plan" title="Урок по плану"></span>';
@@ -3192,7 +3192,7 @@ function renderLessons() {
     ? rest.slice(0, 3).map(l => lessonRow(l, study)).join('')
       + (rest.length > 3 ? `<details class="fold" data-k="l-queue"${openAttr('l-queue')}><summary><span>Вся очередь</span><span class="sec-note">ещё ${rest.length - 3}</span></summary><div class="stack">${rest.slice(3).map(l => lessonRow(l, study)).join('')}</div></details>` : '')
     : '<p class="note">Дальше — уроки без темы.</p>';
-  const slots = (S.config.study || {}).slots || {}, spS = (S.config.study || {}).sportSlots || {};
+  const slots = ((S.config || {}).study || {}).slots || {}, spS = ((S.config || {}).study || {}).sportSlots || {};
   const sig = JSON.stringify([slots, spS]);
   if (sig !== S.slotsSig) {
     S.slotsSig = sig;
@@ -3675,6 +3675,20 @@ async function ideaSave(btn, area) {
    возврат к экрану, который уже есть в стеке, — снимает слои над ним. Известные экраны при возврате строятся заново
    (NAV_REOPEN), остальные — из снимка; снимок, сделанный до записи данных, устарел — такой слой пропускаем. */
 const NAV = { stack: [], key: '', cur: null, ver: 0, noPush: false, top: null };
+/* ---------- «Назад» телефона (Android, жест, браузер): шаг назад в шторке → закрыть шторку → на «План» → выход.
+   Без этого Android по «Назад» сразу закрывал журнал. Открытая шторка и вкладка кроме «Плана» держат по записи в history. */
+const HIST = { mute: 0, closing: false, tabPop: false };
+function histPush(kind) { try { history.pushState({ bj: kind }, ''); } catch (_) {} }
+window.addEventListener('popstate', () => {
+  if (HIST.mute) { HIST.mute--; return; }
+  const sh = document.getElementById('sheet');
+  if (sh && !sh.hidden) {
+    if (NAV.stack.length) { navBack(); if (!sh.hidden) histPush('sheet'); }
+    else { HIST.closing = true; try { closeSheet(); } finally { HIST.closing = false; } }
+    return;
+  }
+  if (S.tab && S.tab !== 'plan') { HIST.tabPop = true; try { setTab('plan'); } finally { HIST.tabPop = false; } }
+});
 const NAV_REOPEN = {
   ex: c => openExercise(c.exId),
   cx: c => openComplex(c.cxId),
@@ -3704,7 +3718,7 @@ function openSheet(html, keepScroll, mode) {
   const top = panel.scrollTop;
   const wasHidden = sh.hidden, key = sheetKey(html), restoring = NAV.noPush;
   NAV.noPush = false;
-  if (wasHidden) NAV.stack = [];
+  if (wasHidden) { NAV.stack = []; histPush('sheet'); }
   else if (key !== NAV.key) {
     const at = NAV.stack.findIndex(e => e.key === key);
     if (at >= 0) NAV.stack.length = at;
@@ -3753,6 +3767,8 @@ function navBack() {
   try { hydrateImages($('#sheet-body')); } catch (_) {}
 }
 function closeSheet() {
+  // закрыли не кнопкой «Назад» телефона — убрать и свою запись из истории, иначе «Назад» сработает вхолостую
+  if (!HIST.closing && !$('#sheet').hidden && history.state && history.state.bj === 'sheet') { HIST.mute++; try { history.back(); } catch (_) { HIST.mute--; } }
   sheetLeave();
   NAV.stack = []; NAV.key = ''; NAV.cur = null; NAV.noPush = false; NAV.top = null; navUi();
   S.cur = null; $('#sheet').hidden = true; document.body.classList.remove('locked');
@@ -3840,7 +3856,7 @@ function openStudy(d, key, part) {
 }
 function reasonVal(id) { const el = document.getElementById(id); return el ? (el.value || '').trim() : ''; }
 function openAddStudy(d) {
-  const t = today(), pend = pendingSorted().slice(0, 6), c = S.config.study ? studyCap(d) : { cap: 0 };
+  const t = today(), pend = pendingSorted().slice(0, 6), c = (S.config || {}).study ? studyCap(d) : { cap: 0 };
   S.cur = { type: 'add-study', d };
   let h = `<h2 class="sh-title">Учёба · ${esc(longDate(d))}</h2>`;
   if (d <= t) {
@@ -3854,7 +3870,7 @@ function openAddStudy(d) {
   openSheet(h);
 }
 function openAddSport(d) {
-  const ses = (S.config.sport || {}).sessions || {};
+  const ses = ((S.config || {}).sport || {}).sessions || {};
   S.cur = { type: 'add-sport', d };
   openSheet(`<h2 class="sh-title">Тренировка · ${esc(longDate(d))}</h2>
     
@@ -3920,7 +3936,7 @@ function openDay(d) {
   if (restDay(d) && !rows.some(r => /data-action="(study|sport)"/.test(r))) rows.unshift(`<div class="row slim rest-day"><span class="tag rest">Отдых</span><span class="rb"><span class="t">Чистый день</span><span class="m">без учёбы и спорта — обнулиться</span></span></div>`);
   S.sportList = Array.from(new Map(S.sportList.concat(sport).map(i => [i.id, i])).values());
   let studyBox = '';
-  if (S.config.study) {
+  if ((S.config || {}).study) {
     const c = studyCap(d), blk = S.studyDays[d] || {};
     if (c.blocked) studyBox = `<div class="callout">Учёба в этот день снята${blk.reason ? ': ' + esc(blk.reason) : ''}.</div><div class="sh-acts">${d <= t ? `<button type="button" class="btn study block" data-action="add-study" data-date="${d}">Урок всё-таки был</button>` : ''}<button type="button" class="btn block" data-action="unblock" data-date="${d}">Вернуть окно (${dur(c.base)})</button></div>`;
     else if (d >= t && c.extra) studyBox = `<div class="sh-acts"><button type="button" class="btn block" data-action="day-unextra" data-date="${d}">Убрать доп. окно для учёбы</button></div>`;
@@ -3997,7 +4013,7 @@ async function openSport(id, keepScroll) {
   const auto = i.state ? null : planMove(i);
   S.cur = { type: 'sport', id, auto, ses, rows: {}, times: {} };
   const t = today();
-  const sessions = (S.config.sport || {}).sessions || {};
+  const sessions = ((S.config || {}).sport || {}).sessions || {};
   let status = '';
   const why = i.ov && i.ov.reason ? `<br><span class="m">Причина: ${esc(i.ov.reason)}</span>` : '';
   if (i.state === 'done') status = '<div class="callout ok">Отмечено: сделано.</div>';
@@ -4538,7 +4554,7 @@ async function portionSave(patch) {
 }
 // цели на день
 function openFoodTargets() {
-  const t = foodTargets() || {}, lw = lastWeight(), w = lw || (((S.config || {}).food || {}).kg ? { kg: S.config.food.kg } : null);
+  const t = foodTargets() || {}, lw = lastWeight(), w = lw || (((S.config || {}).food || {}).kg ? { kg: (S.config || {}).food.kg } : null);
   S.cur = { type: 'ftg', goal: (((S.config || {}).food || {}).goal) || 'keep' };
   openSheet(`<h2 class="sh-title">Цели по еде на день</h2>
     <div class="ftg-grid">${[['kcal', 'Ккал'], ['protein', 'Белки, г'], ['fat', 'Жиры, г'], ['carbs', 'Углеводы, г']].map(([k, l]) => `<label class="fld" for="ftg-${k}">${l}</label><input id="ftg-${k}" type="number" inputmode="numeric" min="0" max="9000" value="${t[k] || ''}">`).join('')}</div>
@@ -5196,7 +5212,7 @@ function exChartHtml(name, o) {
   return lineChart(o.pts.map(p => ({ label: dm(p.d), v: o.kg ? p.w : p.r })), { title: cap + (delta ? ` · ${delta > 0 ? '+' : '−'}${n(Math.abs(Math.round(delta * 10) / 10))} с ${dm(first.d)}` : ''), fmt: v => n(v), cls: 'sport' });
 }
 function sportProgressHtml(flat) {
-  const st = (S.config.sport || {}).start, weeks = lastWeeks(8, st); if (!weeks.length) return '';
+  const st = ((S.config || {}).sport || {}).start, weeks = lastWeeks(8, st); if (!weeks.length) return '';
   const all = buildSport(weeks[0], addDays(weeks[weeks.length - 1], 6)), mon = mondayOf(today());
   const per = weeks.map(f => ({ label: wkLabel(f), v: all.filter(i => i.eff >= f && i.eff <= addDays(f, 6) && (i.state === 'done' || i.state === 'other')).length, hi: f === mon }));
   const ex = exSeries(), names = Object.keys(ex).sort((a, b) => ex[b].pts.length - ex[a].pts.length || a.localeCompare(b, 'ru'));
@@ -5209,7 +5225,7 @@ function sportProgressHtml(flat) {
   return h ? `<details class="fold" data-k="sp-prog"${openAttr('sp-prog')}><summary><span>Прогресс</span><span class="sec-note">графики</span></summary>${h}</details>` : '';
 }
 function studyProgressHtml() {
-  const st = (S.config.study || {}).start, weeks = lastWeeks(8, st); if (weeks.length < 2) return '';
+  const st = ((S.config || {}).study || {}).start, weeks = lastWeeks(8, st); if (weeks.length < 2) return '';
   const mon = mondayOf(today());
   const data = weeks.map(f => { const to = addDays(f, 6), m = studyMinutes(f, to); return { label: wkLabel(f), v: Math.round(m / 6) / 10, hi: f === mon, title: `${wkLabel(f)}: ${hmShort(m)} из ${hmShort(plannedMinutes(f, to < today() ? to : today()))} по плану` }; });
   if (!data.some(x => x.v > 0)) return '';
@@ -5472,7 +5488,7 @@ function cxStep(bi, f, d) {
 async function cxReorder(bi, items) {
   const c = S.cur; if (!c || c.type !== 'sport') return;
   const i = findInst(c.id); if (!i) return;
-  const key = c.ses.key, cfgB = ((((S.config.sport || {}).sessions || {})[key] || {}).blocks || [])[bi];
+  const key = c.ses.key, cfgB = (((((S.config || {}).sport || {}).sessions || {})[key] || {}).blocks || [])[bi];
   if (!cfgB || c.ses.replaced === 'custom') return;
   const once = cxOnce(i), pi = items.findIndex(el => el.classList.contains('cxo-par'));
   const exOf = el => el.dataset.kind === 'p' ? clone(cfgB.ex[Number(el.dataset.ei)]) : { name: once[Number(el.dataset.oi)].name, log: 'r' };
@@ -5509,6 +5525,11 @@ function openExPicker(instId, bi) {
 const TABS = ['plan', 'cal', 'lessons', 'sport', 'food', 'money'];
 function setTab(t) {
   if (!TABS.includes(t)) t = 'plan';
+  const sheetOpen = !$('#sheet').hidden, st = history.state && history.state.bj;
+  if (!HIST.tabPop && !sheetOpen) {
+    if (t !== 'plan' && st !== 'tab') histPush('tab');
+    else if (t === 'plan' && st === 'tab') { HIST.mute++; try { history.back(); } catch (_) { HIST.mute--; } }
+  }
   S.tab = t;
   document.body.dataset.tab = t;
   if (S.dirty.has(t)) renderTab(t);
@@ -5618,7 +5639,7 @@ document.addEventListener('click', async ev => {
     case 'cu-cal-save': {
       const ps = numOrNull(($('#cu-ps') || {}).value), pw = numOrNull(($('#cu-pw') || {}).value);
       const rd = ($('#cu-rd') || {}).value, rt = ($('#cu-rt') || {}).value || '09:00';
-      if (rd != null && rd !== '') { S.config = S.config || {}; S.config.claude = Object.assign({}, S.config.claude, { weekReset: { dow: Number(rd), hm: rt } }); }
+      if (rd != null && rd !== '') { S.config = S.config || {}; S.config.claude = Object.assign({}, (S.config || {}).claude, { weekReset: { dow: Number(rd), hm: rt } }); }
       const s5 = cuSum(cuHours(5)), wk = cuSum(cuWeek()), ok = v => v != null && v > 0 && v <= 100;
       if (!ok(ps) && !ok(pw)) { toast('Впиши хотя бы один процент — от 1 до 100'); break; }
       if (ok(ps) && !s5) { toast('За последние 5 часов журнал ничего не записал — сессию сверим позже'); if (!ok(pw)) break; }
@@ -6336,7 +6357,7 @@ function weekProgress(sport) {
   const t = today(), from = mondayOf(t), to = addDays(from, 6);
   let plan = 0, done = 0;
   for (const i of sport) if (i.eff >= from && i.eff <= to && i.state !== 'skipped') { plan++; if (i.state === 'done' || i.state === 'other') done++; }
-  const st = (S.config.study || {}).start || from;
+  const st = ((S.config || {}).study || {}).start || from;
   for (let d = from; d <= to; d = addDays(d, 1)) {
     if (d < st) continue;
     const c = studyCap(d);
