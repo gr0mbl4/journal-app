@@ -1,0 +1,137 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Журнал: подключение</title><meta name="robots" content="noindex"><style>:root{--bg:#F3F4F2;--card:#fff;--text:#16181B;--muted:#5E656E;--line:#E2E5E8;--acc:#2F6FE0;--code:#EEF1F4}
+@media (prefers-color-scheme:dark){:root{--bg:#0F1114;--card:#171A1F;--text:#E9ECEF;--muted:#98A1AB;--line:#262B32;--acc:#7FB2FF;--code:#1F242B}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}h1{font-size:26px;margin:0 0 6px}.lead{color:var(--muted);margin:0 0 20px}
+.box,.st{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 12px}
+.sh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sh h2{font-size:18px;margin:0;flex:1;min-width:180px}
+.num{width:28px;height:28px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;flex:0 0 28px}
+.dev{font-size:12px;padding:3px 8px;border-radius:999px;background:var(--code);color:var(--muted)}
+ol,ul{padding-left:22px;margin:8px 0}li{margin:4px 0}p{margin:8px 0}.n{color:var(--muted);font-size:14px}
+code{background:var(--code);padding:1px 6px;border-radius:6px;font:14px/1.4 ui-monospace,Consolas,monospace;word-break:break-all}
+.cp{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}.cp code{flex:1;min-width:0;padding:6px 8px}
+.cp button{border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:8px;padding:6px 10px;font:inherit;font-size:14px;cursor:pointer}
+.cp button.ok{background:var(--acc);color:#fff;border-color:var(--acc)}
+.cp.big{flex-direction:column;align-items:stretch}.cp.big pre{margin:0;max-height:220px;overflow:auto;background:var(--code);border-radius:8px;padding:10px;font:12px/1.45 ui-monospace,Consolas,monospace;white-space:pre}
+table{border-collapse:collapse;width:100%}td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+</style></head><body><main><h1>Бортовой журнал — подключение</h1><p class="lead">Личный журнал: еда с автоподсчётом КБЖУ, тренировки, английский, разбор рилсов, свои разделы. Пишешь в чат — Claude отвечает через пару минут.</p><div class="box"><b>Что нужно:</b> ноутбук (шаги 1–7, минут 15) и телефон на Android (шаги 8–11). От Олега — токен для шага 6, он пришлёт в Telegram.<br><br><b>Важно:</b> Олег видит записи твоего журнала. Claude работает на подписке Олега, поэтому есть лимит — примерно 10–15 ответов в сутки (обнуляется в 05:00 по твоему времени). Кончится — журнал работает как обычно, а Claude ответит на всё на следующий день.</div><section class="st"><div class="sh"><span class="num">1</span><h2>Аккаунт GitHub</h2><span class="dev">💻 ноутбук</span></div><p>Здесь будет храниться твой журнал. Нет аккаунта — зарегистрируйся:</p><div class="cp"><code>https://github.com/signup</code><button type="button" data-copy="https://github.com/signup">Копировать</button></div><p class="n">Почту подтверди — без этого GitHub не даст создавать ключи.</p></section><section class="st"><div class="sh"><span class="num">2</span><h2>Репозиторий для журнала</h2><span class="dev">💻 ноутбук</span></div><ol><li>Открой <div class="cp"><code>https://github.com/new</code><button type="button" data-copy="https://github.com/new">Копировать</button></div></li><li><b>Repository name</b>: <div class="cp"><code>journal-data</code><button type="button" data-copy="journal-data">Копировать</button></div></li><li>Выбери <b>Private</b> — обязательно, это твои личные записи.</li><li>Поставь галочку <b>Add a README file</b>.</li><li><b>Create repository</b>.</li></ol></section><section class="st"><div class="sh"><span class="num">3</span><h2>Олега — в соавторы</h2><span class="dev">💻 ноутбук</span></div><p>В репозитории <b>journal-data</b>: <b>Settings</b> → слева <b>Collaborators</b> → <b>Add people</b> → впиши</p><div class="cp"><code>gr0mbl4</code><button type="button" data-copy="gr0mbl4">Копировать</button></div><p>→ выбери его → <b>Add to repository</b>. Олег примет приглашение — без этого Claude не увидит журнал.</p></section><section class="st"><div class="sh"><span class="num">4</span><h2>Приложение Claude на репозиторий</h2><span class="dev">💻 ноутбук</span></div><ol><li>Открой <div class="cp"><code>https://github.com/apps/claude</code><button type="button" data-copy="https://github.com/apps/claude">Копировать</button></div></li><li><b>Install</b> (или <b>Configure</b>) → свой аккаунт.</li><li><b>Only select repositories</b> → <b>journal-data</b> → <b>Install</b>.</li></ol><p class="n">Если потом откроется сайт Claude и попросит войти — закрой вкладку: установка уже сделана.</p></section><section class="st"><div class="sh"><span class="num">5</span><h2>Файл, который зовёт Claude сразу</h2><span class="dev">💻 ноутбук</span></div><p>Без него Claude не узнает, что ты написал.</p><ol><li>В репозитории: <b>Add file</b> → <b>Create new file</b>.</li><li>Имя файла (папки наберутся сами):</li></ol><div class="cp"><code>.github/workflows/claude.yml</code><button type="button" data-copy=".github/workflows/claude.yml">Копировать</button></div><ol start="3"><li>В большое поле вставь весь текст:</li></ol><div class="cp big"><pre># Журнал: мгновенный ответ Claude.
+# Новое сообщение с телефона → 90 секунд тишины (вдруг допишешь) → проверка лимита → запуск Claude.
+# Ключ запуска — секреты CLAUDE_FIRE_TOKEN и CLAUDE_FIRE_URL (их даёт Олег). Без токена ничего не делает.
+name: Claude
+
+on:
+  push:
+    branches: [main]
+    paths: [requests.json, ideas.json, &#x27;inbox/**&#x27;, recipes.json, &#x27;money/**&#x27;, pages.json]
+  workflow_run:
+    workflows: [&#x27;Видео по ссылкам&#x27;]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fire:
+    if: &gt;-
+      github.event_name == &#x27;workflow_dispatch&#x27; ||
+      (github.event_name == &#x27;workflow_run&#x27; &amp;&amp; github.event.workflow_run.conclusion == &#x27;success&#x27;) ||
+      (github.event_name == &#x27;push&#x27; &amp;&amp; !contains(join(github.event.commits.*.message, &#x27; | &#x27;), &#x27;Разбор входящих&#x27;) &amp;&amp;
+       !contains(join(github.event.commits.*.message, &#x27; | &#x27;), &#x27;Claude:&#x27;))
+    concurrency:
+      group: claude-fire
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Подождать, вдруг допишет
+        if: github.event_name == &#x27;push&#x27;
+        run: sleep 90
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Проверить новое и лимит
+        id: check
+        run: |
+          if [ -f .github/scripts/limit_check.py ]; then out=&quot;$(python3 .github/scripts/limit_check.py)&quot;; else out=&quot;go&quot;; fi
+          echo &quot;$out&quot;
+          case &quot;$out&quot; in go*) echo &quot;go=1&quot; &gt;&gt; &quot;$GITHUB_OUTPUT&quot;;; esac
+      - name: Запустить Claude
+        if: steps.check.outputs.go == &#x27;1&#x27;
+        env:
+          TOKEN: ${{ secrets.CLAUDE_FIRE_TOKEN }}
+          URL: ${{ secrets.CLAUDE_FIRE_URL }}
+          REPO: ${{ github.repository }}
+        run: |
+          [ -n &quot;$TOKEN&quot; ] || { echo &quot;::warning::Нет секрета CLAUDE_FIRE_TOKEN — Claude не запущен&quot;; exit 0; }
+          URL=&quot;$(echo &quot;${URL:-https://api.anthropic.com/v1/claude_code/routines/trig_01L4uYq3bbAiM3X43D7xqSVZ/fire}&quot; | tr -d &#x27;[:space:]&#x27;)&quot;
+          code=$(curl -sS -o resp.json -w &#x27;%{http_code}&#x27; -X POST &quot;$URL&quot; \
+            -H &quot;Authorization: Bearer $TOKEN&quot; \
+            -H &quot;anthropic-beta: experimental-cc-routine-2026-04-01&quot; \
+            -H &quot;anthropic-version: 2023-06-01&quot; \
+            -H &quot;Content-Type: application/json&quot; \
+            -d &quot;{\&quot;text\&quot;: \&quot;repo: $REPO\&quot;}&quot;)
+          echo &quot;Ответ: $code&quot;
+          [ &quot;$code&quot; = &quot;200&quot; ] || { head -c 300 resp.json; echo &quot;::warning::Claude не запущен ($code)&quot;; }
+</pre><button type="button" data-copy="# Журнал: мгновенный ответ Claude.
+# Новое сообщение с телефона → 90 секунд тишины (вдруг допишешь) → проверка лимита → запуск Claude.
+# Ключ запуска — секреты CLAUDE_FIRE_TOKEN и CLAUDE_FIRE_URL (их даёт Олег). Без токена ничего не делает.
+name: Claude
+
+on:
+  push:
+    branches: [main]
+    paths: [requests.json, ideas.json, &#x27;inbox/**&#x27;, recipes.json, &#x27;money/**&#x27;, pages.json]
+  workflow_run:
+    workflows: [&#x27;Видео по ссылкам&#x27;]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fire:
+    if: &gt;-
+      github.event_name == &#x27;workflow_dispatch&#x27; ||
+      (github.event_name == &#x27;workflow_run&#x27; &amp;&amp; github.event.workflow_run.conclusion == &#x27;success&#x27;) ||
+      (github.event_name == &#x27;push&#x27; &amp;&amp; !contains(join(github.event.commits.*.message, &#x27; | &#x27;), &#x27;Разбор входящих&#x27;) &amp;&amp;
+       !contains(join(github.event.commits.*.message, &#x27; | &#x27;), &#x27;Claude:&#x27;))
+    concurrency:
+      group: claude-fire
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Подождать, вдруг допишет
+        if: github.event_name == &#x27;push&#x27;
+        run: sleep 90
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Проверить новое и лимит
+        id: check
+        run: |
+          if [ -f .github/scripts/limit_check.py ]; then out=&quot;$(python3 .github/scripts/limit_check.py)&quot;; else out=&quot;go&quot;; fi
+          echo &quot;$out&quot;
+          case &quot;$out&quot; in go*) echo &quot;go=1&quot; &gt;&gt; &quot;$GITHUB_OUTPUT&quot;;; esac
+      - name: Запустить Claude
+        if: steps.check.outputs.go == &#x27;1&#x27;
+        env:
+          TOKEN: ${{ secrets.CLAUDE_FIRE_TOKEN }}
+          URL: ${{ secrets.CLAUDE_FIRE_URL }}
+          REPO: ${{ github.repository }}
+        run: |
+          [ -n &quot;$TOKEN&quot; ] || { echo &quot;::warning::Нет секрета CLAUDE_FIRE_TOKEN — Claude не запущен&quot;; exit 0; }
+          URL=&quot;$(echo &quot;${URL:-https://api.anthropic.com/v1/claude_code/routines/trig_01L4uYq3bbAiM3X43D7xqSVZ/fire}&quot; | tr -d &#x27;[:space:]&#x27;)&quot;
+          code=$(curl -sS -o resp.json -w &#x27;%{http_code}&#x27; -X POST &quot;$URL&quot; \
+            -H &quot;Authorization: Bearer $TOKEN&quot; \
+            -H &quot;anthropic-beta: experimental-cc-routine-2026-04-01&quot; \
+            -H &quot;anthropic-version: 2023-06-01&quot; \
+            -H &quot;Content-Type: application/json&quot; \
+            -d &quot;{\&quot;text\&quot;: \&quot;repo: $REPO\&quot;}&quot;)
+          echo &quot;Ответ: $code&quot;
+          [ &quot;$code&quot; = &quot;200&quot; ] || { head -c 300 resp.json; echo &quot;::warning::Claude не запущен ($code)&quot;; }
+">Копировать весь текст</button></div><ol start="4"><li><b>Commit changes…</b> → <b>Commit changes</b>.</li></ol></section><section class="st"><div class="sh"><span class="num">6</span><h2>Ключ от Олега</h2><span class="dev">💻 ноутбук</span></div><p>Олег пришлёт в Telegram <b>токен</b> (и адрес, начинается с <code>https://api.anthropic.com/…</code>). В репозитории: <b>Settings</b> → <b>Secrets and variables</b> → <b>Actions</b> → <b>New repository secret</b>:</p><table><tr><td><b>Name</b></td><td><b>Secret</b></td></tr><tr><td><div class="cp"><code>CLAUDE_FIRE_TOKEN</code><button type="button" data-copy="CLAUDE_FIRE_TOKEN">Копировать</button></div></td><td>токен от Олега</td></tr><tr><td><div class="cp"><code>CLAUDE_FIRE_URL</code><button type="button" data-copy="CLAUDE_FIRE_URL">Копировать</button></div></td><td>адрес от Олега (если прислал)</td></tr></table><p class="n">Олег ещё не прислал — иди дальше, этот шаг потом. Пока токена нет, Claude не отвечает, но сообщения копятся и не теряются.</p></section><section class="st"><div class="sh"><span class="num">7</span><h2>Ключ для телефона</h2><span class="dev">💻 ноутбук</span></div><ol><li>Открой <div class="cp"><code>https://github.com/settings/personal-access-tokens/new</code><button type="button" data-copy="https://github.com/settings/personal-access-tokens/new">Копировать</button></div></li><li><b>Token name</b>: <div class="cp"><code>journal-phone</code><button type="button" data-copy="journal-phone">Копировать</button></div></li><li><b>Expiration</b>: Custom → дата через год.</li><li><b>Repository access</b>: <b>Only select repositories</b> → <b>journal-data</b>.</li><li><b>Permissions</b> → <b>Add permissions</b>: <b>Contents</b> и <b>Issues</b>, у обоих <b>Read and write</b>.</li><li><b>Generate token</b> → скопируй (показывается один раз) и отправь себе в Telegram в «Избранное», чтобы вставить на телефоне.</li></ol><p class="n">Ключ никому не пересылай: с ним можно читать и менять твой журнал.</p></section><section class="st"><div class="sh"><span class="num">8</span><h2>Журнал на телефон</h2><span class="dev">📱 телефон</span></div><ol><li>В Chrome открой <div class="cp"><code>https://gr0mbl4.github.io/journal-app/</code><button type="button" data-copy="https://gr0mbl4.github.io/journal-app/">Копировать</button></div></li><li>⋮ → <b>Добавить на главный экран</b> (или <b>Установить приложение</b>).</li><li>Открой журнал с иконки, вставь ключ из шага 7, репозиторий — <div class="cp"><code>journal-data</code><button type="button" data-copy="journal-data">Копировать</button></div> → <b>Подключить</b>.</li></ol></section><section class="st"><div class="sh"><span class="num">9</span><h2>Первое сообщение Claude</h2><span class="dev">📱 телефон</span></div><p>Нажми кнопку Claude (внизу справа) и напиши <b>«Привет»</b>. Через 2–5 минут придёт ответ. В первый раз Claude сам подготовит журнал и спросит, с чего начать.</p><p class="n">Нет ответа через 10 минут — ещё нет токена из шага 6 или Олег не принял приглашение. Сообщения не теряются: ответ придёт, когда всё подключится. Обнови журнал кнопкой ↻ вверху.</p></section><section class="st"><div class="sh"><span class="num">10</span><h2>Как пользоваться</h2><span class="dev">📱 телефон</span></div><ul><li><b>Еда</b> — вкладка «Еда» или в чат: «завтрак: овсянка 60 г, 2 яйца», можно фото тарелки. КБЖУ посчитается само, чего нет в таблице — оценит Claude. Цели на день: «подбери КБЖУ, вешу 80, хочу сушиться».</li><li><b>Тренировки</b> — «составь программу»: Claude спросит цель, опыт, дни и где тренируешься. Подходы отмечаешь во вкладке «Спорт».</li><li><b>Английский</b> — «хочу учить английский»: спросит уровень и сколько минут в какие дни, составит уроки во вкладке «Учёба».</li><li><b>Рилсы</b> — в Instagram: самолётик → «Копировать ссылку» → вставь в чат Claude. Через пару минут он разберёт видео (кадры, подпись, речь) и предложит, что сделать: рецепт, упражнение, идея.</li><li><b>Свои разделы</b> — «сделай раздел Вода: счётчик стаканов, цель 8, каждый день заново» или «чек-лист на утро». Появится кнопкой на «Плане».</li><li><b>Свои правила</b> — «если пропустил тренировку, переноси на завтра». Claude запомнит.</li><li>Голосом — кнопка-микрофон в чате.</li></ul></section><section class="st"><div class="sh"><span class="num">11</span><h2>Рилсы через «Поделиться» (по желанию)</h2><span class="dev">📱 телефон</span></div><p>Чтобы не копировать ссылку, а жать «Поделиться» прямо в Instagram:</p><ol><li>Сделай второй ключ как в шаге 7, но имя <div class="cp"><code>journal-share</code><button type="button" data-copy="journal-share">Копировать</button></div> и только <b>Issues: Read and write</b> (Contents не давай).</li><li>Поставь из Google Play бесплатное приложение <b>HTTP Shortcuts</b>.</li><li>Создай ярлык <b>Claude</b> (обычный HTTP-запрос). Метод <b>POST</b>, адрес — вместо ЛОГИН твой логин GitHub:</li></ol><div class="cp"><code>https://api.github.com/repos/ЛОГИН/journal-data/issues</code><button type="button" data-copy="https://api.github.com/repos/ЛОГИН/journal-data/issues">Копировать</button></div><ol start="4"><li>Заголовки: <code>Authorization</code> = <code>Bearer</code>, пробел, ключ journal-share; <div class="cp"><code>Accept</code><button type="button" data-copy="Accept">Копировать</button></div> = <div class="cp"><code>application/vnd.github+json</code><button type="button" data-copy="application/vnd.github+json">Копировать</button></div></li><li>Раздел <b>Переменные</b> → новая переменная <code>link</code> → включи «получать значение из меню Поделиться».</li><li>Тело запроса — <b>JSON</b>, вставь и замени LINK на переменную <code>link</code> (кнопка вставки переменной):</li></ol><div class="cp"><code>{&quot;title&quot;: &quot;Идея&quot;, &quot;body&quot;: &quot;LINK&quot;}</code><button type="button" data-copy="{&quot;title&quot;: &quot;Идея&quot;, &quot;body&quot;: &quot;LINK&quot;}">Копировать</button></div><p class="n">Пользоваться: Instagram → Поделиться → HTTP Shortcuts → Claude. Через 1–2 минуты рилс будет в чате.</p></section><section class="st"><div class="sh"><span class="num">12</span><h2>Obsidian на ноутбуке (по желанию)</h2><span class="dev">💻 ноутбук</span></div><p>Если хочешь видеть журнал заметками. Claude после каждого ответа обновляет папку <b>Журнал</b>: еда, тренировки, английский, идеи, чат, твои разделы.</p><ol><li><b>GitHub Desktop</b>: <div class="cp"><code>https://desktop.github.com</code><button type="button" data-copy="https://desktop.github.com">Копировать</button></div> → войди своим GitHub → <b>Clone a repository</b> → <b>journal-data</b> → папка, например <code>Документы\journal-data</code>.</li><li><b>Obsidian</b>: <div class="cp"><code>https://obsidian.md</code><button type="button" data-copy="https://obsidian.md">Копировать</button></div> → <b>Open folder as vault</b> → эта папка. Заметки — в папке <b>Журнал</b>.</li><li>Обновить: в GitHub Desktop <b>Fetch origin</b> → <b>Pull origin</b>.</li><li>Чтобы обновлялось само: Obsidian → <b>Settings</b> → <b>Community plugins</b> → <b>Browse</b> → <b>Obsidian Git</b> → Install → Enable → <b>Auto pull interval</b> = 10. Плагину нужен Git: <div class="cp"><code>https://git-scm.com/download/win</code><button type="button" data-copy="https://git-scm.com/download/win">Копировать</button></div> (установка «Далее, Далее»).</li></ol><p class="n">Заметки в «Журнал» руками не правь — перезапишутся. JSON-файлы в корне тоже не трогай: это данные журнала.</p></section><div class="box"><b>Если что-то не так</b><ul><li>Журнал пишет «Не вижу репозиторий» — проверь шаг 7: ключ выдан на <b>journal-data</b>, есть Contents: Read and write.</li><li>Claude молчит дольше 10 минут — в репозитории вкладка <b>Actions</b> → «Claude»: красный крестик или жёлтое предупреждение — сделай скрин и отправь Олегу.</li><li>Рилс не скачался — Instagram иногда не отдаёт видео без входа. Claude так и скажет; пришли скрин или опиши словами.</li></ul></div></main><script>document.addEventListener('click',async e=>{const b=e.target.closest('[data-copy]');if(!b)return;const t=b.getAttribute('data-copy');
+try{await navigator.clipboard.writeText(t)}catch(_){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(_){}a.remove()}
+const o=b.textContent;b.textContent='Скопировано';b.classList.add('ok');setTimeout(()=>{b.textContent=o;b.classList.remove('ok')},1500)});
+</script></body></html>
