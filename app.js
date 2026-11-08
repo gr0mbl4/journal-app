@@ -326,7 +326,7 @@ async function cardsSave() {
     if (a.id in vals) { a.balance = vals[a.id]; a.asOf = t; a.ts = now; }
     if (a.id in l4s) { if (l4s[a.id]) a.last4 = l4s[a.id]; else delete a.last4; }
   }); }, 'Деньги: остатки на картах');
-  if (ok) { closeSheet(); toast('Остатки обновлены'); }
+  if (ok) { sheetDone(); toast('Остатки обновлены'); }
 }
 function openAccount(id) {
   const a = id ? accounts().find(x => x.id === id) : { id: null, type: 'card', name: '', bank: '', balance: '' };
@@ -352,7 +352,7 @@ async function accountSave() {
   const l4 = ($('#ac-l4') ? $('#ac-l4').value : '').split(/[,\s]+/).filter(v => /^\d{4}$/.test(v)).join(',');
   if (l4) rec.last4 = l4;
   const ok = await writeConfig(cfg => { cfg.money = cfg.money || {}; const l = cfg.money.accounts = cfg.money.accounts || []; const k = l.findIndex(x => x.id === rec.id); if (k >= 0) l[k] = rec; else l.push(rec); }, `Деньги: ${name} = ${rec.balance}`);
-  if (ok) { closeSheet(); toast('Сохранено'); }
+  if (ok) { sheetDone(); toast('Сохранено'); }
 }
 
 /* ---------- parsing "хлеб 45, такси 320" ---------- */
@@ -1787,7 +1787,7 @@ async function setDuty(d, on) {
     }
     p.duties[d] = rec;
   }, on ? `Наряд ${d}` : `Наряд ${d} снят`);
-  if (ok) { closeSheet(); toast(on ? 'Наряд добавлен — план подстроен' : 'Наряд снят'); }
+  if (ok) { sheetDone(); toast(on ? 'Наряд добавлен — план подстроен' : 'Наряд снят'); }
 }
 function openAbsence(id, d) {
   const a = id ? (S.absences || []).find(x => x.id === id) : { id: null, type: 'vacation', from: d || today(), to: d || today(), note: '' };
@@ -1801,12 +1801,12 @@ function openAbsence(id, d) {
 }
 async function absenceSave(del) {
   const c = S.cur; if (!c || c.type !== 'absence') return;
-  if (del) { if (await writePlan(p => { p.absences = (p.absences || []).filter(x => x.id !== c.a.id); }, 'Отпуск/больничный удалён')) { closeSheet(); toast('Удалено'); } return; }
+  if (del) { if (await writePlan(p => { p.absences = (p.absences || []).filter(x => x.id !== c.a.id); }, 'Отпуск/больничный удалён')) { sheetDone(); toast('Удалено'); } return; }
   const from = $('#ab-from').value, to = $('#ab-to').value;
   if (!from || !to || to < from) { toast('Проверь даты'); return; }
   const rec = { id: c.a.id || 'a' + rid().slice(0, 6), type: c.a.type, from, to };
   const note = $('#ab-note').value.trim(); if (note) rec.note = note;
-  if (await writePlan(p => { const l = p.absences = p.absences || []; const k = l.findIndex(x => x.id === rec.id); if (k >= 0) l[k] = rec; else l.push(rec); }, `${ABS[rec.type]} ${from}–${to}`)) { closeSheet(); toast('Сохранено'); }
+  if (await writePlan(p => { const l = p.absences = p.absences || []; const k = l.findIndex(x => x.id === rec.id); if (k >= 0) l[k] = rec; else l.push(rec); }, `${ABS[rec.type]} ${from}–${to}`)) { sheetDone(); toast('Сохранено'); }
 }
 
 /* ---------- столовая: наличные на обеды до зарплаты ---------- */
@@ -1909,7 +1909,7 @@ async function weightSave(del) {
   const kg = numOrNull($('#bw-kg') && $('#bw-kg').value);
   if (!del && !(kg > 30 && kg < 250)) { toast('Впиши вес в кг'); return; }
   const next = await write('body.json', b => { b.weight = b.weight || {}; if (del) delete b.weight[c.d]; else b.weight[c.d] = Math.round(kg * 10) / 10; return b; }, del ? 'Вес тела удалён' : `Вес тела ${kg} кг`, { weight: {} });
-  if (next) { S.body = next; cacheNow(); closeSheet(); render(); toast('Сохранено'); }
+  if (next) { S.body = next; cacheNow(); sheetDone(); render(); toast('Сохранено'); }
 }
 
 /* ---------- будущие покупки ---------- */
@@ -1939,7 +1939,7 @@ async function buySave(mode) {
     if (note) rec.note = note; else delete rec.note;
     ok = await writeConfig(cfg => { cfg.money = cfg.money || {}; const l = cfg.money.planned = cfg.money.planned || []; const k = l.findIndex(y => y.id === rec.id); if (k >= 0) l[k] = rec; else l.push(rec); }, `Покупки: «${name}»`);
   }
-  if (ok) { closeSheet(); toast('Сохранено'); }
+  if (ok) { sheetDone(); toast('Сохранено'); }
 }
 function plannedHtml() {
   const l = plannedBuys().filter(x => !x.done).sort((a, b) => (a.date || '9') < (b.date || '9') ? -1 : 1);
@@ -2005,7 +2005,7 @@ async function quarterSave() {
     return o;
   }).filter(o => o.title || o.target != null || o.acc);
   const next = await write('goals.json', d => { d.quarters = d.quarters || {}; d.quarters[c.k] = list; return d; }, `Цели на квартал ${c.k}`, { quarters: {} });
-  if (next) { S.quarters = next.quarters; cacheNow(); closeSheet(); render(); toast('Цели сохранены'); }
+  if (next) { S.quarters = next.quarters; cacheNow(); sheetDone(); render(); toast('Цели сохранены'); }
 }
 
 /* ---------- важные даты и подарки ---------- */
@@ -2037,7 +2037,7 @@ async function datesSave() {
     const g = numOrNull($('#dg-' + i).value); if (g > 0) o.gift = Math.round(g);
     list.push(o);
   });
-  if (await writeConfig(cfg => { cfg.dates = list; }, 'Важные даты')) { closeSheet(); toast('Сохранено'); }
+  if (await writeConfig(cfg => { cfg.dates = list; }, 'Важные даты')) { sheetDone(); toast('Сохранено'); }
 }
 
 /* ---------- кредитки: льготный период и страховка ---------- */
@@ -2409,7 +2409,7 @@ function limSuggestFill() { const sug = S.cur && S.cur.sug; if (!sug) return; do
 async function limitsSave() {
   const L = {}; document.querySelectorAll('[data-lim]').forEach(i => { const v = numOrNull(i.value); if (v > 0) L[i.dataset.lim] = Math.round(v); });
   const ok = await writeConfig(c => { c.money = c.money || {}; if (Object.keys(L).length) c.money.limits = L; else delete c.money.limits; }, `Деньги: лимиты по категориям (${Object.keys(L).length})`);
-  if (ok) { closeSheet(); toast(Object.keys(L).length ? 'Лимиты сохранены' : 'Лимиты убраны'); }
+  if (ok) { sheetDone(); toast(Object.keys(L).length ? 'Лимиты сохранены' : 'Лимиты убраны'); }
 }
 
 /* ---------- похожее на регулярные платежи: повторы с той же суммой примерно в тот же день ---------- */
@@ -2449,7 +2449,7 @@ function openRecurring() {
 }
 async function recurringNo(k) {
   const ok = await writeConfig(c => { c.money = c.money || {}; const l = c.money.notRegular = c.money.notRegular || []; if (!l.includes(k)) l.push(k); }, 'Деньги: не регулярный платёж');
-  if (ok) { const l = recurringGuess(); if (l.length) openRecurring(); else { closeSheet(); toast('Готово'); } }
+  if (ok) { const l = recurringGuess(); if (l.length) openRecurring(); else { sheetDone(); toast('Готово'); } }
 }
 function moneyPlanHtml() { return forecastHtml() + budgetHtml() + limitsHtml() + anomHtml(S.ready ? (S.anom = anomalies()) : []) + recurringHtml(); }
 function goalsBlockHtml() {
@@ -2488,7 +2488,7 @@ async function budgetSave() {
   const living = numOrNull($('#bg-living').value), salary = numOrNull($('#bg-salary').value);
   if (!(living > 0)) { toast('Впиши сумму на жизнь'); return; }
   const ok = await writeConfig(c => { c.money = c.money || {}; c.money.plan = Object.assign({ fixedCats: ['Жильё и связь'] }, c.money.plan || {}, { living: Math.round(living) }, salary > 0 ? { salary: Math.round(salary) } : {}); }, `Деньги: бюджет на жизнь ${Math.round(living)}`);
-  if (ok) { closeSheet(); toast('Бюджет сохранён'); }
+  if (ok) { sheetDone(); toast('Бюджет сохранён'); }
 }
 function openRegular(id, preset) {
   const r = id ? regulars().find(x => x.id === id) : Object.assign({ id: null, name: '', amount: '', day: '', cat: otherCat() }, preset || {});
@@ -2503,14 +2503,14 @@ function openRegular(id, preset) {
 }
 async function regularSave(del) {
   const c = S.cur; if (!c || c.type !== 'reg') return;
-  if (del) { if (await writeConfig(cfg => { cfg.money.regular = (cfg.money.regular || []).filter(x => x.id !== c.r.id); }, `Деньги: удалён платёж ${c.r.name}`)) { closeSheet(); toast('Удалено'); } return; }
+  if (del) { if (await writeConfig(cfg => { cfg.money.regular = (cfg.money.regular || []).filter(x => x.id !== c.r.id); }, `Деньги: удалён платёж ${c.r.name}`)) { sheetDone(); toast('Удалено'); } return; }
   const name = $('#rg-name').value.trim(), amount = numOrNull($('#rg-amount').value), day = numOrNull($('#rg-day').value);
   if (!name || !(amount > 0)) { toast('Нужны название и сумма'); return; }
   const rec = Object.assign({}, c.r, { id: c.r.id || 'r' + rid().slice(0, 6), name, amount: Math.round(amount * 100) / 100, cat: $('#rg-cat').value });
   if (day >= 1 && day <= 31) rec.day = Math.round(day); else delete rec.day;
   if (!rec.match || !rec.match.length || (c.r.name && c.r.name !== name && rec.match.length === 1 && norm(rec.match[0]) === norm(c.r.name))) rec.match = [norm(name)];
   const ok = await writeConfig(cfg => { cfg.money = cfg.money || {}; const l = cfg.money.regular = cfg.money.regular || []; const k = l.findIndex(x => x.id === rec.id); if (k >= 0) l[k] = rec; else l.push(rec); }, `Деньги: платёж ${name}`);
-  if (ok) { closeSheet(); toast('Сохранено'); }
+  if (ok) { sheetDone(); toast('Сохранено'); }
 }
 function openGoal(id) {
   const g = goals().find(x => x.id === id); if (!g) return;
@@ -2539,7 +2539,7 @@ async function goalSave() {
     if (a && bal != null && Number(a.balance) !== bal) { a.balance = Math.round(bal * 100) / 100; a.asOf = today(); a.ts = Date.now(); }
     if (a && $('#gl-grace')) { const gv = $('#gl-grace').value; if (gv) a.graceUntil = gv; else delete a.graceUntil; const iv = numOrNull($('#gl-ins').value); if (iv > 0) a.insurance = Math.round(iv * 100) / 100; else delete a.insurance; }
   }, `Деньги: цель «${name}»`);
-  if (ok) { closeSheet(); toast('Сохранено'); }
+  if (ok) { sheetDone(); toast('Сохранено'); }
 }
 function regularRows(d) {
   const t = today(); if (d < t) return [];
@@ -3694,8 +3694,33 @@ const NAV_REOPEN = {
   cx: c => openComplex(c.cxId),
   sport: c => openSport(c.id, true),
   recipe: c => c.r && openRecipe(c.r.id),
-  req: () => openRequests('', true)
+  req: () => openRequests('', true),
+  // после записи (NAV.ver сменился) старый снимок экрана устарел — открываем экран заново со свежими данными,
+  // а не пропускаем его: раньше «←» после любой правки перескакивал через экран или закрывал шторку целиком
+  cards: () => openCards(),
+  acct: c => c.a && c.a.id && openAccount(c.a.id),
+  goal: c => c.g && openGoal(c.g.id),
+  exp: c => c.x && openExpense(c.x.id),
+  lesson: c => c.l && !c.ph && openLesson(c.l.id),
+  event: c => c.ev && c.ev.id && openEvent(c.ev.id),
+  weight: c => openWeight(c.d),
+  sleep: c => openSleep(c.d),
+  dates: () => openDates(),
+  shop: c => openShop(c.days),
+  fc: () => openForecast(),
+  limits: () => openLimits(),
+  rec: () => openRecurring(),
+  budget: () => openBudget(),
+  quarter: () => openQuarter(),
+  pf: c => openPortfolio(c.tab),
+  note: c => openNote(c.path),
+  meal: c => openMealPick(c.meal),
+  ftg: () => openFoodTargets(),
+  books: () => openBooks(),
+  book: c => openBook(c.id),
+  page: c => openPage(c.id)
 };
+const NAV_ALWAYS = new Set(['ex', 'cx', 'sport', 'recipe', 'req']);
 function sheetKey(html) {
   const m = /<h2 class="sh-title[^"]*">([\s\S]*?)<\/h2>/.exec(html || '');
   return ((S.cur && S.cur.type) || '') + '|' + (m ? m[1].replace(/<[^>]*>/g, '').trim() : '');
@@ -3758,7 +3783,8 @@ function navBack() {
   S.cur = e.cur; S.exBack = e.exBack;
   NAV.noPush = true; NAV.top = e.top;
   const c = e.cur;
-  if (c && NAV_REOPEN[c.type] && e.key.startsWith(c.type + '|')) { NAV_REOPEN[c.type](c); return; }
+  // ex/cx/sport/recipe/req открываем заново всегда; остальные — только если снимок устарел (после записи), иначе — снимок с введёнными полями
+  if (c && NAV_REOPEN[c.type] && e.key.startsWith(c.type + '|') && (NAV_ALWAYS.has(c.type) || e.ver !== NAV.ver)) { NAV_REOPEN[c.type](c); return; }
   if (e.menu) { openMenu(); return; }
   openSheet(e.html, false, e.chat ? 'chat' : '');
   const els = $('#sheet-body').querySelectorAll('input,textarea,select');
@@ -3766,6 +3792,8 @@ function navBack() {
   panel.scrollTop = e.top;
   try { hydrateImages($('#sheet-body')); } catch (_) {}
 }
+// Сохранили на вложенном экране — вернуться на предыдущий (он откроется со свежими данными), а не закрывать всю шторку
+function sheetDone() { if (NAV.stack.length) navBack(); else closeSheet(); }
 function closeSheet() {
   // закрыли не кнопкой «Назад» телефона — убрать и свою запись из истории, иначе «Назад» сработает вхолостую
   if (!HIST.closing && !$('#sheet').hidden && history.state && history.state.bj === 'sheet') { HIST.mute++; try { history.back(); } catch (_) { HIST.mute--; } }
@@ -3890,7 +3918,7 @@ async function studyOn(id, d) {
   const l = S.lessons.find(x => x.id === id); if (!l) return;
   let ok = await writeLessons(list => { const x = list.find(y => y.id === id); if (x) x.done = d; }, `Учёба: урок ${l.n} пройден ${d}`);
   if (ok && S.studyDays[d] && S.studyDays[d].blocked) ok = await writePlan(p => { delete p.studyDays[d]; }, `Учёба: окно ${d} восстановлено — урок был`);
-  if (ok) { closeSheet(); toast(`Урок ${l.n} отмечен на ${short(d)} · +${XP.lesson} XP` + (d === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (d === today()) checkNotesPushed(); if (!S.skipActual) openActual(l.n, d, l.need || 60); else openFeel(l.n); S.skipActual = false; }
+  if (ok) { sheetDone(); toast(`Урок ${l.n} отмечен на ${short(d)} · +${XP.lesson} XP` + (d === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (d === today()) checkNotesPushed(); if (!S.skipActual) openActual(l.n, d, l.need || 60); else openFeel(l.n); S.skipActual = false; }
 }
 function createUpToIn(list, n, extra) {
   const nums = list.map(l => Number(l.n) || 0);
@@ -3907,7 +3935,7 @@ async function studyDone(e, when) {
   if (L.placeholder) ok = await writeLessons(list => createUpToIn(list, L.n, { done: when }), `Учёба: урок ${L.n} пройден ${when}`);
   else if (L.need != null && !e.last) ok = await writeLessons(list => { const x = list.find(l => l.id === L.key); if (x) { x.progress = (Number(x.progress) || 0) + e.cap; x.progressDates = (x.progressDates || []).concat([when]); } }, `Учёба: часть урока ${L.n} ${when}`);
   else ok = await writeLessons(list => { const x = list.find(l => l.id === L.key); if (x) x.done = when; }, `Учёба: урок ${L.n} пройден ${when}`);
-  if (ok) { closeSheet(); toast((L.need != null && !e.last ? `Часть урока ${L.n} отмечена · +${XP.part} XP` : `Урок ${L.n} пройден · +${Number(L.need) >= 90 ? XP.lesson90 : XP.lesson} XP`) + (when === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (when === today()) checkNotesPushed(); if (L.need == null || e.last) { if (!S.skipActual) openActual(L.n, when, L.need || e.cap); else openFeel(L.n); } S.skipActual = false; }
+  if (ok) { sheetDone(); toast((L.need != null && !e.last ? `Часть урока ${L.n} отмечена · +${XP.part} XP` : `Урок ${L.n} пройден · +${Number(L.need) >= 90 ? XP.lesson90 : XP.lesson} XP`) + (when === today() && notesRepoSep() ? '. Не забудь заметки: GitHub Desktop → Commit → Push' : '')); if (when === today()) checkNotesPushed(); if (L.need == null || e.last) { if (!S.skipActual) openActual(L.n, when, L.need || e.cap); else openFeel(L.n); } S.skipActual = false; }
 }
 async function blockFlow(d, reason) {
   const before = buildStudy();
@@ -3987,7 +4015,7 @@ async function lessonSave() {
   let ok;
   if (c.ph) ok = await writeLessons(list => { const extra = { title }; if (c.need) extra.need = c.need; createUpToIn(list, c.n, extra); }, `Учёба: тема урока ${c.n}`);
   else ok = await writeLessons(list => { const x = list.find(l => l.id === c.l.id); if (!x) return; x.title = title; if (!x.done) { if (c.need) x.need = c.need; else delete x.need; } }, `Учёба: урок ${c.l.n} изменён`);
-  if (ok) { closeSheet(); toast('Сохранено'); }
+  if (ok) { sheetDone(); toast('Сохранено'); }
 }
 async function lessonMove(dir) {
   const l = S.cur && S.cur.l; if (!l) return;
@@ -4002,7 +4030,7 @@ async function lessonMove(dir) {
     if (oa === ob) ob = oa + dir;
     a.order = ob; b.order = oa;
   }, `Учёба: порядок уроков ${p[k].n} и ${p[j].n}`);
-  if (ok) { closeSheet(); toast('Порядок изменён'); }
+  if (ok) { sheetDone(); toast('Порядок изменён'); }
 }
 
 /* ---------- sport ---------- */
@@ -4074,7 +4102,7 @@ async function commitMove(i, res, reason) {
   }, `Спорт: ${i.id} → ${res.date}`);
   if (!ok) return;
   if (res.bump) msg += res.bumpTo ? `, ${res.bump.title.toLowerCase()} → ${short(res.bumpTo)}` : `, ${res.bump.title.toLowerCase()} выпало`;
-  closeSheet(); toast(msg);
+  sheetDone(); toast(msg);
 }
 async function setSportState(id, state, note, reason) {
   const i = findInst(id); if (!i) return false;
@@ -4083,7 +4111,7 @@ async function setSportState(id, state, note, reason) {
   if (reason !== undefined) patch.reason = reason || undefined;
   else if (state === 'done' || !state) patch.reason = undefined;
   const ok = await writePlan(p => setMove(p, id, patch), `Спорт: ${id} — ${label}${reason ? ' (' + reason.slice(0, 40) + ')' : ''}`);
-  if (ok) { closeSheet(); toast(state === 'done' ? 'Отмечено' : state === 'other' ? 'Записал, что сделал другое' : state === 'skipped' ? 'Пропуск записан' : 'Вернул в план'); }
+  if (ok) { sheetDone(); toast(state === 'done' ? 'Отмечено' : state === 'other' ? 'Записал, что сделал другое' : state === 'skipped' ? 'Пропуск записан' : 'Вернул в план'); }
   return ok;
 }
 function sheetSport(id) { return S.cur && S.cur.type === 'sport' && S.cur.id === id ? S.cur : null; }
@@ -4137,7 +4165,7 @@ async function eventSave() {
     if (id && k >= 0) list[k] = rec; else list.push(rec);
     list.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   }, `События: ${title} ${date}${unit ? ' (' + repeatLabel({ unit, n }) + ')' : ''}`);
-  if (ok) { closeSheet(); toast(id ? 'Сохранено' : unit ? 'Напоминание добавлено' : 'Событие добавлено'); }
+  if (ok) { sheetDone(); toast(id ? 'Сохранено' : unit ? 'Напоминание добавлено' : 'Событие добавлено'); }
 }
 
 /* ---------- food ---------- */
@@ -4204,7 +4232,7 @@ function ensureDishes(names, meal, fresh) {
 }
 async function quickDishes(meal, text) {
   const ok = await addFoodText(meal, text);
-  if (ok) closeSheet();
+  if (ok) sheetDone();
   return ok;
 }
 /* ---------- питание: КБЖУ считается само ----------
@@ -4550,7 +4578,7 @@ async function portionSave(patch) {
     const e = { id: c.id }; if (patch.g) e.g = patch.g; else if (patch.x && patch.x !== 1) e.x = patch.x;
     arr[c.idx] = e.g || e.x ? e : c.id;
   }, `Еда ${S.foodDate}: порция — ${(recipeById(c.id) || {}).title || ''}`);
-  if (ok) { closeSheet(); toast('Порция сохранена'); }
+  if (ok) { sheetDone(); toast('Порция сохранена'); }
 }
 // цели на день
 function openFoodTargets() {
@@ -4579,7 +4607,7 @@ async function ftgSave(btn) {
   const kg = numOrNull(($('#ftg-w') || {}).value);
   const ok = await writeConfig(c => { c.food = c.food || {}; c.food.targets = t; c.food.goal = (S.cur && S.cur.goal) || 'keep'; if (kg && kg >= 30) c.food.kg = kg; }, `Еда: цели — ${t.kcal} ккал, белок ${t.protein || '—'} г`);
   busy(btn, false);
-  if (ok) { closeSheet(); toast('Цели сохранены'); }
+  if (ok) { sheetDone(); toast('Цели сохранены'); }
 }
 /* ---------- штрихкод: фото упаковки → EAN-13/EAN-8 → КБЖУ из Open Food Facts ----------
    На Android есть встроенный распознаватель (BarcodeDetector), на iPhone его нет — тогда свой разбор по строкам фото.
@@ -4760,7 +4788,7 @@ async function productSave(btn) {
   }
   if (ok) ok = await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; (day[meal] = Array.isArray(day[meal]) ? day[meal] : []).push({ id: (S.recipes.find(x => x.code === p.code) || { id }).id, g: Math.round(g) }); stampMeal(day, meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${title} ${Math.round(g)} г`);
   busy(btn, false);
-  if (ok) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${title}, ${Math.round(g)} г`); }
+  if (ok) { sheetDone(); toast(`${MEAL_NAME[meal]}: ${title}, ${Math.round(g)} г`); }
 }
 
 function hydrateImages(root) {
@@ -4861,7 +4889,7 @@ async function comboSave(btn) {
   }, `Еда: составное блюдо «${title}»`);
   if (ok && c.meal && !c.id) ok = await writeMeals(days => { const d = S.foodDate, day = days[d] = days[d] || {}; (day[c.meal] = Array.isArray(day[c.meal]) ? day[c.meal] : []).push(id); stampMeal(day, c.meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[c.meal]} — ${title}`);
   busy(btn, false);
-  if (ok) { closeSheet(); toast(c.meal && !c.id ? `${MEAL_NAME[c.meal]}: ${title}` : 'Сохранено'); }
+  if (ok) { sheetDone(); toast(c.meal && !c.id ? `${MEAL_NAME[c.meal]}: ${title}` : 'Сохранено'); }
 }
 function openRecipe(id) {
   const r = recipeById(id); if (!r) return;
@@ -4958,7 +4986,7 @@ async function recipeSave(btn) {
   }, `Рецепт: ${title || 'новый'}`);
   busy(btn, false);
   const rep = files.length ? uploadReport(up, files.length) : '';
-  if (ok) { closeSheet(); toast('Рецепт сохранён' + (rep ? ' · ' + rep : '') + '. Разберу, когда позовёшь — а выбрать его можно уже сейчас.'); }
+  if (ok) { sheetDone(); toast('Рецепт сохранён' + (rep ? ' · ' + rep : '') + '. Разберу, когда позовёшь — а выбрать его можно уже сейчас.'); }
 }
 
 /* ---------- money ---------- */
@@ -5002,7 +5030,7 @@ async function expenseSave() {
     if (ok) ok = await writeMonth(monthKey(date), items => items.concat([upd]), `Деньги: запись «${name}» перенесена из ${monthKey(old.date)}`);
   }
   if (!ok) return;
-  closeSheet(); toast('Сохранено');
+  sheetDone(); toast('Сохранено');
   if (kind === 'spend' && cat !== old.cat) writeLearned(name, cat);
 }
 function resizeImage(file) {
@@ -5673,7 +5701,7 @@ document.addEventListener('click', async ev => {
     case 'pult-save': {
       const v = (($('#pult-url') || {}).value || '').trim();
       if (!/^http:\/\/[\w.-]+:\d+\/\?k=[\w-]+$/i.test(v)) { toast('Вставь адрес из окна setup.ps1 целиком: http://…:8787/?k=…'); break; }
-      LS.set('bj-pult', v); closeSheet(); toast('Пульт сохранён — открываю'); window.open(v, '_blank'); break;
+      LS.set('bj-pult', v); sheetDone(); toast('Пульт сохранён — открываю'); window.open(v, '_blank'); break;
     }
     case 'news-ok': { const seen = new Set(LS.get('bj-news-seen') || []); (S.news || []).forEach(x => x && x.id && seen.add(x.id)); LS.set('bj-news-seen', Array.from(seen)); render(); break; }
     case 'news-all': openNews(); { const seen = new Set(LS.get('bj-news-seen') || []); (S.news || []).forEach(x => x && x.id && seen.add(x.id)); LS.set('bj-news-seen', Array.from(seen)); render(); } break;
@@ -5727,15 +5755,15 @@ document.addEventListener('click', async ev => {
       const bed = $('#sl-bed').value, wake = $('#sl-wake').value, note = ($('#sl-note').value || '').trim();
       if (!bed || !wake) { toast('Укажи, во сколько лёг и встал'); return; }
       busy(b, true);
-      if (await writeSleep(days => { const rec = { bed, wake }; if (note) rec.note = note; days[c.d] = rec; }, `Сон ${c.d}: ${bed}–${wake}`)) { closeSheet(); toast('Сон записан: ' + hm(sleepMin({ bed, wake }))); }
+      if (await writeSleep(days => { const rec = { bed, wake }; if (note) rec.note = note; days[c.d] = rec; }, `Сон ${c.d}: ${bed}–${wake}`)) { sheetDone(); toast('Сон записан: ' + hm(sleepMin({ bed, wake }))); }
       busy(b, false); break;
     }
-    case 'sleep-del': { const c = S.cur; if (!c || c.type !== 'sleep') return; busy(b, true); if (await writeSleep(days => { delete days[c.d]; }, `Сон ${c.d}: удалён`)) { closeSheet(); toast('Удалено'); } busy(b, false); break; }
+    case 'sleep-del': { const c = S.cur; if (!c || c.type !== 'sleep') return; busy(b, true); if (await writeSleep(days => { delete days[c.d]; }, `Сон ${c.d}: удалён`)) { sheetDone(); toast('Удалено'); } busy(b, false); break; }
     case 'sp-restore': busy(b, true); await setSportState(id, 'done'); busy(b, false); break;
     case 'sp-extra-del': {
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
       busy(b, true);
-      if (await writePlan(p => { p.sportExtra = p.sportExtra.filter(x => x.id !== id); delete p.sportMoves[id]; }, `Спорт: удалена добавленная тренировка ${id}`)) { S.sportList = S.sportList.filter(x => x.id !== id); closeSheet(); toast('Тренировка удалена'); }
+      if (await writePlan(p => { p.sportExtra = p.sportExtra.filter(x => x.id !== id); delete p.sportMoves[id]; }, `Спорт: удалена добавленная тренировка ${id}`)) { S.sportList = S.sportList.filter(x => x.id !== id); sheetDone(); toast('Тренировка удалена'); }
       busy(b, false); break;
     }
     case 'done-toggle': S.showAllDone = !S.showAllDone; renderLessons(); break;
@@ -5821,7 +5849,7 @@ document.addEventListener('click', async ev => {
     case 'acct-cards': openCards(); break;
     case 'auto-setup': openAutoSetup(); break;
     case 'budget': openBudget(); break;
-    case 'demo-toggle': if (demo()) LS.del('bj-demo'); else LS.set('bj-demo', 1); closeSheet(); render(); toast(demo() ? 'Демо-режим: долги и кредиты скрыты' : 'Демо-режим выключен'); break;
+    case 'demo-toggle': if (demo()) LS.del('bj-demo'); else LS.set('bj-demo', 1); sheetDone(); render(); toast(demo() ? 'Демо-режим: долги и кредиты скрыты' : 'Демо-режим выключен'); break;
     case 'q-edit': openQuarter(); break;
     case 'q-save': busy(b, true); await quarterSave(); busy(b, false); break;
     case 'dates': openDates(); break;
@@ -5856,13 +5884,13 @@ document.addEventListener('click', async ev => {
         const st = buildStudy(); const e = st.entries.find(x => x.date === today() && (!c.n || String(x.L.n) === String(c.n)));
         S.skipActual = true;
         if (e) await studyDone(e, today()); else { S.skipActual = false; openAddStudy(today()); }
-      } else { closeSheet(); toast('Время сохранено: ' + hmShort(c.min)); }
+      } else { sheetDone(); toast('Время сохранено: ' + hmShort(c.min)); }
       break;
     }
-    case 'actual-set': { const c = S.cur; if (!c || c.type !== 'actual') break; busy(b, true); const ok = await logStudy(Number(b.dataset.min), c.n, c.date, 'manual'); busy(b, false); if (ok) { closeSheet(); toast('Записал: ' + hmShort(Number(b.dataset.min))); } break; }
+    case 'actual-set': { const c = S.cur; if (!c || c.type !== 'actual') break; busy(b, true); const ok = await logStudy(Number(b.dataset.min), c.n, c.date, 'manual'); busy(b, false); if (ok) { sheetDone(); toast('Записал: ' + hmShort(Number(b.dataset.min))); } break; }
     case 'lesson-feel': {
       busy(b, true); const ok = await setFeel(b.dataset.n, b.dataset.v); busy(b, false);
-      if (ok) { document.querySelectorAll('[data-action="lesson-feel"]').forEach(x => x.classList.toggle('on', x === b)); if (S.cur && S.cur.type === 'feel') { closeSheet(); toast('Записал: ' + b.dataset.v + '/5'); } }
+      if (ok) { document.querySelectorAll('[data-action="lesson-feel"]').forEach(x => x.classList.toggle('on', x === b)); if (S.cur && S.cur.type === 'feel') { sheetDone(); toast('Записал: ' + b.dataset.v + '/5'); } }
       break;
     }
     case 'weight': openWeight(d); break;
@@ -5895,10 +5923,10 @@ document.addEventListener('click', async ev => {
       break;
     }
     case 'cards-save': busy(b, true); await cardsSave(); busy(b, false); break;
-    case 'unblock': busy(b, true); if (await writePlan(p => { delete p.studyDays[d]; }, `Учёба: окно ${d} возвращено`)) { S.shift = {}; closeSheet(); toast('Окно вернул'); render(); } busy(b, false); break;
+    case 'unblock': busy(b, true); if (await writePlan(p => { delete p.studyDays[d]; }, `Учёба: окно ${d} возвращено`)) { S.shift = {}; sheetDone(); toast('Окно вернул'); render(); } busy(b, false); break;
     case 'day': openDay(d); break;
-    case 'day-extra': busy(b, true); if (await writePlan(p => { p.studyDays[d] = { extra: Number(b.dataset.min) }; }, `Учёба: доп. окно ${d}`)) { S.shift = {}; closeSheet(); toast('Окно добавлено, уроки подтянулись'); } busy(b, false); break;
-    case 'day-unextra': busy(b, true); if (await writePlan(p => { delete p.studyDays[d]; }, `Учёба: доп. окно ${d} убрано`)) { closeSheet(); toast('Окно убрано'); } busy(b, false); break;
+    case 'day-extra': busy(b, true); if (await writePlan(p => { p.studyDays[d] = { extra: Number(b.dataset.min) }; }, `Учёба: доп. окно ${d}`)) { S.shift = {}; sheetDone(); toast('Окно добавлено, уроки подтянулись'); } busy(b, false); break;
+    case 'day-unextra': busy(b, true); if (await writePlan(p => { delete p.studyDays[d]; }, `Учёба: доп. окно ${d} убрано`)) { sheetDone(); toast('Окно убрано'); } busy(b, false); break;
     case 'cal-prev': calShift(-1); break;
     case 'cal-next': calShift(1); break;
     case 'ev-new': openEvent(null, d); break;
@@ -5907,7 +5935,7 @@ document.addEventListener('click', async ev => {
     case 'ev-del': {
       const e = S.cur && S.cur.ev; if (!e || !e.id) return;
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
-      busy(b, true); if (await writeEvents(list => { const k = list.findIndex(x => x.id === e.id); if (k >= 0) list.splice(k, 1); }, `События: удалено «${e.title}»`)) { closeSheet(); toast('Событие удалено'); } busy(b, false); break;
+      busy(b, true); if (await writeEvents(list => { const k = list.findIndex(x => x.id === e.id); if (k >= 0) list.splice(k, 1); }, `События: удалено «${e.title}»`)) { sheetDone(); toast('Событие удалено'); } busy(b, false); break;
     }
     case 'sport': openSport(id); break;
     case 'sp-done': {
@@ -5929,7 +5957,7 @@ document.addEventListener('click', async ev => {
       if (!note) { toast('Напиши, что сделал вместо программы'); if ($('#sp-note')) $('#sp-note').focus(); return; }
       busy(b, true); await setSportState(id, 'other', note, reasonVal('sp-reason') || undefined); busy(b, false); break;
     }
-    case 'sp-unmove': { const i = findInst(id); if (!i) return; busy(b, true); if (await writePlan(p => setMove(p, id, { movedTo: undefined }), `Спорт: ${id} возвращено`)) { closeSheet(); toast('Вернул на ' + short(i.orig)); } busy(b, false); break; }
+    case 'sp-unmove': { const i = findInst(id); if (!i) return; busy(b, true); if (await writePlan(p => setMove(p, id, { movedTo: undefined }), `Спорт: ${id} возвращено`)) { sheetDone(); toast('Вернул на ' + short(i.orig)); } busy(b, false); break; }
     case 'sp-move-auto': { const i = findInst(id); if (i && S.cur && S.cur.auto) { busy(b, true); await commitMove(i, S.cur.auto, reasonVal('sp-reason')); busy(b, false); } break; }
     case 'sp-move-date': {
       const i = findInst(id); const v = $('#sp-date') && $('#sp-date').value;
@@ -5983,11 +6011,11 @@ document.addEventListener('click', async ev => {
     case 'le-save': busy(b, true); await lessonSave(); busy(b, false); break;
     case 'le-up': busy(b, true); await lessonMove(-1); busy(b, false); break;
     case 'le-down': busy(b, true); await lessonMove(1); busy(b, false); break;
-    case 'le-undone': { const l = S.cur && S.cur.l; if (!l) return; busy(b, true); if (await writeLessons(list => { const x = list.find(y => y.id === l.id); if (x) { delete x.done; delete x.progress; delete x.progressDates; } }, `Учёба: урок ${l.n} снова в очереди`)) { closeSheet(); toast(`Урок ${l.n} снова в очереди`); } busy(b, false); break; }
+    case 'le-undone': { const l = S.cur && S.cur.l; if (!l) return; busy(b, true); if (await writeLessons(list => { const x = list.find(y => y.id === l.id); if (x) { delete x.done; delete x.progress; delete x.progressDates; } }, `Учёба: урок ${l.n} снова в очереди`)) { sheetDone(); toast(`Урок ${l.n} снова в очереди`); } busy(b, false); break; }
     case 'le-del': {
       const l = S.cur && S.cur.l; if (!l) return;
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
-      busy(b, true); if (await writeLessons(list => { const k = list.findIndex(y => y.id === l.id); if (k >= 0) list.splice(k, 1); }, `Учёба: урок ${l.n} удалён`)) { closeSheet(); toast(`Урок ${l.n} удалён`); } busy(b, false); break;
+      busy(b, true); if (await writeLessons(list => { const k = list.findIndex(y => y.id === l.id); if (k >= 0) list.splice(k, 1); }, `Учёба: урок ${l.n} удалён`)) { sheetDone(); toast(`Урок ${l.n} удалён`); } busy(b, false); break;
     }
     case 'req': S.cur = null; openRequests('new'); break;
     case 'rq-add': {
@@ -6053,13 +6081,13 @@ document.addEventListener('click', async ev => {
       const c = S.cur; if (!c || c.type !== 'meal' || !c.sel.length) return;
       const meal = b.dataset.meal, ids = c.sel.slice(), names = ids.map(x => (recipeById(x) || {}).title).filter(Boolean);
       busy(b, true);
-      if (await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; const arr = day[meal] = Array.isArray(day[meal]) ? day[meal] : []; ids.forEach(x => arr.push(x)); stampMeal(day, meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${names.join(', ').slice(0, 60)}`)) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${names.join(', ')}`.slice(0, 90)); }
+      if (await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; const arr = day[meal] = Array.isArray(day[meal]) ? day[meal] : []; ids.forEach(x => arr.push(x)); stampMeal(day, meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${names.join(', ').slice(0, 60)}`)) { sheetDone(); toast(`${MEAL_NAME[meal]}: ${names.join(', ')}`.slice(0, 90)); }
       busy(b, false); break;
     }
     case 'meal-add': {
       const meal = b.dataset.meal, r = recipeById(id); if (!r) return;
       busy(b, true);
-      if (await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; (day[meal] = Array.isArray(day[meal]) ? day[meal] : []).push(id); stampMeal(day, meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${r.title}`)) { closeSheet(); toast(`${MEAL_NAME[meal]}: ${r.title}`); }
+      if (await writeMeals(days => { const day = days[S.foodDate] = days[S.foodDate] || {}; (day[meal] = Array.isArray(day[meal]) ? day[meal] : []).push(id); stampMeal(day, meal); }, `Еда ${S.foodDate}: ${MEAL_NAME[meal]} — ${r.title}`)) { sheetDone(); toast(`${MEAL_NAME[meal]}: ${r.title}`); }
       busy(b, false); break;
     }
     case 'meal-remove': {
@@ -6086,7 +6114,7 @@ document.addEventListener('click', async ev => {
       const nv = k => { const el = $('#rn-' + k); return el ? numOrNull(el.value) : undefined; };
       const nums = { g: nv('g'), kcal: nv('kcal'), protein: nv('protein'), fat: nv('fat'), carbs: nv('carbs') }, was = dishNums(c.r) || {};
       const changed = ['g', 'kcal', 'protein', 'fat', 'carbs'].some(k => nums[k] !== undefined && (nums[k] == null ? was[k] != null : was[k] == null || Math.abs(r1(was[k]) - nums[k]) > 0.05));
-      if (await writeRecipes(list => { const x = list.find(r => r.id === c.r.id); if (x) { x.title = title; x.meals = meals; if (changed && nums.kcal != null) { ['g', 'kcal', 'protein', 'fat', 'carbs'].forEach(k => { if (nums[k] != null) x[k] = nums[k]; else delete x[k]; }); x.src = 'manual'; delete x.est; if (x.per100 && x.g) x.per100 = { kcal: r1(x.kcal / x.g * 100), p: r1((x.protein || 0) / x.g * 100), f: r1((x.fat || 0) / x.g * 100), c: r1((x.carbs || 0) / x.g * 100) }; } } }, `Рецепт: ${title}${changed ? ' — КБЖУ' : ''}`)) { closeSheet(); toast('Сохранено'); }
+      if (await writeRecipes(list => { const x = list.find(r => r.id === c.r.id); if (x) { x.title = title; x.meals = meals; if (changed && nums.kcal != null) { ['g', 'kcal', 'protein', 'fat', 'carbs'].forEach(k => { if (nums[k] != null) x[k] = nums[k]; else delete x[k]; }); x.src = 'manual'; delete x.est; if (x.per100 && x.g) x.per100 = { kcal: r1(x.kcal / x.g * 100), p: r1((x.protein || 0) / x.g * 100), f: r1((x.fat || 0) / x.g * 100), c: r1((x.carbs || 0) / x.g * 100) }; } } }, `Рецепт: ${title}${changed ? ' — КБЖУ' : ''}`)) { sheetDone(); toast('Сохранено'); }
       busy(b, false); break;
     }
     case 'rc-del': {
@@ -6096,7 +6124,7 @@ document.addEventListener('click', async ev => {
       if (usedIn.length) { toast(`Нельзя удалить: входит в «${usedIn[0].title}». Сначала убери из составного.`); return; }
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
       busy(b, true);
-      if (await writeRecipes(list => { const k = list.findIndex(r => r.id === rid0); if (k >= 0) list.splice(k, 1); }, `Еда: удалено «${r0.title}»`)) { closeSheet(); toast('Удалено'); }
+      if (await writeRecipes(list => { const k = list.findIndex(r => r.id === rid0); if (k >= 0) list.splice(k, 1); }, `Еда: удалено «${r0.title}»`)) { sheetDone(); toast('Удалено'); }
       busy(b, false); break;
     }
     case 'rc-attach': openRecipeNew(null, id); break;
@@ -6113,7 +6141,7 @@ document.addEventListener('click', async ev => {
       const c = S.cur; if (!c || c.type !== 'acct' || !c.a.id) return;
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
       busy(b, true);
-      if (await writeConfig(cfg => { const l = ((cfg.money || {}).accounts) || []; const k = l.findIndex(x => x.id === c.a.id); if (k >= 0) l.splice(k, 1); }, `Деньги: удалено «${c.a.name}»`)) { closeSheet(); toast('Удалено'); }
+      if (await writeConfig(cfg => { const l = ((cfg.money || {}).accounts) || []; const k = l.findIndex(x => x.id === c.a.id); if (k >= 0) l.splice(k, 1); }, `Деньги: удалено «${c.a.name}»`)) { sheetDone(); toast('Удалено'); }
       busy(b, false); break;
     }
     case 'm-prev': shiftPeriod(-1); break;
@@ -6123,7 +6151,7 @@ document.addEventListener('click', async ev => {
     case 'me-del': {
       const x = S.cur && S.cur.x; if (!x) return;
       if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажми ещё раз, чтобы удалить'; return; }
-      busy(b, true); if (await writeMonth(monthKey(x.date), items => items.filter(y => y.id !== x.id), `Деньги: удалена запись «${x.name}»`)) { closeSheet(); toast('Запись удалена'); } busy(b, false); break;
+      busy(b, true); if (await writeMonth(monthKey(x.date), items => items.filter(y => y.id !== x.id), `Деньги: удалена запись «${x.name}»`)) { sheetDone(); toast('Запись удалена'); } busy(b, false); break;
     }
   }
 });
