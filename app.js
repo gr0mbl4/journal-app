@@ -727,6 +727,7 @@ function applyData(d) {
   if (d.benefits) S.benefits = d.benefits;
   if (d.shop && !S.shopBusy) { S.shop = d.shop; LS.set('bj-shop', S.shop); }
   if (d.books) S.books = d.books;
+  if (d.pages) S.pages = Array.isArray(d.pages.pages) ? d.pages.pages : [];
   if (d.quiz) S.quiz = d.quiz && Array.isArray(d.quiz.quizzes) ? d.quiz : { quizzes: [] };
   if (d.exercises) S.ex = d.exercises && Array.isArray(d.exercises.items) ? d.exercises : { cats: [], items: [], complexes: [] };
   if (d.ideas) S.ideas = Array.isArray(d.ideas.ideas) ? d.ideas.ideas : [];
@@ -744,7 +745,7 @@ function applyData(d) {
   if (Array.isArray(d.inbox)) S.inbox = d.inbox;
 }
 function cacheNow() {
-  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog, dayOrder: S.dayOrder }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, exercises: S.ex, quiz: S.quiz, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
+  LS.set('bj-cache', { config: S.config, lessons: { lessons: S.lessons }, plan: { studyDays: S.studyDays, sportMoves: S.sportMoves, sportExtra: S.sportExtra, duties: S.duties, absences: S.absences, studyLog: S.studyLog, dayOrder: S.dayOrder }, body: S.body, quarters: S.quarters, english: S.english, benefits: S.benefits, shop: S.shop, books: S.books, exercises: S.ex, quiz: S.quiz, pages: { pages: S.pages || [] }, learned: { map: S.learned }, events: { events: S.events }, recipes: { recipes: S.recipes }, meals: S.meals, requests: { requests: S.requests }, ideas: { ideas: S.ideas }, reviews: { reviews: S.reviews }, portfolio: S.portfolio, sleep: S.sleep, curriculum: S.curriculum, money: S.money, workouts: S.workouts, inbox: S.inbox, ts: S.lastLoad });
 }
 async function fetchMonths(prefix, keys, empty) {
   const res = await Promise.all(keys.map(k => readDoc(prefix + k + '.json')));
@@ -761,13 +762,13 @@ async function loadAll(quiet) {
     if (queueCount()) await flushQueue();
     GH.changed = 0;
     GH.info().then(j => { if (j && j.private === false) { toast('Внимание: репозиторий с данными стал открытым! Сделай его приватным.'); setSync('Репозиторий с данными открытый — сделай приватным', true); } }).catch(() => {});
-    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop, booksDoc, exDoc, quizDoc] = await Promise.all([
+    const [config, lessons, plan, learned, events, inbox, recipes, meals, requests, ideas, sleep, curriculum, reviews, portfolio, body, qgoals, english, benefits, shop, booksDoc, exDoc, quizDoc, pagesDoc] = await Promise.all([
       readDoc('config.json'), readDoc('lessons.json'), readDoc('plan.json'), readDoc('learned.json'), readDoc('events.json'), Promise.all([GH.list('inbox/photos'), GH.list('inbox/receipts')]).then(([a, b]) => a.concat(b)),
-      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json'), readDoc('books.json'), readDoc('exercises.json'), readDoc('quiz.json')
+      readDoc('recipes.json'), readDoc('meals.json'), readDoc('requests.json'), readDoc('ideas.json'), readDoc('sleep.json'), readDoc('curriculum.json'), readDoc('reviews.json'), readDoc('portfolio.json'), readDoc('body.json'), readDoc('goals.json'), readDoc('english.json'), readDoc('benefits.json'), readDoc('shop.json'), readDoc('books.json'), readDoc('exercises.json'), readDoc('quiz.json'), readDoc('pages.json')
     ]);
     const inboxNames = inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name);
     const quietSame = S.ready && !GH.changed && !queueCount() && inboxNames.join('|') === (S.inbox || []).join('|');
-    if (!quietSame) applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, exercises: exDoc || { cats: [], items: [], complexes: [] }, quiz: quizDoc || { quizzes: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) });
+    if (!quietSame) applyData({ config, lessons: lessons || { lessons: [] }, plan: plan || {}, learned: learned || {}, events: events || { events: [] }, recipes: recipes || { recipes: [] }, meals: meals || { days: {} }, requests: requests || { requests: [] }, ideas: ideas || { ideas: [] }, sleep: sleep || { days: {} }, curriculum: curriculum || { blocks: [] }, reviews: reviews || { reviews: [] }, portfolio: portfolio || { projects: [], artifacts: [] }, body: body || { weight: {} }, quarters: (qgoals && qgoals.quarters) || {}, english: english || { cards: {}, sessions: [] }, benefits: benefits || { items: {} }, shop: shop || { items: [] }, books: booksDoc || { books: [], progress: {}, listen: {} }, exercises: exDoc || { cats: [], items: [], complexes: [] }, quiz: quizDoc || { quizzes: [] }, inbox: inbox.filter(f => f.type === 'file' && !/^\./.test(f.name)).map(f => f.name) , pages: pagesDoc || { pages: [] } });
     ensurePeriod();
     const mks = Array.from(new Set(periodMonths(S.period).concat([monthKey(today())])));
     const wks = [monthKey(today()), monthShift(monthKey(today()), -1)];
@@ -780,6 +781,7 @@ async function loadAll(quiet) {
     setSync(queueNote() || syncLabel());
     if (!$('#tab-lessons').hidden) { S.notes = S.notes || null; loadNotes(true); }
     processQuick();
+    usageLoad().then(() => { if (!$('#tab-plan').hidden) { const tk = document.getElementById('cu-today'); if (tk) tk.outerHTML = cuTodayHtml(); } });
     loadNews().then(() => { if (newsUnseen().length && !$('#tab-plan').hidden) renderTab('plan'); });
     checkNotesPushed();
     loadNotesDays();
@@ -2866,7 +2868,7 @@ function renderPlan() {
   const bn = $('#plan-banner'), st = $('#plan-stats'), tl = $('#plan-tails'), dy = $('#plan-days');
   renderSleep();
   if (!isReady()) { bn.innerHTML = bannerHtml(); st.innerHTML = tl.innerHTML = dy.innerHTML = ''; return; }
-  const banners = newsCardHtml() + notesReminderHtml() + reviewCardHtml(); bn.innerHTML = '';
+  const banners = cuTodayHtml() + newsCardHtml() + pagesCardHtml() + notesReminderHtml() + reviewCardHtml(); bn.innerHTML = '';
   const study = buildStudy(); S.studyCache = study;
   const sport = buildSport(); S.sportList = sport;
   const t = today();
@@ -5655,6 +5657,9 @@ document.addEventListener('click', async ev => {
     case 'news-ok': { const seen = new Set(LS.get('bj-news-seen') || []); (S.news || []).forEach(x => x && x.id && seen.add(x.id)); LS.set('bj-news-seen', Array.from(seen)); render(); break; }
     case 'news-all': openNews(); { const seen = new Set(LS.get('bj-news-seen') || []); (S.news || []).forEach(x => x && x.id && seen.add(x.id)); LS.set('bj-news-seen', Array.from(seen)); render(); } break;
     case 'news-open': openNews(); break;
+    case 'pg-open': openPage(b.dataset.id); break;
+    case 'pg-check': await pageMark(b.dataset.id, b.dataset.k, v => !v); break;
+    case 'pg-count': await pageMark(b.dataset.id, b.dataset.k, v => Math.max(0, (Number(v) || 0) + Number(b.dataset.d || 1))); break;
     case 'upd-st': busy(b, true); await updSet(id, { st: b.dataset.st }); busy(b, false); break;
     case 'upd-add': {
       const t = (($('#upd-t') || {}).value || '').trim();
@@ -6454,6 +6459,15 @@ async function usageLoad() {
   try { const d = await readDoc('usage.json'); S.usage = d && Array.isArray(d.log) ? d : { log: [] }; }
   catch (_) { S.usage = S.usage || { log: [] }; }
   // у человека со своим репозиторием (config.claude.people[].repo) расход лежит там — в его usage.json
+  // друг со своим GitHub (Юра): Claude пишет его расход сюда же, в файл p.file (friends/<имя>.json → usage, без who)
+  for (const p of cuPeople().filter(p => p.file)) {
+    try {
+      const d = await readDoc(p.file);
+      const rows = (d && Array.isArray(d.usage) ? d.usage : []).map(x => Object.assign({}, x, { who: p.id }));
+      if (d && d.limits) p.limits = d.limits;
+      S.usage.log = S.usage.log.filter(x => x.who !== p.id).concat(rows);
+    } catch (_) { /* файла ещё нет */ }
+  }
   for (const p of cuPeople().filter(p => p.repo && p.repo !== GH.cred.repo)) {
     try {
       const d = JSON.parse(await (await GH.rawIn(p.repo, 'usage.json')).text());
@@ -6462,6 +6476,18 @@ async function usageLoad() {
     } catch (_) { /* нет доступа токену или файла ещё нет — полоска останется пустой */ }
   }
   const box = document.getElementById('cu-box'); if (box) box.innerHTML = usageHtml();
+  const tk = document.getElementById('cu-today'); if (tk) tk.outerHTML = cuTodayHtml();
+}
+// метка на «Плане»: сколько Claude потратил сегодня — на кого (правило Олега 08.11: «метка токенов для него и для меня»)
+function cuTodayHtml() {
+  if (!S.usage) return '<div id="cu-today" hidden></div>';
+  const t = new Date(Date.now() + MSK_MS).toISOString().slice(0, 10), c = (S.config || {}).claude || {};
+  const sum = {}; cuLog().filter(x => x.d === t).forEach(x => { sum[x.who] = (sum[x.who] || 0) + (Number(x.w) || 0); });
+  const ppl = cuPeople().filter(p => p.file || p.id === 'oleg' || p.id === 'yura' || sum[p.id]);
+  if (!ppl.length) return '<div id="cu-today" hidden></div>';
+  const lim = p => Number((p.limits || (p.id === 'yura' ? c.limits : null) || {}).dayW) || 0;
+  return `<button type="button" id="cu-today" class="cu-today" data-action="menu"><span class="m">Claude сегодня</span>${ppl.map(p => { const v = sum[p.id] || 0, L = lim(p);
+    return `<span class="cu-tk${L && v >= L * 0.9 ? ' hot' : ''}"><b>${esc(p.name)}</b> ${esc(v ? cuFmt(v) : '0')}${L ? ' из ' + esc(cuFmt(L)) : ''}</span>`; }).join('')}</button>`;
 }
 function openUsageCal() {
   const wk = cuSum(cuWeek()), s5 = cuSum(cuHours(5));
@@ -6475,9 +6501,56 @@ function openUsageCal() {
     <div class="two"><select id="cu-rd">${[1, 2, 3, 4, 5, 6, 0].map(d => `<option value="${d}"${(((S.config || {}).claude || {}).weekReset || { dow: 4 }).dow == d ? ' selected' : ''}>${DOW_S[d]}</option>`).join('')}</select><input id="cu-rt" type="time" value="${esc((((S.config || {}).claude || {}).weekReset || {}).hm || '09:00')}"></div>
     <div class="sh-acts"><button type="button" class="btn primary block" data-action="cu-cal-save">Сохранить</button></div>`);
 }
+/* ---------- свои разделы (pages.json): страницы, которые собирает Claude по просьбе человека ----------
+   {pages: [{id, title, icon?, daily?, blocks: [{type: "text", md} | {type: "check", items: [{id, text}]} | {type: "counter", id, label, goal?, step?, unit?} | {type: "list", items: [текст]}], state: {...} | {"ГГГГ-ММ-ДД": {...}}}]}
+   daily — отметки и счётчики обнуляются каждый день (state по датам). Меняет только отметки; страницы пишет Claude. */
+function myPages() { return (Array.isArray(S.pages) ? S.pages : []).filter(p => p && p.id && Array.isArray(p.blocks)); }
+const PG_ICONS = ['rocket', 'bolt', 'flame', 'check', 'bars', 'star', 'target', 'chat', 'shield', 'scale', 'gift', 'film', 'cart', 'moon', 'play', 'book', 'dumb', 'headphones'];
+function pgIcon(p) { return PG_ICONS.includes(p.icon) ? p.icon : 'star'; }
+function pgState(p) { const st = p.state || {}; return p.daily ? (st[today()] || {}) : st; }
+function pgMd(t) {
+  return String(t || '').split('\n').map(l => {
+    const h = /^#{1,3}\s+(.*)$/.exec(l), li = /^\s*[-•]\s+(.*)$/.exec(l);
+    const fmt = x => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    return h ? `<h3 class="sec">${fmt(h[1])}</h3>` : li ? `<div class="pg-li">• ${fmt(li[1])}</div>` : l.trim() ? `<p class="note">${fmt(l)}</p>` : '';
+  }).join('');
+}
+function pagesCardHtml() {
+  const l = myPages(); if (!l.length) return '';
+  return `<section class="pg-row">${l.map(p => { const st = pgState(p), ch = p.blocks.filter(b => b.type === 'check').flatMap(b => b.items || []), dn = ch.filter(i => st[i.id]).length;
+    return `<button type="button" class="pg-chip" data-action="pg-open" data-id="${esc(p.id)}"><span class="mi-ic">${ico(pgIcon(p))}</span><span>${esc(p.title || 'Раздел')}</span>${ch.length ? `<small>${dn}/${ch.length}</small>` : ''}</button>`; }).join('')}</section>`;
+}
+function openPage(id) {
+  const p = myPages().find(x => x.id === id); if (!p) { toast('Раздела нет — обнови журнал'); return; }
+  const st = pgState(p);
+  S.cur = { type: 'page', id };
+  const body = p.blocks.map((b, k) => {
+    if (b.type === 'text') return pgMd(b.md);
+    if (b.type === 'list') return `<div class="stack">${(b.items || []).map(t => `<div class="pg-li">• ${esc(t)}</div>`).join('')}</div>`;
+    if (b.type === 'check') return `<div class="stack">${(b.items || []).map(i => `<button type="button" class="pg-ck${st[i.id] ? ' on' : ''}" data-action="pg-check" data-id="${esc(p.id)}" data-k="${esc(i.id)}"><span class="pg-box">${st[i.id] ? ico('check') : ''}</span><span>${esc(i.text)}</span></button>`).join('')}</div>`;
+    if (b.type === 'counter') { const v = Number(st[b.id]) || 0, g = Number(b.goal) || 0;
+      return `<div class="pg-cnt"><span class="pg-cl">${esc(b.label || '')}</span><button type="button" class="btn sm" data-action="pg-count" data-id="${esc(p.id)}" data-k="${esc(b.id)}" data-d="-${Number(b.step) || 1}">−</button><b>${v}${g ? ' / ' + g : ''}${b.unit ? ' ' + esc(b.unit) : ''}</b><button type="button" class="btn sm" data-action="pg-count" data-id="${esc(p.id)}" data-k="${esc(b.id)}" data-d="${Number(b.step) || 1}">+</button></div>`; }
+    return '';
+  }).join('');
+  openSheet(`<h2 class="sh-title">${esc(p.title || 'Раздел')}</h2>${p.daily ? `<p class="sh-meta">Отметки на сегодня, ${esc(dm(today()))}</p>` : ''}${body || '<p class="note">Пусто.</p>'}
+    <p class="note">Поменять раздел — напиши Claude в чат: «в разделе ${esc(p.title || '')} добавь …».</p>`, true);
+}
+async function pageMark(id, key, fn) {
+  const t = today();
+  const next = await write('pages.json', d => {
+    d.pages = Array.isArray(d.pages) ? d.pages : [];
+    const p = d.pages.find(x => x && x.id === id); if (!p) return d;
+    p.state = p.state || {};
+    const st = p.daily ? (p.state[t] = p.state[t] || {}) : p.state;
+    st[key] = fn(st[key]);
+    if (p.daily) Object.keys(p.state).filter(k => /^\d{4}-\d\d-\d\d$/.test(k) && k < addDays(t, -60)).forEach(k => delete p.state[k]);
+    return d;
+  }, 'Раздел: отметка', { pages: [] });
+  if (next) { S.pages = next.pages; cacheNow(); if (S.cur && S.cur.type === 'page' && S.cur.id === id) openPage(id); if (S.tab === 'plan') renderTab('plan'); }
+}
 function openMenu() {
   const e = enStats(), bs = benStats(), rd = S.ready && isReady() ? readiness() : null;
-  const items = [
+  const items = myPages().map(p => ['pg-open', pgIcon(p), p.title || 'Раздел', 'мой раздел', 'c-teal', `data-id="${esc(p.id)}"`]).concat([
     ['rev-open', 'bars', 'Итоги', 'неделя · месяц · год', 'c-blue', 'data-type="week"'],
     ['pf-open', 'star', 'Портфолио', S.ready && curBlocks().length ? 'ур. ' + pfStats().lvl : '', 'c-violet'],
     ['books', 'headphones', 'Книги', (() => { const l = books(); return l.length ? l.length + ' ' + plural(l.length, 'книга', 'книги', 'книг') : 'аудио по главам'; })(), 'c-amber'],
@@ -6494,7 +6567,7 @@ function openMenu() {
     ['auto-setup', 'sms', 'Автозапись', 'SMS банка', 'c-gray'],
     ['demo-toggle', 'film', demo() ? 'Демо: вкл' : 'Демо-режим', demo() ? 'нажми, чтобы выключить' : 'скрыть долги', demo() ? 'c-red' : 'c-gray'],
     ['settings', 'gear', 'GitHub', S.lastLoad ? 'обновлено ' + hhmm(new Date(S.lastLoad)) : 'подключение', 'c-gray']
-  ];
+  ]);
   openSheet(`<h2 class="sh-title">Меню</h2><div id="cu-box">${usageHtml()}</div><div class="menu-grid">${items.map(([a, i, t, sub, c, extra]) => `<button type="button" class="mi ${c}" data-action="${a}" ${extra || ''}><span class="mi-ic">${ico(i)}</span><span class="mi-t">${esc(t)}</span>${sub ? `<span class="mi-s">${esc(sub)}</span>` : ''}</button>`).join('')}</div>`);
 }
 
