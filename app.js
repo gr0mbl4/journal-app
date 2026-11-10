@@ -2542,8 +2542,17 @@ async function goalSave() {
   if (ok) { sheetDone(); toast('Сохранено'); }
 }
 function regularRows(d) {
+  /* платёж виден только за день до срока и в день срока; прошедшие дни не показываем (правило Олега, 10.11) */
   const t = today(); if (d < t) return [];
-  return regulars().filter(r => nextDue(r, d) === d && !(d <= periodEnd(periodOf(t)) && regularPaid(r))).map(r => `<button type="button" class="row slim" data-action="reg" data-id="${esc(r.id)}"><span class="tag pay">Платёж</span><span class="rb"><span class="t">${esc(r.name)}</span></span><span class="s">${fmt(r.amount)} ${esc(curSym())}</span></button>`);
+  const nx = addDays(d, 1);
+  const row = (r, soon) => `<button type="button" class="row slim" data-action="reg" data-id="${esc(r.id)}"><span class="tag pay">${soon ? 'Завтра платёж' : 'Платёж'}</span><span class="rb"><span class="t">${esc(r.name)}</span></span><span class="s">${fmt(r.amount)} ${esc(curSym())}</span></button>`;
+  const out = [];
+  regulars().forEach(r => {
+    if (regularPaid(r) && d <= periodEnd(periodOf(t))) return;
+    if (nextDue(r, d) === d) out.push(row(r, false));
+    else if (nextDue(r, nx) === nx) out.push(row(r, true));
+  });
+  return out;
 }
 /* ---------- простые графики (одна серия, без легенды) ---------- */
 const compact = v => Math.abs(v) >= 1000 ? (Math.round(v / 100) / 10).toString().replace('.', ',') + 'к' : String(Math.round(v));
